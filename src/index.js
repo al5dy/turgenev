@@ -4,6 +4,7 @@ import { Icon, Button, Panel, PanelBody, PanelRow, FormToggle  } from '@wordpres
 import { withState } from '@wordpress/compose';
 import { Fragment } from '@wordpress/element';
 const { select } = wp.data;
+import { sprintf, _n, __ } from '@wordpress/i18n';
 import './index.scss';
 
 
@@ -53,7 +54,7 @@ const makeTable = (data) => {
   if(data.hasOwnProperty('error')) {
     tableContent += `<tr><th>${data.error}</th></tr>`;
   } else {
-    tableContent += `<tr><th>Overall risk</th><td>${data.level.charAt(0).toUpperCase() + data.level.slice(1)} <strong>(${data.risk})</strong></td></tr>
+    tableContent += `<tr><th>${ __('Overall risk','turgenev') }</th><td>${data.level.charAt(0).toUpperCase() + data.level.slice(1)} <strong>(${data.risk})</strong></td></tr>
         <tr><th>Report</th><td><a href="${URL}/?t=${data.link}" target="_blank">More</a></td></tr>
         `;
     for (const prop in details) {
@@ -127,7 +128,7 @@ const Balance = () => (
 
 const MyButton = () => (
   <Button isSecondary onClick={ checkContent }>
-    Check content
+    { __('Check content','turgenev') }
   </Button>
 );
 

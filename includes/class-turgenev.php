@@ -187,6 +187,9 @@ final class Turgenev {
 
 
       wp_localize_script( 'turgenev-script', 'turgenev_ajax', $localize_params );
+
+      wp_register_style( 'turgenev-style', $this->plugin_url() . '/build/index.css' );
+      wp_enqueue_style( 'turgenev-style' );
     }
 
   }

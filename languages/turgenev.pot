@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Turgenev\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-28 23:06+0300\n"
+"POT-Creation-Date: 2020-06-28 23:54+0300\n"
 "PO-Revision-Date: 2017-10-10 14:30+0300\n"
 "Last-Translator: Anton L <someemail@someemail.com>\n"
 "Language-Team: Ziscod\n"
@@ -21,7 +21,7 @@ msgstr ""
 "X-Poedit-SearchPathExcluded-0: node_modules\n"
 
 #: includes/class-tg-admin.php:37 includes/class-tg-admin.php:62
-msgid "Turgenev"
+msgid "\"Turgenev\""
 msgstr ""
 
 #: includes/class-tg-admin.php:43
@@ -43,7 +43,7 @@ msgid "Check content"
 msgstr ""
 
 #: includes/class-tg-admin.php:61
-msgid "Turgenev Settings"
+msgid "\"Turgenev\" Settings"
 msgstr ""
 
 #: includes/class-tg-admin.php:102

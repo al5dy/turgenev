@@ -34,7 +34,7 @@ class TG_Admin {
 
   function add_custom_box() {
     $screens = [ 'post', 'page' ];
-    add_meta_box( 'turgenev_metabox', __('Turgenev','turgenev'), [ $this, 'meta_box_cb' ], $screens, 'side', 'high');
+    add_meta_box( 'turgenev_metabox', __('"Turgenev"','turgenev'), [ $this, 'meta_box_cb' ], $screens, 'side', 'high');
   }
 
   public function meta_box_cb( $post, $meta ) {
@@ -58,8 +58,8 @@ class TG_Admin {
    */
   public function add_plugin_page() {
     add_options_page(
-      __( 'Turgenev Settings', 'turgenev' ),
-      __( 'Turgenev', 'turgenev' ),
+      __( '"Turgenev" Settings', 'turgenev' ),
+      __( '"Turgenev"', 'turgenev' ),
       'manage_options',
       'turgenev-settings',
       [ $this, 'create_admin_page' ]
