@@ -1,0 +1,149 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Turgenev\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-06-28 23:06+0300\n"
+"PO-Revision-Date: 2020-06-28 23:10+0300\n"
+"Last-Translator: Anton Lokotkov (ziscod) <fakeemail@fakeemail.com>\n"
+"Language-Team: Ziscod\n"
+"Language: ru_RU\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-KeywordsList: __;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;"
+"esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;"
+"_n_noop:1,2;_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
+"X-Poedit-Basepath: ..\n"
+"X-Generator: Poedit 2.3.1\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+"X-Poedit-SearchPath-0: .\n"
+"X-Poedit-SearchPathExcluded-0: node_modules\n"
+
+#: includes/class-tg-admin.php:37 includes/class-tg-admin.php:62
+msgid "Turgenev"
+msgstr "Тургенев"
+
+#: includes/class-tg-admin.php:43
+msgid "Current balance:"
+msgstr "Текущий баланс:"
+
+#: includes/class-tg-admin.php:45
+msgid "Check raw content"
+msgstr "Проверить исходный контент"
+
+#: includes/class-tg-admin.php:46
+msgid ""
+"If the option is enabled, then the content will be checked without HTML "
+"tags. Only plain text."
+msgstr ""
+"Если данная опция включена, то контент будет проверяться без HTML тегов. "
+"Только исходный текст."
+
+#: includes/class-tg-admin.php:48
+msgid "Check content"
+msgstr "Проверка контента"
+
+#: includes/class-tg-admin.php:61
+msgid "Turgenev Settings"
+msgstr "Настройки Тургенева"
+
+#: includes/class-tg-admin.php:102
+msgid "API settings"
+msgstr "Настройки API"
+
+#: includes/class-tg-admin.php:109
+msgid "API key"
+msgstr "Ключ API"
+
+#: includes/class-tg-admin.php:148
+#, php-format
+msgid "Something went wrong: %s"
+msgstr "Что-то пошло не так: %s"
+
+#: includes/class-tg-admin.php:153
+msgid "Enter a valid API key."
+msgstr "Введите правильный API ключ."
+
+#: includes/class-tg-admin.php:173
+#, php-format
+msgid ""
+"First, generate a unique API key in %syour account%s and use it in requests "
+"to Turgenev. They will be charged at a reduced price - only 30 kopecks per "
+"check - regardless of the availability of a subscription."
+msgstr ""
+"Для начала, сгенерируйте уникальный API-ключ в %sвашем аккаунте%s и "
+"используйте его в запросах к «Тургеневу». Они будут тарифицироваться по "
+"льготной цене — всего 30 копеек за проверку — независимо от наличия "
+"подписки."
+
+#: includes/class-tg-admin.php:201
+msgid "Go to settings"
+msgstr "Перейти в настройки"
+
+#: includes/class-tg-admin.php:201
+msgid "Settings"
+msgstr "Настройки"
+
+#: includes/class-tg-admin.php:202
+msgid "Send money to me"
+msgstr "Пожертвовать на развитие плагина"
+
+#: includes/class-tg-admin.php:202
+msgid "Donate"
+msgstr "Пожертвовать"
+
+#~ msgid "Yandex Maps For Gutenberg"
+#~ msgstr "Яндекс Карты для редактора Gutenberg"
+
+#~ msgid "Yandex Map"
+#~ msgstr "Яндекс Карта"
+
+#~ msgid "Block showing a Yandex Map"
+#~ msgstr "Блок для вывода Яндекс Карты"
+
+#~ msgid "Width"
+#~ msgstr "Ширина"
+
+#~ msgid "Height"
+#~ msgstr "Высота"
+
+#~ msgid "You can get latitude and longitude here:"
+#~ msgstr "Значения широты и долготы вы можете взять по ссылке:"
+
+#~ msgid "Latitude"
+#~ msgstr "Широта"
+
+#~ msgid "Longitude"
+#~ msgstr "Долгота"
+
+#~ msgid "Zoom"
+#~ msgstr "Масштаб"
+
+#~ msgid "Add Placemark"
+#~ msgstr "Добавить метку"
+
+#~ msgid "Placemark"
+#~ msgstr "Метка"
+
+#~ msgid "Hint"
+#~ msgstr "Подсказка"
+
+#~ msgid "Content"
+#~ msgstr "Текст"
+
+#~ msgid "Click here to activate"
+#~ msgstr "Щелкните тут для активации"
+
+#~ msgctxt "Yandex Maps For Gutenberg"
+#~ msgid "Yandex Maps For Gutenberg"
+#~ msgstr "Яндекс Карты для редактора Gutenberg"
+
+#~ msgctxt "Description:"
+#~ msgid "Yandex Maps For Gutenberg"
+#~ msgstr "Яндекс Карты для редактора Gutenberg"
+
+#~ msgctxt "Description"
+#~ msgid "Yandex Maps For Gutenberg"
+#~ msgstr "Яндекс Карты для редактора Gutenberg"

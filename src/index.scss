@@ -1,0 +1,54 @@
+#turgenev-panel {
+  *, ::after, ::before {
+    box-sizing: border-box;
+  }
+
+  .components-form-toggle {
+    margin-right: 16px;
+  }
+
+  small {
+    display: block;
+    margin-top: 8px;
+    font-style: italic;
+  }
+}
+#turgenev-table {
+  margin: 25px -5px 0 -5px;
+  &:empty {
+    display: none;
+  }
+  .form-table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  table {
+    th {
+      width: auto;
+    }
+
+    th, td {
+      padding: 8px 5px;
+      border-top: 1px solid #f9f9f9;
+      &.tg-head {
+        border-width: 2px;
+        border-color: #dee2e6;
+        border-bottom: 2px solid #f9f9f9;
+      }
+    }
+  }
+  td {
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  tr {
+    &:first-child {
+      td, th {
+        border: 0;
+      }
+    }
+  }
+}

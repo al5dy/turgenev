@@ -1,0 +1,16 @@
+{
+  "name": "turgenev",
+  "version": "1.0.0",
+  "description": "Assesses the risk of falling under the \"Baden-Baden\" and shows what needs to be fixed",
+  "main": "build/index.js",
+  "scripts": {
+    "start": "wp-scripts start src/index.js src/index_old.js --output-path=build",
+    "build": "wp-scripts build src/index.js src/index_old.js --output-path=build",
+    "format:js": "wp-scripts format-js"
+  },
+  "author": "Anton Lokotkov aka al5dy",
+  "license": "(ISC) GPL-3.0-or-later",
+  "devDependencies": {
+    "@wordpress/scripts": "12.0.0"
+  }
+}
