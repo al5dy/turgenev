@@ -42,10 +42,10 @@ class TG_Admin {
     <div id="turgenev-panel">
     <p><?php echo esc_html__('Current balance:','turgenev'); ?> <strong id="turgenev-balance">...</strong></p>
     <p>
-      <label for="turgenev_raw" class="selectit"><input name="turgenev_raw" type="checkbox" id="turgenev_raw" value="open"> <?php echo esc_html__('Check raw content','turgenev'); ?></label>
+      <label for="turgenev_raw" class="selectit"><input name="turgenev_raw" checked onchange="TG.contentTypeToggle(event)" type="checkbox" id="turgenev_raw" value="open"> <?php echo esc_html__('Check raw content','turgenev'); ?></label>
       <small><?php echo esc_html__('If the option is enabled, then the content will be checked without HTML tags. Only plain text.','turgenev'); ?></small>
     </p>
-      <button type="button" class="button"><?php echo esc_html__('Check content','turgenev'); ?></button>
+      <button type="button" class="button" onclick="TG.checkContent()"><?php echo esc_html__('Check content','turgenev'); ?></button>
       <div id="turgenev-table"></div>
     </div>
     <?php

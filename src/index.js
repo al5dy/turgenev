@@ -10,6 +10,7 @@ import './index.scss';
 const PLUGIN_NAMESPACE = 'turgenev';
 const pluginTitle = 'Turgenev';
 let checkRawContent = true;
+const URL = 'https://turgenev.ashmanov.com';
 
 const PluginIcon = () => (
   <Icon
@@ -23,10 +24,9 @@ const PluginIcon = () => (
 
 const checkBalance = () => {
   const xhr = new XMLHttpRequest();
-  const url = 'https://turgenev.ashmanov.com';
   const data = `api=balance&key=${turgenev_ajax.api_key}`;
 
-  xhr.open('POST', url, true);
+  xhr.open('POST', URL, true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
   xhr.onload = function() {
     if (xhr.status >= 200 && xhr.status < 300) {
@@ -54,7 +54,7 @@ const makeTable = (data) => {
     tableContent += `<tr><th>${data.error}</th></tr>`;
   } else {
     tableContent += `<tr><th>Overall risk</th><td>${data.level.charAt(0).toUpperCase() + data.level.slice(1)} <strong>(${data.risk})</strong></td></tr>
-        <tr><th>Report</th><td><a href="http://turgenev.ashmanov.com/?t=${data.link}" target="_blank">More</a></td></tr>
+        <tr><th>Report</th><td><a href="${URL}/?t=${data.link}" target="_blank">More</a></td></tr>
         `;
     for (const prop in details) {
       const label = details[prop].block.charAt(0).toUpperCase() + details[prop].block.slice(1);
@@ -62,7 +62,7 @@ const makeTable = (data) => {
       const params = details[prop].params;
       const link = details[prop].link;
 
-      tableContent += `<tr><th class="tg-head">${label} (${total})</th><td class="tg-head"><a href="http://turgenev.ashmanov.com/?t=${link}" target="_blank">More</a></td></tr>`;
+      tableContent += `<tr><th class="tg-head">${label} (${total})</th><td class="tg-head"><a href="${URL}/?t=${link}" target="_blank">More</a></td></tr>`;
 
       for (const paramProp in params) {
         const name = params[paramProp].name;
@@ -93,7 +93,7 @@ const checkContent = () => {
     contentClear = content;
   }
 
-  const url = 'https://turgenev.ashmanov.com';
+
   const data = `api=risk&more=1&key=${turgenev_ajax.api_key}&text=${contentClear}`;
   const panel = document.getElementById('turgenev-panel');
 
@@ -101,7 +101,7 @@ const checkContent = () => {
   panel.style.cursor = 'default';
   panel.style.pointerEvents = 'none';
 
-  xhr.open('POST', url, true);
+  xhr.open('POST', URL, true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
   xhr.onload = function() {
     if (xhr.status >= 200 && xhr.status < 300) {
