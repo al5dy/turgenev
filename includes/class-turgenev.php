@@ -52,7 +52,8 @@ final class Turgenev {
   /**
    * Restricts the cloning of an object
    */
-  private function __clone() {}
+  private function __clone() {
+  }
 
   /**
    * Turgenev Constructor.
@@ -83,8 +84,14 @@ final class Turgenev {
   private function init_hooks() {
     add_action( 'init', [ $this, 'init' ], 0 );
     add_action( 'enqueue_block_editor_assets', [ $this, 'load_editor_assets' ] );
-    add_action('admin_enqueue_scripts', [$this, 'load_admin_assets']);
+    add_action( 'admin_enqueue_scripts', [ $this, 'load_admin_assets' ] );
 
+   // add_action( 'init', [$this, 'myguten_set_script_translations'] );
+  }
+
+  public function myguten_set_script_translations() {
+    //wp_set_script_translations( 'myguten-script', 'myguten', plugin_dir_path( __FILE__ ) . 'languages' );
+    var_dump(wp_set_script_translations( 'turgenev-script', 'turgenev', $this->plugin_path() . '/languages' ));
   }
 
   /**
@@ -117,7 +124,7 @@ final class Turgenev {
    * @return bool
    */
   public function is_gutenberg_active() {
-    $gutenberg    = false;
+    $gutenberg = false;
     $block_editor = false;
 
     if ( has_filter( 'replace_editor', 'gutenberg_init' ) ) {
@@ -146,12 +153,9 @@ final class Turgenev {
   }
 
 
-
-
-
   public function load_admin_assets() {
     $option = get_option( 'turgenev' );
-    if ( $this->is_valid_apikey() && !$this->is_gutenberg_active() ) {
+    if ( $this->is_valid_apikey() && ! $this->is_gutenberg_active() ) {
 
       wp_register_script( 'turgenev-script', $this->plugin_url() . '/build/index_old.js' );
       wp_enqueue_script( 'turgenev-script' );
@@ -190,6 +194,9 @@ final class Turgenev {
 
       wp_register_style( 'turgenev-style', $this->plugin_url() . '/build/index.css' );
       wp_enqueue_style( 'turgenev-style' );
+
+
+      wp_set_script_translations( 'turgenev-script', 'turgenev', $this->plugin_path() . '/languages' );
     }
 
   }

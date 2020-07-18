@@ -1,154 +1,113 @@
+# Copyright (C) 2020 al5dy
+# This file is distributed under the same license as the Turgenev plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: Turgenev\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-28 23:54+0300\n"
-"PO-Revision-Date: 2020-06-28 23:54+0300\n"
-"Last-Translator: Anton Lokotkov (ziscod) <fakeemail@fakeemail.com>\n"
-"Language-Team: Ziscod\n"
-"Language: ru_RU\n"
+"Project-Id-Version: Turgenev 1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/turgenev\n"
+"Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Poedit-KeywordsList: __;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;"
-"esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;_n_noop:1,2;"
-"_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
-"X-Poedit-Basepath: ..\n"
+"POT-Creation-Date: 2020-07-18T22:31:36+03:00\n"
+"PO-Revision-Date: 2020-07-18 22:35+0300\n"
 "X-Generator: Poedit 2.3.1\n"
-"X-Poedit-SourceCharset: UTF-8\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
-"X-Poedit-SearchPath-0: .\n"
-"X-Poedit-SearchPathExcluded-0: node_modules\n"
+"X-Domain: turgenev\n"
+"Last-Translator: Anton Lokotkov (ziscod) <fakeemail@fakeemail.com>\n"
+"Language-Team: \n"
+
+#. Plugin Name of the plugin
+msgid "Turgenev"
+msgstr ""
+
+#. Plugin URI of the plugin
+msgid "https://turgenev.ashmanov.com/"
+msgstr ""
+
+#. Description of the plugin
+msgid "Assesses the risk of falling under the \"Baden-Baden\" and shows what needs to be fixed"
+msgstr ""
+
+#. Author of the plugin
+msgid "al5dy"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://ziscod.com"
+msgstr ""
 
 #: includes/class-tg-admin.php:37 includes/class-tg-admin.php:62
+#: build/index.js:123 src/index.js:12
 msgid "\"Turgenev\""
 msgstr "\"Тургенев\""
 
-#: includes/class-tg-admin.php:43
+#: includes/class-tg-admin.php:43 build/index.js:232 src/index.js:127
 msgid "Current balance:"
-msgstr "Текущий баланс:"
+msgstr ""
 
 #: includes/class-tg-admin.php:45
 msgid "Check raw content"
-msgstr "Проверить исходный контент"
+msgstr ""
 
 #: includes/class-tg-admin.php:46
-msgid ""
-"If the option is enabled, then the content will be checked without HTML "
-"tags. Only plain text."
+msgid "If the option is enabled, then the content will be checked without HTML tags. Only plain text."
 msgstr ""
-"Если данная опция включена, то контент будет проверяться без HTML тегов. "
-"Только исходный текст."
 
-#: includes/class-tg-admin.php:48
+#: includes/class-tg-admin.php:48 build/index.js:242 src/index.js:132
 msgid "Check content"
-msgstr "Проверка контента"
+msgstr ""
 
 #: includes/class-tg-admin.php:61
 msgid "\"Turgenev\" Settings"
-msgstr "Настройки \"Тургенева\""
+msgstr ""
 
 #: includes/class-tg-admin.php:102
 msgid "API settings"
-msgstr "Настройки API"
+msgstr ""
 
 #: includes/class-tg-admin.php:109
 msgid "API key"
-msgstr "Ключ API"
+msgstr ""
 
 #: includes/class-tg-admin.php:148
-#, php-format
 msgid "Something went wrong: %s"
-msgstr "Что-то пошло не так: %s"
+msgstr ""
 
 #: includes/class-tg-admin.php:153
 msgid "Enter a valid API key."
-msgstr "Введите правильный API ключ."
+msgstr ""
 
 #: includes/class-tg-admin.php:173
-#, php-format
-msgid ""
-"First, generate a unique API key in %syour account%s and use it in requests "
-"to Turgenev. They will be charged at a reduced price - only 30 kopecks per "
-"check - regardless of the availability of a subscription."
+msgid "First, generate a unique API key in %syour account%s and use it in requests to Turgenev. They will be charged at a reduced price - only 30 kopecks per check - regardless of the availability of a subscription."
 msgstr ""
-"Для начала, сгенерируйте уникальный API-ключ в %sвашем аккаунте%s и "
-"используйте его в запросах к «Тургеневу». Они будут тарифицироваться по "
-"льготной цене — всего 30 копеек за проверку — независимо от наличия подписки."
 
 #: includes/class-tg-admin.php:201
 msgid "Go to settings"
-msgstr "Перейти в настройки"
+msgstr ""
 
 #: includes/class-tg-admin.php:201
 msgid "Settings"
-msgstr "Настройки"
+msgstr ""
 
 #: includes/class-tg-admin.php:202
 msgid "Send money to me"
-msgstr "Пожертвовать на развитие плагина"
+msgstr ""
 
 #: includes/class-tg-admin.php:202
 msgid "Donate"
 msgstr "Пожертвовать"
 
-#~ msgid "Turgenev"
-#~ msgstr "Тургенев"
+#: build/index.js:125 src/index.js:13
+msgid "Myvar"
+msgstr "Майвар"
 
-#~ msgid "Turgenev Settings"
-#~ msgstr "Настройки Тургенева"
+#: build/index.js:170 src/index.js:58
+msgid "Overall risk"
+msgstr "Общий риск"
 
-#~ msgid "Yandex Maps For Gutenberg"
-#~ msgstr "Яндекс Карты для редактора Gutenberg"
+#: build/index.js:170 src/index.js:59
+msgid "Report"
+msgstr "Отчет"
 
-#~ msgid "Yandex Map"
-#~ msgstr "Яндекс Карта"
-
-#~ msgid "Block showing a Yandex Map"
-#~ msgstr "Блок для вывода Яндекс Карты"
-
-#~ msgid "Width"
-#~ msgstr "Ширина"
-
-#~ msgid "Height"
-#~ msgstr "Высота"
-
-#~ msgid "You can get latitude and longitude here:"
-#~ msgstr "Значения широты и долготы вы можете взять по ссылке:"
-
-#~ msgid "Latitude"
-#~ msgstr "Широта"
-
-#~ msgid "Longitude"
-#~ msgstr "Долгота"
-
-#~ msgid "Zoom"
-#~ msgstr "Масштаб"
-
-#~ msgid "Add Placemark"
-#~ msgstr "Добавить метку"
-
-#~ msgid "Placemark"
-#~ msgstr "Метка"
-
-#~ msgid "Hint"
-#~ msgstr "Подсказка"
-
-#~ msgid "Content"
-#~ msgstr "Текст"
-
-#~ msgid "Click here to activate"
-#~ msgstr "Щелкните тут для активации"
-
-#~ msgctxt "Yandex Maps For Gutenberg"
-#~ msgid "Yandex Maps For Gutenberg"
-#~ msgstr "Яндекс Карты для редактора Gutenberg"
-
-#~ msgctxt "Description:"
-#~ msgid "Yandex Maps For Gutenberg"
-#~ msgstr "Яндекс Карты для редактора Gutenberg"
-
-#~ msgctxt "Description"
-#~ msgid "Yandex Maps For Gutenberg"
-#~ msgstr "Яндекс Карты для редактора Gutenberg"
+#: build/index.js:170 src/index.js:59
+msgid "More"
+msgstr "Подробнее"

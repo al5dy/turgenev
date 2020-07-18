@@ -9,7 +9,8 @@ import './index.scss';
 
 
 const PLUGIN_NAMESPACE = 'turgenev';
-const pluginTitle = 'Turgenev';
+const pluginTitle = __('"Turgenev"','turgenev');
+const tra = __('Myvar','turgenev');
 let checkRawContent = true;
 const URL = 'https://turgenev.ashmanov.com';
 
@@ -55,7 +56,7 @@ const makeTable = (data) => {
     tableContent += `<tr><th>${data.error}</th></tr>`;
   } else {
     tableContent += `<tr><th>${ __('Overall risk','turgenev') }</th><td>${data.level.charAt(0).toUpperCase() + data.level.slice(1)} <strong>(${data.risk})</strong></td></tr>
-        <tr><th>Report</th><td><a href="${URL}/?t=${data.link}" target="_blank">More</a></td></tr>
+        <tr><th>${ __('Report','turgenev') }</th><td><a href="${URL}/?t=${data.link}" target="_blank">${ __('More','turgenev') }</a></td></tr>
         `;
     for (const prop in details) {
       const label = details[prop].block.charAt(0).toUpperCase() + details[prop].block.slice(1);
@@ -123,7 +124,7 @@ const checkContent = () => {
 };
 
 const Balance = () => (
-  <p>Current balance: <strong id="turgenev-balance" dangerouslySetInnerHTML={ checkBalance() }/></p>
+  <p>{ __('Current balance:','turgenev') } <strong id="turgenev-balance" dangerouslySetInnerHTML={ checkBalance() }/></p>
 );
 
 const MyButton = () => (
@@ -170,7 +171,7 @@ const TurgenevSidebar = () => (
     >
       {pluginTitle}
     </PluginSidebarMoreMenuItem>
-    <PluginSidebar name="turgenev-sidebar" title="Turgenev">
+    <PluginSidebar name="turgenev-sidebar" title={pluginTitle}>
       <MyPanel/>
     </PluginSidebar>
   </Fragment>
