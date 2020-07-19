@@ -25,7 +25,7 @@
     "packages-update": "wp-scripts packages-update",
     "lint:pkg-json": "wp-scripts lint-pkg-json",
     "start": "wp-scripts start src/index.js src/index_old.js --output-path=build",
-    "build": "wp-scripts build src/index.js src/index_old.js --output-path=build",
+    "build": "set NODE_ENV=production&&wp-scripts build src/index.js src/index_old.js --output-path=build",
     "format:js": "wp-scripts format-js ./src",
     "lint:js:src": "wp-scripts lint-js ./src",
     "lint:style": "wp-scripts lint-style",
