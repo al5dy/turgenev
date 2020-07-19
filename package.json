@@ -2,17 +2,38 @@
   "name": "turgenev",
   "version": "1.0.0",
   "description": "Assesses the risk of falling under the \"Baden-Baden\" and shows what needs to be fixed",
+  "author": "Anton Lokotkov aka al5dy",
+  "license": "(ISC) GPLv3 or later",
+  "keywords": [
+    "turgenev",
+    "ashmanov"
+  ],
+  "homepage": "https://turgenev.ashmanov.com/?a=home",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/al5dy/turgenev"
+  },
+  "bugs": {
+    "url": "https://github.com/al5dy/turgenev/issues",
+    "email": "ant.lokotkov@gmail.com"
+  },
   "main": "build/index.js",
+  "devDependencies": {
+    "@wordpress/scripts": "^12.1.1"
+  },
   "scripts": {
+    "packages-update": "wp-scripts packages-update",
+    "lint:pkg-json": "wp-scripts lint-pkg-json",
     "start": "wp-scripts start src/index.js src/index_old.js --output-path=build",
     "build": "wp-scripts build src/index.js src/index_old.js --output-path=build",
-    "format:js": "wp-scripts format-js",
+    "format:js": "wp-scripts format-js ./src",
+    "lint:js:src": "wp-scripts lint-js ./src",
+    "lint:style": "wp-scripts lint-style",
+    "lint:md:docs": "wp-scripts lint-md-docs",
+    "lint:md:js": "wp-scripts lint-md-js",
+    "check-licenses": "wp-scripts check-licenses",
     "i18n-pot": "wp i18n make-pot . ./languages/turgenev.pot && cp ./languages/turgenev.pot ./languages/turgenev-ru_RU.po",
-    "i18n-json": "wp i18n make-json ./languages --no-purge"
-  },
-  "author": "Anton Lokotkov aka al5dy",
-  "license": "(ISC) GPL-3.0-or-later",
-  "devDependencies": {
-    "@wordpress/scripts": "12.0.0"
+    "i18n-json": "wp i18n make-json ./languages --no-purge",
+    "check-engines": "wp-scripts check-engines"
   }
 }
