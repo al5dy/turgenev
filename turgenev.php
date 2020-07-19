@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Turgenev
+ * Plugin Name: "Turgenev"
  * Description: Assesses the risk of falling under the "Baden-Baden" and shows what needs to be fixed
  * Version: 1.0
  * Author: al5dy
@@ -26,7 +26,7 @@ if ( ! class_exists( 'Turgenev', false ) ) {
 }
 
 /**
- * Returns the main instance of WC.
+ * Returns the main instance of TG.
  *
  * @since  1.0
  * @return Turgenev

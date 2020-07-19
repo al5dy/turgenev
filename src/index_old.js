@@ -1,9 +1,31 @@
+const {__, _x, _n, _nx} = wp.i18n;
+
 window.TG = {
   checkRawContent: true,
-  url : 'https://turgenev.ashmanov.com',
-  contentTypeToggle : function(e) {
+  url: 'https://turgenev.ashmanov.com',
+  contentTypeToggle: function(e) {
     const {checked} = e.target;
     this.checkRawContent = checked;
+  },
+  convertLabel: function(label) {
+    switch (label) {
+      case 'frequency' :
+        label = __('Frequency', 'turgenev');
+        break;
+      case 'style' :
+        label = __('Style', 'turgenev');
+        break;
+      case 'keywords' :
+        label = __('Keywords', 'turgenev');
+        break;
+      case 'formality' :
+        label = __('Formality', 'turgenev');
+        break;
+      case 'readability' :
+        label = __('Readability', 'turgenev');
+        break;
+    }
+    return label;
   },
   makeTable: function(data) {
     const tableWrap = document.getElementById('turgenev-table');
@@ -15,16 +37,17 @@ window.TG = {
     if (data.hasOwnProperty('error')) {
       tableContent += `<tr><th>${data.error}</th></tr>`;
     } else {
-      tableContent += `<tr><th>Overall risk</th><td>${data.level.charAt(0).toUpperCase() + data.level.slice(1)} <strong>(${data.risk})</strong></td></tr>
-        <tr><th>Report</th><td><a href="${this.url}/?t=${data.link}" target="_blank">More</a></td></tr>
+      const levelLabel = TG.convertLabel( data.level );
+      tableContent += `<tr><th>${__('Overall risk', 'turgenev')}</th><td>${levelLabel} <strong>(${data.risk})</strong></td></tr>
+        <tr><th>${__('Report', 'turgenev')}</th><td><a href="${this.url}/?t=${data.link}" target="_blank">${__('More', 'turgenev')}</a></td></tr>
         `;
       for (const prop in details) {
-        const label = details[prop].block.charAt(0).toUpperCase() + details[prop].block.slice(1);
+        const label = TG.convertLabel(details[prop].block);
         const total = details[prop].sum;
         const params = details[prop].params;
         const link = details[prop].link;
 
-        tableContent += `<tr><th class="tg-head">${label} (${total})</th><td class="tg-head"><a href="${this.url}/?t=${link}" target="_blank">More</a></td></tr>`;
+        tableContent += `<tr><th class="tg-head">${label} (${total})</th><td class="tg-head"><a href="${this.url}/?t=${link}" target="_blank">${__('More', 'turgenev')}</a></td></tr>`;
 
         for (const paramProp in params) {
           const name = params[paramProp].name;
@@ -46,7 +69,7 @@ window.TG = {
 
     xhr.open('POST', this.url, true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-    xhr.onload = function() {
+    xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         const response = xhr.response;
         if (response) {
@@ -82,7 +105,7 @@ window.TG = {
 
     xhr.open('POST', this.url, true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-    xhr.onload = function() {
+    xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         const response = xhr.response;
         if (response) {
@@ -101,6 +124,9 @@ window.TG = {
   }
 };
 
-
-// Check balance after load
-TG.checkBalance();
+document.addEventListener('DOMContentLoaded', () => {
+  if(!!document.getElementById('turgenev-panel')) {
+    // Check balance after load
+    TG.checkBalance();
+  }
+});

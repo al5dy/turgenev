@@ -1,21 +1,25 @@
 # Copyright (C) 2020 al5dy
-# This file is distributed under the same license as the Turgenev plugin.
+# This file is distributed under the same license as the "Turgenev" plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: Turgenev 1.0\n"
+"Project-Id-Version: "Turgenev" 1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/turgenev\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2020-07-18T22:31:36+03:00\n"
+"POT-Creation-Date: 2020-07-19T13:14:51+03:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.4.0\n"
 "X-Domain: turgenev\n"
 
 #. Plugin Name of the plugin
-msgid "Turgenev"
+#: includes/class-tg-admin.php:37
+#: includes/class-tg-admin.php:62
+#: build/index.js:123
+#: src/index.js:12
+msgid "\"Turgenev\""
 msgstr ""
 
 #. Plugin URI of the plugin
@@ -34,30 +38,27 @@ msgstr ""
 msgid "https://ziscod.com"
 msgstr ""
 
-#: includes/class-tg-admin.php:37
-#: includes/class-tg-admin.php:62
-#: build/index.js:123
-#: src/index.js:12
-msgid "\"Turgenev\""
-msgstr ""
-
 #: includes/class-tg-admin.php:43
-#: build/index.js:232
-#: src/index.js:127
+#: build/index.js:257
+#: src/index.js:149
 msgid "Current balance:"
 msgstr ""
 
 #: includes/class-tg-admin.php:45
+#: build/index.js:277
+#: src/index.js:163
 msgid "Check raw content"
 msgstr ""
 
 #: includes/class-tg-admin.php:46
+#: build/index.js:277
+#: src/index.js:163
 msgid "If the option is enabled, then the content will be checked without HTML tags. Only plain text."
 msgstr ""
 
 #: includes/class-tg-admin.php:48
-#: build/index.js:242
-#: src/index.js:132
+#: build/index.js:267
+#: src/index.js:154
 msgid "Check content"
 msgstr ""
 
@@ -73,50 +74,91 @@ msgstr ""
 msgid "API key"
 msgstr ""
 
-#: includes/class-tg-admin.php:148
+#. translators: %s: simple tags
+#: includes/class-tg-admin.php:149
 msgid "Something went wrong: %s"
 msgstr ""
 
-#: includes/class-tg-admin.php:153
+#: includes/class-tg-admin.php:154
 msgid "Enter a valid API key."
 msgstr ""
 
-#: includes/class-tg-admin.php:173
-msgid "First, generate a unique API key in %syour account%s and use it in requests to Turgenev. They will be charged at a reduced price - only 30 kopecks per check - regardless of the availability of a subscription."
+#: includes/class-tg-admin.php:175
+msgid "First, generate a unique API key in %1$syour account%2$s and use it in requests to Turgenev. They will be charged at a reduced price - only 30 kopecks per check - regardless of the availability of a subscription."
 msgstr ""
 
-#: includes/class-tg-admin.php:201
+#: includes/class-tg-admin.php:203
 msgid "Go to settings"
 msgstr ""
 
-#: includes/class-tg-admin.php:201
+#: includes/class-tg-admin.php:203
 msgid "Settings"
 msgstr ""
 
-#: includes/class-tg-admin.php:202
+#: includes/class-tg-admin.php:204
 msgid "Send money to me"
 msgstr ""
 
-#: includes/class-tg-admin.php:202
+#: includes/class-tg-admin.php:204
 msgid "Donate"
 msgstr ""
 
-#: build/index.js:125
-#: src/index.js:13
-msgid "Myvar"
+#: build/index.js:162
+#: build/index_old.js:111
+#: src/index.js:49
+#: src/index_old.js:13
+msgid "Frequency"
+msgstr ""
+
+#: build/index.js:166
+#: build/index_old.js:115
+#: src/index.js:52
+#: src/index_old.js:16
+msgid "Style"
 msgstr ""
 
 #: build/index.js:170
+#: build/index_old.js:119
+#: src/index.js:55
+#: src/index_old.js:19
+msgid "Keywords"
+msgstr ""
+
+#: build/index.js:174
+#: build/index_old.js:123
 #: src/index.js:58
+#: src/index_old.js:22
+msgid "Formality"
+msgstr ""
+
+#: build/index.js:178
+#: build/index_old.js:127
+#: src/index.js:61
+#: src/index_old.js:25
+msgid "Readability"
+msgstr ""
+
+#: build/index.js:195
+#: build/index_old.js:143
+#: src/index.js:78
+#: src/index_old.js:41
 msgid "Overall risk"
 msgstr ""
 
-#: build/index.js:170
-#: src/index.js:59
+#: build/index.js:195
+#: build/index_old.js:143
+#: src/index.js:79
+#: src/index_old.js:42
 msgid "Report"
 msgstr ""
 
-#: build/index.js:170
-#: src/index.js:59
+#: build/index.js:195
+#: build/index.js:202
+#: build/index_old.js:143
+#: build/index_old.js:150
+#: src/index.js:79
+#: src/index.js:89
+#: src/index_old.js:42
+#: src/index_old.js:50
 msgid "More"
 msgstr ""

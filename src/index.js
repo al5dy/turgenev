@@ -10,7 +10,6 @@ import './index.scss';
 
 const PLUGIN_NAMESPACE = 'turgenev';
 const pluginTitle = __('"Turgenev"','turgenev');
-const tra = __('Myvar','turgenev');
 let checkRawContent = true;
 const URL = 'https://turgenev.ashmanov.com';
 
@@ -30,7 +29,7 @@ const checkBalance = () => {
 
   xhr.open('POST', URL, true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-  xhr.onload = function() {
+  xhr.onload = () => {
     if (xhr.status >= 200 && xhr.status < 300) {
       const response = xhr.response;
       if (response) {
@@ -44,6 +43,26 @@ const checkBalance = () => {
   return {__html: '...'};
 };
 
+const convertLabel = (label) => {
+  switch (label) {
+    case 'frequency' :
+      label = __('Frequency','turgenev');
+      break;
+    case 'style' :
+      label = __('Style','turgenev');
+      break;
+    case 'keywords' :
+      label = __('Keywords','turgenev');
+      break;
+    case 'formality' :
+      label = __('Formality','turgenev');
+      break;
+    case 'readability' :
+      label = __('Readability','turgenev');
+      break;
+  }
+  return label;
+};
 
 const makeTable = (data) => {
   const tableWrap = document.getElementById('turgenev-table');
@@ -55,16 +74,19 @@ const makeTable = (data) => {
   if(data.hasOwnProperty('error')) {
     tableContent += `<tr><th>${data.error}</th></tr>`;
   } else {
-    tableContent += `<tr><th>${ __('Overall risk','turgenev') }</th><td>${data.level.charAt(0).toUpperCase() + data.level.slice(1)} <strong>(${data.risk})</strong></td></tr>
+    const levelLabel = convertLabel( data.level );
+    tableContent += `<tr><th>${ __('Overall risk','turgenev') }</th><td>${levelLabel} <strong>(${data.risk})</strong></td></tr>
         <tr><th>${ __('Report','turgenev') }</th><td><a href="${URL}/?t=${data.link}" target="_blank">${ __('More','turgenev') }</a></td></tr>
         `;
     for (const prop in details) {
-      const label = details[prop].block.charAt(0).toUpperCase() + details[prop].block.slice(1);
+      const label = convertLabel( details[prop].block );
       const total = details[prop].sum;
       const params = details[prop].params;
       const link = details[prop].link;
 
-      tableContent += `<tr><th class="tg-head">${label} (${total})</th><td class="tg-head"><a href="${URL}/?t=${link}" target="_blank">More</a></td></tr>`;
+
+
+      tableContent += `<tr><th class="tg-head">${label} (${total})</th><td class="tg-head"><a href="${URL}/?t=${link}" target="_blank">${ __('More','turgenev') }</a></td></tr>`;
 
       for (const paramProp in params) {
         const name = params[paramProp].name;
@@ -105,7 +127,7 @@ const checkContent = () => {
 
   xhr.open('POST', URL, true);
   xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
-  xhr.onload = function() {
+  xhr.onload = () => {
     if (xhr.status >= 200 && xhr.status < 300) {
       const response = xhr.response;
       if (response) {
@@ -138,7 +160,7 @@ const Result = () => (
 );
 
 const ContentTypeToggle = () => (
-  <p><MyFormToggle/>Check raw content<small>If the option is enabled, then the content will be checked without HTML tags. Only plain text.</small></p>
+  <p><MyFormToggle/>{ __('Check raw content','turgenev') }<small>{ __('If the option is enabled, then the content will be checked without HTML tags. Only plain text.','turgenev') }</small></p>
 );
 
 const MyFormToggle = withState( {

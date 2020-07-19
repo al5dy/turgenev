@@ -26,7 +26,8 @@ class TG_Admin {
     add_action( 'admin_menu', [ $this, 'add_plugin_page' ] );
     add_action( 'admin_init', [ $this, 'page_init' ] );
 
-    if (TG()->is_valid_apikey() && !TG()->is_gutenberg_active() ) {
+    // Add metabox for classic editor
+    if ( tg_is_valid_apikey() && ! tg_is_gutenberg_active() ) {
       add_action( 'add_meta_boxes', [ $this, 'add_custom_box' ] );
     }
   }
@@ -34,23 +35,22 @@ class TG_Admin {
 
   function add_custom_box() {
     $screens = [ 'post', 'page' ];
-    add_meta_box( 'turgenev_metabox', __('"Turgenev"','turgenev'), [ $this, 'meta_box_cb' ], $screens, 'side', 'high');
+    add_meta_box( 'turgenev_metabox', __( '"Turgenev"', 'turgenev' ), [ $this, 'meta_box_cb' ], $screens, 'side', 'high' );
   }
 
   public function meta_box_cb( $post, $meta ) {
     ?>
-    <div id="turgenev-panel">
-    <p><?php echo esc_html__('Current balance:','turgenev'); ?> <strong id="turgenev-balance">...</strong></p>
-    <p>
-      <label for="turgenev_raw" class="selectit"><input name="turgenev_raw" checked onchange="TG.contentTypeToggle(event)" type="checkbox" id="turgenev_raw" value="open"> <?php echo esc_html__('Check raw content','turgenev'); ?></label>
-      <small><?php echo esc_html__('If the option is enabled, then the content will be checked without HTML tags. Only plain text.','turgenev'); ?></small>
-    </p>
-      <button type="button" class="button" onclick="TG.checkContent()"><?php echo esc_html__('Check content','turgenev'); ?></button>
-      <div id="turgenev-table"></div>
-    </div>
+      <div id="turgenev-panel">
+          <p><?php echo esc_html__( 'Current balance:', 'turgenev' ); ?> <strong id="turgenev-balance">...</strong></p>
+          <p>
+              <label for="turgenev_raw" class="selectit"><input name="turgenev_raw" checked onchange="TG.contentTypeToggle(event)" type="checkbox" id="turgenev_raw" value="open"> <?php echo esc_html__( 'Check raw content', 'turgenev' ); ?></label>
+              <small><?php echo esc_html__( 'If the option is enabled, then the content will be checked without HTML tags. Only plain text.', 'turgenev' ); ?></small>
+          </p>
+          <button type="button" class="button" onclick="TG.checkContent()"><?php echo esc_html__( 'Check content', 'turgenev' ); ?></button>
+          <div id="turgenev-table"></div>
+      </div>
     <?php
   }
-
 
 
   /**
@@ -99,7 +99,7 @@ class TG_Admin {
 
     add_settings_section(
       'turgenev-section', // ID
-      __('API settings','turgenev'), // Title
+      __( 'API settings', 'turgenev' ), // Title
       [ $this, 'print_section_info' ], // Callback
       'turgenev-settings' // Page
     );
@@ -137,14 +137,15 @@ class TG_Admin {
         'blocking'    => true,
         'headers'     => [],
         'body'        => [
-          'api' => 'risk',
-          'key' => $new_input['api_key'],
+          'api'  => 'risk',
+          'key'  => $new_input['api_key'],
           'text' => 'test'
         ],
-        'cookies'     =>[]
+        'cookies'     => []
       ];
       $response = wp_remote_post( $url, $args );
       if ( is_wp_error( $response ) ) {
+        /* translators: %s: simple tags */
         add_settings_error( 'turgenev-options', 'turgenev_error', sprintf( __( 'Something went wrong: %s', 'turgenev' ), $response->get_error_message() ), $type = 'error' );
         $error = '1';
       } else {
@@ -169,8 +170,9 @@ class TG_Admin {
    * Print the Section text
    */
   public function print_section_info() {
+    /* translators: 1: open link tag, 2: close link tag. */
     printf(
-      __( 'First, generate a unique API key in %syour account%s and use it in requests to Turgenev. They will be charged at a reduced price - only 30 kopecks per check - regardless of the availability of a subscription.', 'turgenev' ),
+      __( 'First, generate a unique API key in %1$syour account%2$s and use it in requests to Turgenev. They will be charged at a reduced price - only 30 kopecks per check - regardless of the availability of a subscription.', 'turgenev' ),
       '<a href="https://turgenev.ashmanov.com/?a=apikey" target="_blank" title="">', '</a>'
     );
   }
