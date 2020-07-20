@@ -55,7 +55,7 @@ final class Turgenev {
    * @since 1.0
    */
   public function __clone() {
-    tg_doing_it_wrong( __FUNCTION__, __( 'Cloning is forbidden.', 'turgenev' ), '1.0' );
+    tgev_doing_it_wrong( __FUNCTION__, __( 'Cloning is forbidden.', 'turgenev' ), '1.0' );
   }
 
   /**
@@ -64,7 +64,7 @@ final class Turgenev {
    * @since 1.0
    */
   public function __wakeup() {
-    tg_doing_it_wrong( __FUNCTION__, __( 'Unserializing instances of this class is forbidden.', 'turgenev' ), '1.0' );
+    tgev_doing_it_wrong( __FUNCTION__, __( 'Unserializing instances of this class is forbidden.', 'turgenev' ), '1.0' );
   }
 
   /**
@@ -95,10 +95,10 @@ final class Turgenev {
    * Include required core files used in admin and on the frontend.
    */
   public function includes() {
-    include_once TG_ABSPATH . 'includes/tg-core-functions.php';
+    include_once TGEV_ABSPATH . 'includes/tgev-core-functions.php';
 
     if ( $this->is_request( 'admin' ) ) {
-      include_once TG_ABSPATH . 'includes/class-tg-admin.php';
+      include_once TGEV_ABSPATH . 'includes/class-tgev-admin.php';
     }
   }
 
@@ -119,9 +119,9 @@ final class Turgenev {
    * Define Turgenev Constants.
    */
   private function define_constants() {
-    $this->define( 'TG_ABSPATH', dirname( TG_PLUGIN_FILE ) . '/' );
-    $this->define( 'TG_VERSION', $this->version );
-    $this->define( 'TG_PLUGIN_BASENAME', plugin_basename( TG_PLUGIN_FILE ) );
+    $this->define( 'TGEV_ABSPATH', dirname( TGEV_PLUGIN_FILE ) . '/' );
+    $this->define( 'TGEV_VERSION', $this->version );
+    $this->define( 'TGEV_PLUGIN_BASENAME', plugin_basename( TGEV_PLUGIN_FILE ) );
   }
 
   /**
@@ -161,7 +161,7 @@ final class Turgenev {
    */
   public function load_admin_assets($p) {
     $option = get_option( 'turgenev' );
-    if ( tg_is_valid_apikey() && ! tg_is_gutenberg_active() ) {
+    if ( tgev_is_valid_apikey() && ! tgev_is_gutenberg_active() ) {
 
       wp_register_script( 'turgenev-script', $this->plugin_url() . '/build/index_old.js', [ 'wp-blocks', 'wp-i18n' ] );
       wp_enqueue_script( 'turgenev-script' );
@@ -187,7 +187,7 @@ final class Turgenev {
     $option = get_option( 'turgenev' );
 
     // Load assets only for valid API key
-    if ( tg_is_valid_apikey() ) {
+    if ( tgev_is_valid_apikey() ) {
       $asset_file = include( $this->plugin_path() . '/build/index.asset.php' );
 
       wp_register_script( 'turgenev-script', $this->plugin_url() . '/build/index.js', $asset_file['dependencies'], $asset_file['version'] );
@@ -224,7 +224,7 @@ final class Turgenev {
    * @return string
    */
   public function plugin_path() {
-    return untrailingslashit( plugin_dir_path( TG_PLUGIN_FILE ) );
+    return untrailingslashit( plugin_dir_path( TGEV_PLUGIN_FILE ) );
   }
 
 
@@ -234,7 +234,7 @@ final class Turgenev {
    * @return string
    */
   public function plugin_url() {
-    return untrailingslashit( plugins_url( '/', TG_PLUGIN_FILE ) );
+    return untrailingslashit( plugins_url( '/', TGEV_PLUGIN_FILE ) );
   }
 
   /**
@@ -250,7 +250,7 @@ final class Turgenev {
 
     unload_textdomain( 'turgenev' );
     load_textdomain( 'turgenev', WP_LANG_DIR . '/turgenev/turgenev-' . $locale . '.mo' );
-    load_plugin_textdomain( 'turgenev', false, plugin_basename( dirname( TG_PLUGIN_FILE ) ) . '/languages' );
+    load_plugin_textdomain( 'turgenev', false, plugin_basename( dirname( TGEV_PLUGIN_FILE ) ) . '/languages' );
   }
 
   /**

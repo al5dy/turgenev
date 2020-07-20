@@ -16,24 +16,24 @@
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! defined( 'TG_PLUGIN_FILE' ) ) {
-  define( 'TG_PLUGIN_FILE', __FILE__ );
+if ( ! defined( 'TGEV_PLUGIN_FILE' ) ) {
+  define( 'TGEV_PLUGIN_FILE', __FILE__ );
 }
 
 // Include the main Turgenev class.
 if ( ! class_exists( 'Turgenev', false ) ) {
-  include_once dirname( TG_PLUGIN_FILE ) . '/includes/class-turgenev.php';
+  include_once dirname( TGEV_PLUGIN_FILE ) . '/includes/class-turgenev.php';
 }
 
 /**
- * Returns the main instance of TG.
+ * Returns the main instance of TGEV.
  *
  * @since  1.0
  * @return Turgenev
  */
-function TG() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+function TGEV() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
   return Turgenev::instance();
 }
 
 // Global for backwards compatibility.
-$GLOBALS['turgenev'] = TG();
+$GLOBALS['turgenev'] = TGEV();

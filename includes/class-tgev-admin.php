@@ -2,7 +2,7 @@
 /**
  * Turgenev Admin
  *
- * @class    TG_Admin
+ * @class    TGEV_Admin
  * @package  Turgenev/Admin
  * @version  1.0
  */
@@ -12,9 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * TG_Admin class.
+ * TGEV_Admin class.
  */
-class TG_Admin {
+class TGEV_Admin {
 
   private $options = [];
 
@@ -27,7 +27,7 @@ class TG_Admin {
     add_action( 'admin_init', [ $this, 'page_init' ] );
 
     // Add metabox for classic editor
-    if ( tg_is_valid_apikey() && ! tg_is_gutenberg_active() ) {
+    if ( tgev_is_valid_apikey() && ! tgev_is_gutenberg_active() ) {
       add_action( 'add_meta_boxes', [ $this, 'add_custom_box' ] );
     }
   }
@@ -43,10 +43,10 @@ class TG_Admin {
       <div id="turgenev-panel">
           <p><?php echo esc_html__( 'Current balance:', 'turgenev' ); ?> <strong id="turgenev-balance">...</strong></p>
           <p>
-              <label for="turgenev_raw" class="selectit"><input name="turgenev_raw" checked onchange="TG.contentTypeToggle(event)" type="checkbox" id="turgenev_raw" value="open"> <?php echo esc_html__( 'Check raw content', 'turgenev' ); ?></label>
+              <label for="turgenev_raw" class="selectit"><input name="turgenev_raw" checked onchange="TGEV.contentTypeToggle(event)" type="checkbox" id="turgenev_raw" value="open"> <?php echo esc_html__( 'Check raw content', 'turgenev' ); ?></label>
               <small><?php echo esc_html__( 'If the option is enabled, then the content will be checked without HTML tags. Only plain text.', 'turgenev' ); ?></small>
           </p>
-          <button type="button" class="button" onclick="TG.checkContent()"><?php echo esc_html__( 'Check content', 'turgenev' ); ?></button>
+          <button type="button" class="button" onclick="TGEV.checkContent()"><?php echo esc_html__( 'Check content', 'turgenev' ); ?></button>
           <div id="turgenev-table"></div>
       </div>
     <?php
@@ -198,7 +198,7 @@ class TG_Admin {
    * @return array
    */
   public function plugin_row_meta( $links, $file ) {
-    if ( TG_PLUGIN_BASENAME === $file ) {
+    if ( TGEV_PLUGIN_BASENAME === $file ) {
       $row_meta = [
         'settings' => '<a href="' . admin_url( 'options-general.php?page=turgenev-settings' ) . '" title="' . esc_attr__( 'Go to settings', 'turgenev' ) . '">' . esc_html__( 'Settings', 'turgenev' ) . '</a>',
         'donate'   => '<a href="' . esc_url( 'https://money.yandex.ru/to/410012328678499' ) . '" target="_blank" title="' . esc_attr__( 'Send money to me', 'turgenev' ) . '"><strong style="color:red;">' . esc_html__( 'Donate', 'turgenev' ) . '</strong></a>'
@@ -212,4 +212,4 @@ class TG_Admin {
 
 }
 
-return new TG_Admin();
+return new TGEV_Admin();
