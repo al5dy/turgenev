@@ -1,6 +1,6 @@
 const { __ } = wp.i18n;
 
-window.TG = {
+window.TGEV = {
 	checkRawContent: true,
 	url: 'https://turgenev.ashmanov.com',
 	contentTypeToggle: function ( e ) {
@@ -38,7 +38,7 @@ window.TG = {
 		if ( data.hasOwnProperty( 'error' ) ) {
 			tableContent += `<tr><th>${ data.error }</th></tr>`;
 		} else {
-			const levelLabel = TG.convertLabel( data.level );
+			const levelLabel = TGEV.convertLabel( data.level );
 			tableContent += `<tr><th>${ __(
 				'Overall risk',
 				'turgenev'
@@ -53,7 +53,7 @@ window.TG = {
 			) }</a></td></tr>
         `;
 			for ( const prop in details ) {
-				const label = TG.convertLabel( details[ prop ].block );
+				const label = TGEV.convertLabel( details[ prop ].block );
 				const total = details[ prop ].sum;
 				const params = details[ prop ].params;
 				const link = details[ prop ].link;
@@ -150,6 +150,6 @@ window.TG = {
 document.addEventListener( 'DOMContentLoaded', () => {
 	if ( !! document.getElementById( 'turgenev-panel' ) ) {
 		// Check balance after load
-		TG.checkBalance();
+		TGEV.checkBalance();
 	}
 } );

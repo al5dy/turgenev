@@ -5,8 +5,11 @@
   "author": "Anton Lokotkov aka al5dy",
   "license": "(ISC) GPLv3 or later",
   "keywords": [
-    "turgenev",
-    "ashmanov"
+    "Content analysis",
+    "Readability",
+    "seo",
+    "gutenberg",
+    "gutenberg editor"
   ],
   "homepage": "https://turgenev.ashmanov.com/?a=home",
   "repository": {
