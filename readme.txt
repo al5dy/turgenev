@@ -5,7 +5,7 @@ Tags: Content analysis, Readability, seo, gutenberg, gutenberg editor
 Requires at least: 5.0
 Tested up to: 5.4
 Requires PHP: 7.1
-Stable tag: 1.2
+Stable tag: 1.3
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -18,6 +18,8 @@ Baden-Baden is Yandex's algorithm for detecting unnatural, over-optimized texts.
 Plugin uses an [official "Turgenev" API](https://turgenev.ashmanov.com/?a=apikey).
 
 You can find more information on the [official website](https://turgenev.ashmanov.com/?a=home).
+
+Also, you can find the plugin sources in the [following repository](https://github.com/al5dy/turgenev).
 
 = Main Features: =
 
@@ -59,6 +61,11 @@ via your favourite FTP application. The WordPress codex contains [instructions o
 2. Main Turgenev panel.
 
 == Changelog ==
+
+= 1.3 - 2020-07-22 =
+Add balance checker in settings page
+Add some translations
+Minor fixes
 
 = 1.2 - 2020-07-22 =
 Encode URL for API requests

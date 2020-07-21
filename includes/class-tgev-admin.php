@@ -175,6 +175,18 @@ class TGEV_Admin {
       __( 'First, generate a unique API key in %1$syour account%2$s and use it in requests to Turgenev. They will be charged at a reduced price - only 30 kopecks per check - regardless of the availability of a subscription.', 'turgenev' ),
       '<a href="https://turgenev.ashmanov.com/?a=apikey" target="_blank" title="">', '</a>'
     );
+
+    if ( tgev_is_valid_apikey() ) { ?>
+      <div id="turgenev-panel">
+        <p><?php echo esc_html__( 'Current balance:', 'turgenev' ); ?> <strong id="turgenev-balance">...</strong></p>
+        <p>
+            <button type="button" class="button button-small" onclick="TGEV.checkBalance()"><?php echo esc_html__( 'Check balance', 'turgenev' ); ?></button>
+            <a href="https://turgenev.ashmanov.com/?a=pay" class="button button-small button-link" target="_blank"><?php echo esc_html__( 'Top-up balance', 'turgenev' ); ?></a>
+        </p>
+        <hr/>
+      </div>
+      <?php
+    }
   }
 
   /**

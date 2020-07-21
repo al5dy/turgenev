@@ -1,6 +1,6 @@
 {
   "name": "turgenev",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Assesses the risk of falling under the \"Baden-Baden\" and shows what needs to be fixed",
   "author": "Anton Lokotkov aka al5dy",
   "license": "(ISC) GPLv3 or later",

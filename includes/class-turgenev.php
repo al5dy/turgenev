@@ -21,7 +21,7 @@ final class Turgenev {
    *
    * @var string
    */
-  public $version = '1.2';
+  public $version = '1.3';
 
   /**
    * The single instance of the class.
@@ -159,9 +159,13 @@ final class Turgenev {
   /**
    * Load assets for classic editor
    */
-  public function load_admin_assets($p) {
+  public function load_admin_assets() {
+    $screen = get_current_screen();
+    $screen_id = $screen ? $screen->id : '';
+
     $option = get_option( 'turgenev' );
-    if ( tgev_is_valid_apikey() && ! tgev_is_gutenberg_active() ) {
+
+    if ( tgev_is_valid_apikey() && (! tgev_is_gutenberg_active() || 'settings_page_turgenev-settings' === $screen_id ) ) {
 
       wp_register_script( 'turgenev-script', $this->plugin_url() . '/build/index_old.js', [ 'wp-blocks', 'wp-i18n' ] );
       wp_enqueue_script( 'turgenev-script' );

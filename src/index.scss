@@ -52,3 +52,10 @@
     }
   }
 }
+
+.turgenev-blink {
+  animation: turgenev-blinker 1s linear infinite;
+}
+@keyframes turgenev-blinker {
+  50% { opacity: 0.4; }
+}

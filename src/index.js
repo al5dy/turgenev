@@ -36,9 +36,16 @@ const checkBalance = () => {
 			const response = xhr.response;
 			if ( response ) {
 				const responseJSON = JSON.parse( response );
-				document.getElementById(
+				const balancePanel = document.getElementById(
 					'turgenev-balance'
-				).innerHTML = `${ responseJSON.balance }&nbsp;&#8381;`;
+				);
+
+				balancePanel.innerHTML = `${ responseJSON.balance }&nbsp;&#8381;`;
+
+				if ( parseFloat( responseJSON.balance ) < 10 ) {
+					balancePanel.style.color = '#ac2929';
+					balancePanel.classList.add( 'turgenev-blink' );
+				}
 			}
 		}
 	};
@@ -127,7 +134,9 @@ const checkContent = () => {
 		contentClear = content;
 	}
 
-	const data = `api=risk&more=1&key=${ turgenev_ajax.api_key }&text=${ encodeURIComponent(contentClear) }`;
+	const data = `api=risk&more=1&key=${
+		turgenev_ajax.api_key
+	}&text=${ encodeURIComponent( contentClear ) }`;
 	const panel = document.getElementById( 'turgenev-panel' );
 
 	panel.style.opacity = '0.5';
