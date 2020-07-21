@@ -13,10 +13,18 @@ License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
 Assesses the risk of falling under the "Baden-Baden" and shows what needs to be fixed. Enjoy :)
 
+Baden-Baden is Yandex's algorithm for detecting unnatural, over-optimized texts. If there is not a lot of low-quality content on the site, specific pages go down in the ranking. If there is a lot, the whole site will be filtered. Turgenev evaluates the risk of Baden-Baden in points, shows the problems and helps to cope with them.
+
+Plugin uses an [official "Turgenev" API](https://turgenev.ashmanov.com/?a=apikey).
+
+You can find more information on the [official website](https://turgenev.ashmanov.com/?a=home).
 
 = Main Features: =
 
 - "Turgenev" API
+- Displaying the current balance
+- On-the-fly text analysis in Gutenberg or Classic Editor
+- Detailed reports
 - Well organized source code
 - WP Hooks/Filters
 - Russian and English language support
@@ -30,6 +38,8 @@ Automatic installation
 2. Go to Plugins -> Add New
 3. Search for Turgenev -> Install Now (on the side Turgenev)
 4. Activate the plugin
+5. Go to Settings menu -> "Turgenev" -> [Insert API key](https://turgenev.ashmanov.com/?a=apikey) -> Save changes
+6. Go to any page/post etc. -> In the right panel click on the "T" icon or open the "Turgenev" metabox -> click "Check content"
 
 
 = Manual installation =
