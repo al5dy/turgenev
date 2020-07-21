@@ -21,7 +21,7 @@ final class Turgenev {
    *
    * @var string
    */
-  public $version = '1.1';
+  public $version = '1.2';
 
   /**
    * The single instance of the class.

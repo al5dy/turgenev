@@ -5,7 +5,7 @@ Tags: Content analysis, Readability, seo, gutenberg, gutenberg editor
 Requires at least: 5.0
 Tested up to: 5.4
 Requires PHP: 7.1
-Stable tag: 1.1
+Stable tag: 1.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -49,6 +49,9 @@ via your favourite FTP application. The WordPress codex contains [instructions o
 2. Main Turgenev panel.
 
 == Changelog ==
+
+= 1.2 - 2020-07-22 =
+Encode URL for API requests
 
 = 1.1 - 2020-07-21 =
 Bugfix check content function

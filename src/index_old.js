@@ -116,7 +116,7 @@ window.TGEV = {
 			contentClear = content;
 		}
 
-		const data = `api=risk&more=1&key=${ turgenev_ajax.api_key }&text=${ contentClear }`;
+		const data = `api=risk&more=1&key=${ turgenev_ajax.api_key }&text=${ encodeURIComponent(contentClear) }`;
 		const panel = document.getElementById( 'turgenev-panel' );
 
 		panel.style.opacity = '0.5';
