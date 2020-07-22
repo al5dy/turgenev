@@ -50,7 +50,7 @@ via your favourite FTP application. The WordPress codex contains [instructions o
 
 ## Minimum Requirements
 
-* PHP version 7.1 or greater
+* PHP version 5.6 or greater
 * WP 5.0 or greater
 
 ## License

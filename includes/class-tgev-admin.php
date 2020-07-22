@@ -42,12 +42,15 @@ class TGEV_Admin {
     ?>
       <div id="turgenev-panel">
           <p><?php echo esc_html__( 'Current balance:', 'turgenev' ); ?> <strong id="turgenev-balance">...</strong></p>
+          <div id="turgenev-workflow">
           <p>
               <label for="turgenev_raw" class="selectit"><input name="turgenev_raw" checked onchange="TGEV.contentTypeToggle(event)" type="checkbox" id="turgenev_raw" value="open"> <?php echo esc_html__( 'Check raw content', 'turgenev' ); ?></label>
               <small><?php echo esc_html__( 'If the option is enabled, then the content will be checked without HTML tags. Only plain text.', 'turgenev' ); ?></small>
           </p>
           <button type="button" class="button" onclick="TGEV.checkContent()"><?php echo esc_html__( 'Check content', 'turgenev' ); ?></button>
           <div id="turgenev-table"></div>
+          </div>
+          <a href="https://turgenev.ashmanov.com/?a=pay" class="button" id="turgenev-top-up" target="_blank"><?php echo esc_html__( 'Top-up balance', 'turgenev' ); ?></a>
       </div>
     <?php
   }

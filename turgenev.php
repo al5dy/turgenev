@@ -2,7 +2,7 @@
 /**
  * Plugin Name: "Turgenev"
  * Description: Assesses the risk of falling under the "Baden-Baden" and shows what needs to be fixed
- * Version: 1.3
+ * Version: 1.4
  * Author: al5dy
  * Plugin URI: https://turgenev.ashmanov.com/?a=home
  * Author URI: https://ziscod.com

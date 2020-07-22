@@ -4,6 +4,9 @@ document.addEventListener( 'DOMContentLoaded', () => {
 	const panel = document.getElementById( 'turgenev-panel' );
 	const balancePanel = document.getElementById( 'turgenev-balance' );
 	const tableWrap = document.getElementById( 'turgenev-table' );
+	const workflowPanel = document.getElementById( 'turgenev-workflow' );
+	const topUpBtn = document.getElementById( 'turgenev-top-up' );
+
 	window.TGEV = {
 		checkRawContent: true,
 		url: 'https://turgenev.ashmanov.com',
@@ -106,6 +109,22 @@ document.addEventListener( 'DOMContentLoaded', () => {
 							balancePanel.classList.add( 'turgenev-blink' );
 						}
 
+						if ( parseFloat( responseJSON.balance ) <= 5 ) {
+							if ( !! workflowPanel ) {
+								workflowPanel.remove();
+							}
+							if ( !! topUpBtn ) {
+								topUpBtn.style.display = 'inline-block';
+							}
+						} else {
+							if ( !! workflowPanel ) {
+								workflowPanel.style.display = 'block';
+							}
+							if ( !! topUpBtn ) {
+								topUpBtn.remove();
+							}
+						}
+
 						panel.style.opacity = '1';
 						panel.style.cursor = 'auto';
 						panel.style.pointerEvents = 'auto';
@@ -130,35 +149,46 @@ document.addEventListener( 'DOMContentLoaded', () => {
 				contentClear = content;
 			}
 
-			const data = `api=risk&more=1&key=${
-				turgenev_ajax.api_key
-			}&text=${ encodeURIComponent( contentClear ) }`;
+			contentClear = contentClear.trim();
 
-			panel.style.opacity = '0.5';
-			panel.style.cursor = 'default';
-			panel.style.pointerEvents = 'none';
+			if ( contentClear ) {
+				const data = `api=risk&more=1&key=${
+					turgenev_ajax.api_key
+				}&text=${ encodeURIComponent( contentClear ) }`;
 
-			xhr.open( 'POST', this.url, true );
-			xhr.setRequestHeader(
-				'Content-Type',
-				'application/x-www-form-urlencoded; charset=UTF-8'
-			);
-			xhr.onload = () => {
-				if ( xhr.status >= 200 && xhr.status < 300 ) {
-					const response = xhr.response;
-					if ( response ) {
-						const responseJSON = JSON.parse( response );
+				panel.style.opacity = '0.5';
+				panel.style.cursor = 'default';
+				panel.style.pointerEvents = 'none';
 
-						_this.makeTable( responseJSON );
-						_this.checkBalance();
+				xhr.open( 'POST', this.url, true );
+				xhr.setRequestHeader(
+					'Content-Type',
+					'application/x-www-form-urlencoded; charset=UTF-8'
+				);
+				xhr.onload = () => {
+					if ( xhr.status >= 200 && xhr.status < 300 ) {
+						const response = xhr.response;
+						if ( response ) {
+							const responseJSON = JSON.parse( response );
 
-						panel.style.opacity = '1';
-						panel.style.cursor = 'auto';
-						panel.style.pointerEvents = 'auto';
+							_this.makeTable( responseJSON );
+							_this.checkBalance();
+
+							panel.style.opacity = '1';
+							panel.style.cursor = 'auto';
+							panel.style.pointerEvents = 'auto';
+						}
 					}
-				}
-			};
-			xhr.send( data );
+				};
+				xhr.send( data );
+			} else {
+				tableWrap.style.marginLeft = '0';
+				tableWrap.style.marginRight = '0';
+				tableWrap.innerText = __(
+					'Failed to parse content. Add content to the editor or click in the editable area.',
+					'turgenev'
+				);
+			}
 		},
 	};
 

@@ -8,15 +8,15 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2020-07-22T01:45:20+03:00\n"
-"PO-Revision-Date: 2020-07-22 01:49+0300\n"
+"POT-Creation-Date: 2020-07-22T16:42:02+03:00\n"
+"PO-Revision-Date: 2020-07-22 16:44+0300\n"
 "X-Generator: Poedit 2.3.1\n"
 "X-Domain: turgenev\n"
 "Last-Translator: Anton Lokotkov (ziscod) <fakeemail@fakeemail.com>\n"
 "Language-Team: \n"
 
 #. Plugin Name of the plugin
-#: includes/class-tgev-admin.php:38 includes/class-tgev-admin.php:62
+#: includes/class-tgev-admin.php:38 includes/class-tgev-admin.php:65
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:38
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:62
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:38
@@ -47,51 +47,58 @@ msgstr "al5dy"
 msgid "https://ziscod.com"
 msgstr "https://ziscod.com"
 
-#: includes/class-tgev-admin.php:44 includes/class-tgev-admin.php:181
+#: includes/class-tgev-admin.php:44 includes/class-tgev-admin.php:184
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:44
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:44
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:44
-#: wordpress/trunk/includes/class-tgev-admin.php:44 build/index.js:263
-#: src/index.js:171 wordpress/tags/1.0/build/index.js:1
+#: wordpress/trunk/includes/class-tgev-admin.php:44
+#: wordpress/trunk/includes/class-tgev-admin.php:181 build/index.js:290
+#: src/index.js:198 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Current balance:"
 msgstr "Текущий баланс:"
 
-#: includes/class-tgev-admin.php:46
+#: includes/class-tgev-admin.php:47
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:46
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:46
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:46
-#: wordpress/trunk/includes/class-tgev-admin.php:46 build/index.js:283
-#: src/index.js:190 wordpress/tags/1.0/build/index.js:1
+#: wordpress/trunk/includes/class-tgev-admin.php:46 build/index.js:310
+#: src/index.js:217 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Check raw content"
 msgstr "Проверить исходный контент"
 
-#: includes/class-tgev-admin.php:47
+#: includes/class-tgev-admin.php:48
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:47
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:47
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:47
-#: wordpress/trunk/includes/class-tgev-admin.php:47 build/index.js:283
-#: src/index.js:192 wordpress/tags/1.0/build/index.js:1
+#: wordpress/trunk/includes/class-tgev-admin.php:47 build/index.js:310
+#: src/index.js:219 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "If the option is enabled, then the content will be checked without HTML tags. Only plain text."
 msgstr "Если данная опция включена, то контент будет проверяться без HTML тегов. Только исходный текст."
 
-#: includes/class-tgev-admin.php:49
+#: includes/class-tgev-admin.php:50
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:49
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:49
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:49
-#: wordpress/trunk/includes/class-tgev-admin.php:49 build/index.js:273
-#: src/index.js:181 wordpress/tags/1.0/build/index.js:1
+#: wordpress/trunk/includes/class-tgev-admin.php:49 build/index.js:300
+#: src/index.js:208 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Check content"
 msgstr "Проверить контент"
 
-#: includes/class-tgev-admin.php:61
+#: includes/class-tgev-admin.php:53 includes/class-tgev-admin.php:187
+#: wordpress/trunk/includes/class-tgev-admin.php:184 build/index.js:341
+#: src/index.js:248
+msgid "Top-up balance"
+msgstr "Пополнить баланс"
+
+#: includes/class-tgev-admin.php:64
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:61
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:61
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:61
@@ -99,7 +106,7 @@ msgstr "Проверить контент"
 msgid "\"Turgenev\" Settings"
 msgstr "Настройки \"Тургенева\""
 
-#: includes/class-tgev-admin.php:102
+#: includes/class-tgev-admin.php:105
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:102
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:102
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:102
@@ -107,7 +114,7 @@ msgstr "Настройки \"Тургенева\""
 msgid "API settings"
 msgstr "Настройки API"
 
-#: includes/class-tgev-admin.php:109
+#: includes/class-tgev-admin.php:112
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:109
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:109
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:109
@@ -116,7 +123,7 @@ msgid "API key"
 msgstr "Ключ API"
 
 #. translators: %s: simple tags
-#: includes/class-tgev-admin.php:149
+#: includes/class-tgev-admin.php:152
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:149
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:149
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:149
@@ -124,7 +131,7 @@ msgstr "Ключ API"
 msgid "Something went wrong: %s"
 msgstr "Что-то пошло не так: %s"
 
-#: includes/class-tgev-admin.php:154
+#: includes/class-tgev-admin.php:157
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:154
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:154
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:154
@@ -132,7 +139,7 @@ msgstr "Что-то пошло не так: %s"
 msgid "Enter a valid API key."
 msgstr "Введите правильный API ключ."
 
-#: includes/class-tgev-admin.php:175
+#: includes/class-tgev-admin.php:178
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:175
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:175
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:175
@@ -140,43 +147,40 @@ msgstr "Введите правильный API ключ."
 msgid "First, generate a unique API key in %1$syour account%2$s and use it in requests to Turgenev. They will be charged at a reduced price - only 30 kopecks per check - regardless of the availability of a subscription."
 msgstr "Для начала, сгенерируйте уникальный API-ключ в %sвашем аккаунте%s и используйте его в запросах к «Тургеневу». Они будут тарифицироваться по льготной цене — всего 30 копеек за проверку — независимо от наличия подписки."
 
-#: includes/class-tgev-admin.php:183
+#: includes/class-tgev-admin.php:186
+#: wordpress/trunk/includes/class-tgev-admin.php:183
 msgid "Check balance"
 msgstr "Проверить баланс"
 
-#: includes/class-tgev-admin.php:184
-msgid "Top-up balance"
-msgstr "Пополнить баланс"
-
-#: includes/class-tgev-admin.php:215
+#: includes/class-tgev-admin.php:218
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:203
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:203
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:203
-#: wordpress/trunk/includes/class-tgev-admin.php:203
+#: wordpress/trunk/includes/class-tgev-admin.php:215
 msgid "Go to settings"
 msgstr "Перейти в настройки"
 
-#: includes/class-tgev-admin.php:215
+#: includes/class-tgev-admin.php:218
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:203
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:203
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:203
-#: wordpress/trunk/includes/class-tgev-admin.php:203
+#: wordpress/trunk/includes/class-tgev-admin.php:215
 msgid "Settings"
 msgstr "Настройки"
 
-#: includes/class-tgev-admin.php:216
+#: includes/class-tgev-admin.php:219
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:204
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:204
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:204
-#: wordpress/trunk/includes/class-tgev-admin.php:204
+#: wordpress/trunk/includes/class-tgev-admin.php:216
 msgid "Send money to me"
 msgstr "Пожертвовать на развитие плагина"
 
-#: includes/class-tgev-admin.php:216
+#: includes/class-tgev-admin.php:219
 #: wordpress/tags/1.0/includes/class-tgev-admin.php:204
 #: wordpress/tags/1.1/includes/class-tgev-admin.php:204
 #: wordpress/tags/1.2/includes/class-tgev-admin.php:204
-#: wordpress/trunk/includes/class-tgev-admin.php:204
+#: wordpress/trunk/includes/class-tgev-admin.php:216
 msgid "Donate"
 msgstr "Пожертвовать"
 
@@ -204,59 +208,64 @@ msgstr "Несериализация экземпляров этого клас�
 msgid " Backtrace: "
 msgstr " Трассировка: "
 
-#: build/index.js:168 build/index_old.js:111 src/index.js:60
-#: src/index_old.js:17 wordpress/tags/1.0/build/index.js:1
+#: build/index.js:188 build/index_old.js:113 src/index.js:80
+#: src/index_old.js:20 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Frequency"
 msgstr "Повторы"
 
-#: build/index.js:172 build/index_old.js:115 src/index.js:63
-#: src/index_old.js:20 wordpress/tags/1.0/build/index.js:1
+#: build/index.js:192 build/index_old.js:117 src/index.js:83
+#: src/index_old.js:23 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Style"
 msgstr "Стилистика"
 
-#: build/index.js:176 build/index_old.js:119 src/index.js:66
-#: src/index_old.js:23 wordpress/tags/1.0/build/index.js:1
+#: build/index.js:196 build/index_old.js:121 src/index.js:86
+#: src/index_old.js:26 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Keywords"
 msgstr "Запросы"
 
-#: build/index.js:180 build/index_old.js:123 src/index.js:69
-#: src/index_old.js:26 wordpress/tags/1.0/build/index.js:1
+#: build/index.js:200 build/index_old.js:125 src/index.js:89
+#: src/index_old.js:29 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Formality"
 msgstr "Водность"
 
-#: build/index.js:184 build/index_old.js:127 src/index.js:72
-#: src/index_old.js:29 wordpress/tags/1.0/build/index.js:1
+#: build/index.js:204 build/index_old.js:129 src/index.js:92
+#: src/index_old.js:32 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Readability"
 msgstr "Удобочитаемость"
 
-#: build/index.js:201 build/index_old.js:142 src/index.js:90
-#: src/index_old.js:45 wordpress/tags/1.0/build/index.js:1
+#: build/index.js:221 build/index_old.js:144 src/index.js:110
+#: src/index_old.js:48 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Overall risk"
 msgstr "Общий риск"
 
-#: build/index.js:201 build/index_old.js:142 src/index.js:94
-#: src/index_old.js:51 wordpress/tags/1.0/build/index.js:1
+#: build/index.js:221 build/index_old.js:144 src/index.js:114
+#: src/index_old.js:54 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "Report"
 msgstr "Отчет"
 
-#: build/index.js:201 build/index.js:208 build/index_old.js:142
-#: build/index_old.js:149 src/index.js:96 src/index.js:104 src/index_old.js:53
-#: src/index_old.js:66 wordpress/tags/1.0/build/index.js:1
+#: build/index.js:221 build/index.js:228 build/index_old.js:144
+#: build/index_old.js:151 src/index.js:116 src/index.js:124 src/index_old.js:56
+#: src/index_old.js:69 wordpress/tags/1.0/build/index.js:1
 #: wordpress/tags/1.1/build/index.js:1 wordpress/tags/1.2/build/index.js:1
 #: wordpress/trunk/build/index.js:1
 msgid "More"
 msgstr "Подробнее"
+
+#: build/index.js:285 build/index_old.js:261 src/index.js:192
+#: src/index_old.js:186
+msgid "Failed to parse content. Add content to the editor or click in the editable area."
+msgstr "Возникли проблемы при анализе контента. Добавьте контент в редактор или щелкните по области редактирования в редакторе."

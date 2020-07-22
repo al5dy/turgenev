@@ -1,4 +1,4 @@
-SET version=1.3
+SET version=1.4
 SET plugin=turgenev
 
 call npm run build
