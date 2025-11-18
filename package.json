@@ -22,7 +22,7 @@
   },
   "main": "build/index.js",
   "devDependencies": {
-    "@wordpress/scripts": "^12.1.1"
+    "@wordpress/scripts": "^31.0.0"
   },
   "scripts": {
     "packages-update": "wp-scripts packages-update",
