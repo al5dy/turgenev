@@ -36,7 +36,7 @@ final class EditorIntegration {
 		wp_enqueue_script(
 			'turgenev-editor',
 			TURGENEV_URL . 'assets/build/editor.js',
-			array( 'turgenev-client', 'wp-block-editor', 'wp-components', 'wp-compose', 'wp-data', 'wp-element', 'wp-hooks', 'wp-i18n' ),
+			array( 'turgenev-client', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-compose', 'wp-data', 'wp-element', 'wp-hooks', 'wp-i18n' ),
 			TURGENEV_VERSION,
 			true
 		);

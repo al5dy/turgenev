@@ -18,6 +18,7 @@ This repository is maintained as production WordPress software. Changes made by 
 
 ## Code quality
 
+- Treat every change as production WordPress software: it must be secure, readable, cohesive, backwards-compatible where appropriate and ready for senior-engineer review. Prefer durable, well-tested solutions over expedient patches.
 - New PHP belongs under `src/` and uses the `Al5dy\\Turgenev` namespace.
 - The root plugin file remains a thin bootstrap/autoloader.
 - Browser code must not use `innerHTML` with provider-controlled data.
@@ -61,3 +62,9 @@ Never hard-code or commit that key.
 ## Definition of done
 
 A change is done only when code, tests, documentation, version metadata and release packaging agree. A passing happy path alone is insufficient: test invalid API keys, provider errors, malformed JSON, missing permissions, empty content, oversized content and browser-visible secret leakage.
+
+Do not change the plugin version, `Stable tag`, package version, changelog version or other release metadata unless the user explicitly asks for a version or release update. Keep existing version metadata synchronized without incrementing it automatically.
+
+Do not change `readme.txt`, `README.md`, their descriptions, installation instructions, screenshots, FAQs, changelog entries or other user-facing documentation unless the user explicitly requests that documentation change.
+
+Before a release, verify relevant changed workflows with representative smoke inputs and in a real supported browser. For editor work, cover Gutenberg and, where the change can affect it, Classic Editor; include success, empty-content, invalid-key, insufficient-balance, provider-error and browser-visible-secret scenarios as applicable. Automated checks complement rather than replace browser verification.
