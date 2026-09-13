@@ -1,58 +1,102 @@
-# "Turgenev"
+# Turgenev for WordPress
 
-![Turgenev Banner](https://res.cloudinary.com/al5dy/image/upload/v1595165194/turgenev.png)
+Turgenev integrates the official Turgenev content-analysis service into the WordPress Classic Editor and Block Editor. Version 2.0.0 is a security-focused rewrite of the original plugin with a server-side API boundary, modern WordPress/PHP requirements and a reproducible test/release toolchain.
 
-[This plugin](https://wordpress.org/plugins/turgenev/) assesses the risk of falling under the "Baden-Baden" and shows what needs to be fixed. Enjoy :)
-                                                       
-Baden-Baden is Yandex's algorithm for detecting unnatural, over-optimized texts. If there is not a lot of low-quality content on the site, specific pages go down in the ranking. If there is a lot, the whole site will be filtered. Turgenev evaluates the risk of Baden-Baden in points, shows the problems and helps to cope with them.
-                                                       
-Plugin uses an [official "Turgenev" API](https://turgenev.ashmanov.com/?a=apikey).
-                                                       
-You can find more information on the [official website](https://turgenev.ashmanov.com/?a=home).
+## Requirements
 
-## Donate (if you like this plugin <3)
+- WordPress 6.6+
+- PHP 8.1+
+- A Turgenev API key
+- JavaScript-enabled wp-admin editor
 
-Glad to have your support. More awesomes coming soon!
+## Technical highlights
 
-| Type | Address/link |
-| :---: | :--- |
-| YandexMoney | [https://money.yandex.ru/to/410012328678499](https://money.yandex.ru/to/410012328678499) |
-| WMZ | `Z337484456205` |
+- **Server-side API proxy.** The Turgenev API key never appears in browser JavaScript or localized script data.
+- **Nonce + capability enforcement.** Remote API actions require a valid WordPress nonce and `edit_posts`.
+- **Safe key rotation.** A new key is validated with the balance endpoint; a typo/provider outage cannot overwrite the previously working key.
+- **No paid validation check.** Saving settings no longer performs a `risk` analysis of a dummy string.
+- **Defensive provider parsing.** HTTP failures, invalid JSON, API errors and invalid balance payloads fail closed.
+- **XSS-resistant rendering.** Provider strings are inserted with DOM/text APIs instead of `innerHTML`.
+- **Gutenberg + Classic Editor.** Both editor experiences share the same server-side integration and response handling.
+- **Explicit external-service disclosure.** Content leaves WordPress only after the editor clicks Analyze.
+- **Automated engineering checks.** PHP smoke tests, JavaScript contract tests, Playwright E2E scaffolding, GitHub Actions and release tooling are included.
 
+## Architecture
 
-## Main Features
+```text
+Browser editor
+    │  nonce + operation + content
+    ▼
+WordPress admin-ajax.php
+    │  capability + nonce validation
+    ▼
+ApiController
+    ▼
+ApiClient ───── saved API key (server-side only)
+    │
+    ▼
+https://turgenev.ashmanov.com/
+```
 
-- "Turgenev" API
-- Displaying the current balance
-- On-the-fly text analysis in Gutenberg or Classic Editor
-- Detailed reports
-- Well organized source code
-- WP Hooks/Filters
-- Russian and English language support
-
+See [`docs/architecture.md`](docs/architecture.md) for details and [`API.md`](API.md) for the provider/API contract used by this plugin.
 
 ## Installation
 
-Automatic installation (or you can download the latest version from [this repo](https://github.com/al5dy/turgenev))
+1. Upload the `turgenev` directory or install the release ZIP.
+2. Activate **Turgenev**.
+3. Open **Settings → Turgenev**.
+4. Paste an API key and save. The key is verified through the balance endpoint.
+5. Open a post/page. Use the Turgenev sidebar in the Block Editor or the Turgenev metabox in the Classic Editor.
 
-1. Log into your WordPress admin area
-2. Go to Plugins -> Add New
-3. Search for Turgenev -> Install Now (on the side Turgenev)
-4. Activate the plugin
-5. Go to Settings menu -> "Turgenev" -> [Insert API key](https://turgenev.ashmanov.com/?a=apikey) -> Save changes
-6. Go to any page/post etc. -> In the right panel click on the "T" icon or open the "Turgenev" metabox -> click "Check content"
+## Development
 
-## Manual installation
+```bash
+# Deterministic checks without Composer/npm dependencies.
+php tools/check-php-syntax.php
+php tools/check-version.php
+php tests/php/run.php
+npm run check:syntax
+npm run test:js
 
-The manual installation method involves downloading my Turgenev plugin and uploading it to your webserver
-via your favourite FTP application. The WordPress codex contains [instructions on how to do this here](https://codex.wordpress.org/Managing_Plugins#Manual_Plugin_Installation).
+# Full lint/toolchain.
+composer install
+composer lint
+npm install
+npm run lint:js
+npm run lint:css
+```
 
+### Browser tests
 
-## Minimum Requirements
+```bash
+export WP_BASE_URL='http://localhost:8888'
+export WP_ADMIN_USER='admin'
+export WP_ADMIN_PASSWORD='password'
+npx playwright install chromium
+npm run test:e2e
+```
 
-* PHP version 5.6 or greater
-* WP 5.0 or greater
+See [`docs/testing.md`](docs/testing.md).
+
+## API key handling
+
+The option name remains `turgenev` for backwards compatibility with 1.x installations. Version 2.0.0 reads the existing `api_key` automatically.
+
+The settings screen does not echo the saved secret back into the password field. It displays only a masked suffix. Submitting an empty key field keeps the current key; selecting **Remove the saved API key** explicitly clears it.
+
+## Release build
+
+```bash
+npm run build
+bash tools/build-zip.sh
+```
+
+The production ZIP contains runtime PHP, compiled browser assets, translations, readme/license files and `uninstall.php`; development-only tooling is excluded. See [`docs/release.md`](docs/release.md).
+
+## Security
+
+Report security issues according to [`SECURITY.md`](SECURITY.md). Never include a real Turgenev API key in an issue, log or test fixture.
 
 ## License
 
-GNU <https://raw.githubusercontent.com/al5dy/turgenev/master/LICENSE>
+GPLv2 or later. See [`LICENSE`](LICENSE).

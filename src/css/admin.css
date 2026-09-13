@@ -1,0 +1,71 @@
+.turgenev-panel,
+.turgenev-status-card {
+	position: relative;
+}
+
+.turgenev-panel.is-busy,
+.turgenev-status-card.is-busy {
+	opacity: 0.7;
+}
+
+.turgenev-status-card {
+	max-width: 720px;
+	padding: 12px 16px;
+	border: 1px solid #dcdcde;
+	background: #fff;
+}
+
+.turgenev-message:empty {
+	display: none;
+}
+
+.turgenev-notice {
+	margin: 10px 0;
+	padding: 8px 10px;
+	border-left: 4px solid #d63638;
+	background: #fcf0f1;
+}
+
+.turgenev-notice.is-success {
+	border-left-color: #00a32a;
+	background: #edfaef;
+}
+
+#turgenev-balance.is-low,
+.turgenev-panel .is-low {
+	color: #b32d2e;
+}
+
+.turgenev-table-wrap {
+	overflow-x: auto;
+	margin-top: 12px;
+}
+
+.turgenev-results {
+	min-width: 100%;
+	border-collapse: collapse;
+}
+
+.turgenev-results th {
+	width: 58%;
+	font-weight: 500;
+	text-align: left;
+}
+
+.turgenev-results .turgenev-result-section th,
+.turgenev-results .turgenev-result-section td {
+	font-weight: 600;
+	background: #f0f0f1;
+}
+
+.turgenev-result-host {
+	margin-top: 12px;
+}
+
+.turgenev-top-up {
+	margin-top: 12px;
+}
+
+.turgenev-panel .components-spinner {
+	margin: 0 6px 0 0;
+}

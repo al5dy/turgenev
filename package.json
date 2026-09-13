@@ -1,42 +1,40 @@
 {
   "name": "turgenev",
-  "version": "1.0.4",
-  "description": "Assesses the risk of falling under the \"Baden-Baden\" and shows what needs to be fixed",
+  "version": "2.0.0",
+  "private": true,
+  "description": "WordPress integration for the Turgenev content analysis API.",
   "author": "Anton Lokotkov aka al5dy",
-  "license": "(ISC) GPLv3 or later",
-  "keywords": [
-    "Content analysis",
-    "Readability",
-    "seo",
-    "gutenberg",
-    "gutenberg editor"
-  ],
-  "homepage": "https://turgenev.ashmanov.com/?a=home",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://wordpress.org/plugins/turgenev/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/al5dy/turgenev"
+    "url": "https://github.com/al5dy/turgenev.git"
   },
-  "bugs": {
-    "url": "https://github.com/al5dy/turgenev/issues",
-    "email": "ant.lokotkov@gmail.com"
-  },
-  "main": "build/index.js",
-  "devDependencies": {
-    "@wordpress/scripts": "^12.1.1"
+  "keywords": [
+    "wordpress",
+    "seo",
+    "content-analysis",
+    "readability",
+    "gutenberg",
+    "turgenev"
+  ],
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10"
   },
   "scripts": {
-    "packages-update": "wp-scripts packages-update",
+    "build": "node tools/build-assets.mjs",
+    "check:syntax": "node tools/check-js-syntax.mjs",
+    "test:js": "node --test tests/js/*.test.mjs",
+    "test:e2e": "playwright test",
+    "lint:js": "wp-scripts lint-js src/js",
+    "lint:css": "wp-scripts lint-style src/css/*.css",
     "lint:pkg-json": "wp-scripts lint-pkg-json",
-    "start": "wp-scripts start src/index.js src/index_old.js --output-path=build",
-    "build": "set NODE_ENV=production&&wp-scripts build src/index.js src/index_old.js --output-path=build",
-    "format:js": "wp-scripts format-js ./src",
-    "lint:js:src": "wp-scripts lint-js ./src",
-    "lint:style": "wp-scripts lint-style",
-    "lint:md:docs": "wp-scripts lint-md-docs",
-    "lint:md:js": "wp-scripts lint-md-js",
-    "check-licenses": "wp-scripts check-licenses",
-    "i18n-pot": "wp i18n make-pot . ./languages/turgenev.pot && cp ./languages/turgenev.pot ./languages/turgenev-ru_RU.po",
-    "i18n-json": "wp i18n make-json ./languages --no-purge",
-    "check-engines": "wp-scripts check-engines"
+    "check:licenses": "wp-scripts check-licenses",
+    "test": "npm run check:syntax && npm run test:js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@wordpress/scripts": "35.0.0"
   }
 }

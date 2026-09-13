@@ -1,39 +1,57 @@
 <?php
 /**
- * Plugin Name: "Turgenev"
- * Description: Assesses the risk of falling under the "Baden-Baden" and shows what needs to be fixed
- * Version: 1.4
+ * Plugin Name: Turgenev
+ * Plugin URI: https://wordpress.org/plugins/turgenev/
+ * Description: Analyze WordPress content with the official Turgenev API for SEO over-optimization, readability, style, keyword stuffing and Baden-Baden risk.
+ * Version: 2.0.0
+ * Requires at least: 6.6
+ * Requires PHP: 8.1
  * Author: al5dy
- * Plugin URI: https://turgenev.ashmanov.com/?a=home
  * Author URI: https://ziscod.com
- * License: GPLv3
- * License URI: https://www.gnu.org/licenses/gpl-3.0.html
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: turgenev
- * Domain Path: /languages/
+ * Domain Path: /languages
  *
  * @package Turgenev
  */
 
 defined( 'ABSPATH' ) || exit;
 
-if ( ! defined( 'TGEV_PLUGIN_FILE' ) ) {
-  define( 'TGEV_PLUGIN_FILE', __FILE__ );
-}
+define( 'TURGENEV_VERSION', '2.0.0' );
+define( 'TURGENEV_FILE', __FILE__ );
+define( 'TURGENEV_DIR', plugin_dir_path( __FILE__ ) );
+define( 'TURGENEV_URL', plugin_dir_url( __FILE__ ) );
 
-// Include the main Turgenev class.
-if ( ! class_exists( 'Turgenev', false ) ) {
-  include_once dirname( TGEV_PLUGIN_FILE ) . '/includes/class-turgenev.php';
-}
+spl_autoload_register(
+	static function ( string $class ): void {
+		$prefix = 'Al5dy\\Turgenev\\';
+
+		if ( 0 !== strpos( $class, $prefix ) ) {
+			return;
+		}
+
+		$file = TURGENEV_DIR . 'src/' . str_replace( '\\', '/', substr( $class, strlen( $prefix ) ) ) . '.php';
+
+		if ( is_readable( $file ) ) {
+			require_once $file;
+		}
+	}
+);
 
 /**
- * Returns the main instance of TGEV.
+ * Backward-compatible access to the main plugin instance.
  *
- * @since  1.0
- * @return Turgenev
+ * @return \Al5dy\Turgenev\Plugin
  */
-function TGEV() { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
-  return Turgenev::instance();
+function TGEV(): \Al5dy\Turgenev\Plugin { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+	return \Al5dy\Turgenev\Plugin::instance();
 }
 
-// Global for backwards compatibility.
-$GLOBALS['turgenev'] = TGEV();
+add_action(
+	'plugins_loaded',
+	static function (): void {
+		\Al5dy\Turgenev\Bootstrap::boot();
+	},
+	20
+);
