@@ -1,0 +1,187 @@
+<?php
+/**
+ * Editor integration and assets.
+ *
+ * @package Turgenev
+ */
+
+namespace Al5dy\Turgenev\Admin;
+
+use Al5dy\Turgenev\Api\ApiClient;
+use Al5dy\Turgenev\Support\OptionStore;
+
+defined( 'ABSPATH' ) || exit;
+
+final class EditorIntegration {
+	private OptionStore $options;
+
+	public function __construct( OptionStore $options ) {
+		$this->options = $options;
+	}
+
+	public function register(): void {
+		add_action( 'enqueue_block_editor_assets', array( $this, 'enqueueBlockEditorAssets' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueueAdminAssets' ) );
+		add_action( 'add_meta_boxes', array( $this, 'addMetaBoxes' ) );
+	}
+
+	/**
+	 * Load the Gutenberg integration on every supported block-editor screen.
+	 *
+	 * The UI must never disappear merely because an API key is missing. A missing
+	 * key is a configuration state, not a reason to unregister the editor UI.
+	 */
+	public function enqueueBlockEditorAssets(): void {
+		$this->enqueueClient();
+		wp_enqueue_script(
+			'turgenev-editor',
+			TURGENEV_URL . 'assets/build/editor.js',
+			array( 'turgenev-client', 'wp-components', 'wp-data', 'wp-editor', 'wp-element', 'wp-i18n', 'wp-plugins' ),
+			TURGENEV_VERSION,
+			true
+		);
+		wp_set_script_translations( 'turgenev-editor', 'turgenev', TURGENEV_DIR . 'languages' );
+		wp_enqueue_style( 'turgenev-admin' );
+	}
+
+	/**
+	 * Load settings / Classic Editor assets.
+	 */
+	public function enqueueAdminAssets( string $hook_suffix ): void {
+		$screen      = get_current_screen();
+		$is_settings = 'settings_page_turgenev-settings' === $hook_suffix;
+
+		if ( $is_settings ) {
+			$this->enqueueClient();
+			$this->enqueueClassicScript();
+			wp_enqueue_style( 'turgenev-admin' );
+			return;
+		}
+
+		if ( ! $screen || ! $screen->post_type || ! post_type_supports( $screen->post_type, 'editor' ) ) {
+			return;
+		}
+
+		// Gutenberg has its own integration loaded through enqueue_block_editor_assets.
+		if ( method_exists( $screen, 'is_block_editor' ) && $screen->is_block_editor() ) {
+			return;
+		}
+
+		$this->enqueueClient();
+		$this->enqueueClassicScript();
+		wp_enqueue_style( 'turgenev-admin' );
+	}
+
+	/**
+	 * Register the Classic Editor metabox.
+	 *
+	 * Do not infer the active editor from the post type alone. Classic Editor can switch
+	 * individual edit screens to the classic UI while the post type itself still
+	 * reports block-editor support. The current WP_Screen is authoritative.
+	 */
+	public function addMetaBoxes(): void {
+		$screen = get_current_screen();
+		if ( $screen && method_exists( $screen, 'is_block_editor' ) && $screen->is_block_editor() ) {
+			return;
+		}
+
+		$post_types = get_post_types( array( 'show_ui' => true ), 'names' );
+		foreach ( $post_types as $post_type ) {
+			if ( ! post_type_supports( $post_type, 'editor' ) ) {
+				continue;
+			}
+
+			add_meta_box(
+				'turgenev_metabox',
+				__( 'Turgenev', 'turgenev' ),
+				array( $this, 'renderMetaBox' ),
+				$post_type,
+				'side',
+				'high'
+			);
+		}
+	}
+
+	public function renderMetaBox(): void {
+		?>
+		<div id="turgenev-panel" class="turgenev-panel">
+			<?php if ( ! $this->options->hasApiKey() ) : ?>
+				<div class="turgenev-setup-notice">
+					<p><?php esc_html_e( 'Turgenev is ready, but an API key has not been configured yet.', 'turgenev' ); ?></p>
+					<p>
+						<a class="button button-primary" href="<?php echo esc_url( admin_url( 'options-general.php?page=turgenev-settings' ) ); ?>">
+							<?php esc_html_e( 'Configure API key', 'turgenev' ); ?>
+						</a>
+					</p>
+				</div>
+			<?php endif; ?>
+			<p>
+				<?php esc_html_e( 'Current balance:', 'turgenev' ); ?>
+				<strong id="turgenev-balance" aria-live="polite"><?php echo $this->options->hasApiKey() ? '…' : '—'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></strong>
+			</p>
+			<div id="turgenev-workflow">
+				<p>
+					<label>
+						<input type="checkbox" id="turgenev-raw" checked />
+						<?php esc_html_e( 'Analyze plain text only', 'turgenev' ); ?>
+					</label>
+					<span class="description"><?php esc_html_e( 'When enabled, HTML markup is removed before the text is sent for analysis.', 'turgenev' ); ?></span>
+				</p>
+				<p><button type="button" class="button button-primary" data-turgenev-check <?php disabled( ! $this->options->hasApiKey() ); ?>><?php esc_html_e( 'Analyze content', 'turgenev' ); ?></button></p>
+				<div id="turgenev-message" class="turgenev-message" aria-live="polite"></div>
+				<div id="turgenev-table"></div>
+			</div>
+			<p><a href="https://turgenev.ashmanov.com/?a=pay" class="button" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Top up Turgenev balance', 'turgenev' ); ?></a></p>
+		</div>
+		<?php
+	}
+
+	private function enqueueClient(): void {
+		if ( wp_script_is( 'turgenev-client', 'registered' ) ) {
+			wp_enqueue_script( 'turgenev-client' );
+			return;
+		}
+
+		wp_register_style(
+			'turgenev-admin',
+			TURGENEV_URL . 'assets/build/admin.css',
+			array(),
+			TURGENEV_VERSION
+		);
+
+		wp_register_script(
+			'turgenev-client',
+			TURGENEV_URL . 'assets/build/client.js',
+			array( 'wp-i18n' ),
+			TURGENEV_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'turgenev-client',
+			'TurgenevConfig',
+			array(
+				'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+				'nonce'         => wp_create_nonce( 'turgenev_api' ),
+				'reportBaseUrl' => ApiClient::REPORT_BASE_URL,
+				'maxTextLength' => ApiClient::MAX_TEXT_LENGTH,
+				'isConfigured'  => $this->options->hasApiKey(),
+				'settingsUrl'   => admin_url( 'options-general.php?page=turgenev-settings' ),
+			)
+		);
+
+		wp_enqueue_script( 'turgenev-client' );
+		wp_set_script_translations( 'turgenev-client', 'turgenev', TURGENEV_DIR . 'languages' );
+	}
+
+	private function enqueueClassicScript(): void {
+		wp_enqueue_script(
+			'turgenev-classic',
+			TURGENEV_URL . 'assets/build/classic.js',
+			array( 'turgenev-client', 'wp-i18n' ),
+			TURGENEV_VERSION,
+			true
+		);
+		wp_set_script_translations( 'turgenev-classic', 'turgenev', TURGENEV_DIR . 'languages' );
+	}
+}

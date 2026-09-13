@@ -1,0 +1,28 @@
+{
+  "name": "al5dy/turgenev",
+  "description": "WordPress integration for the Turgenev content analysis API.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=8.1"
+  },
+  "require-dev": {
+    "squizlabs/php_codesniffer": "3.13.6",
+    "wp-coding-standards/wpcs": "3.4.1"
+  },
+  "scripts": {
+    "lint": "phpcs --standard=phpcs.xml.dist",
+    "lint:fix": "phpcbf --standard=phpcs.xml.dist",
+    "test": "php tests/php/run.php",
+    "check": [
+      "@lint",
+      "@test"
+    ]
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  }
+}
