@@ -9,16 +9,16 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-13T17:33:52+02:00\n"
+"POT-Creation-Date: 2026-09-13T18:57:19+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: turgenev\n"
 
 #. Plugin Name of the plugin
 #: turgenev.php
-#: src/Admin/EditorIntegration.php:96
+#: src/Admin/EditorIntegration.php:119
 #: src/Admin/SettingsPage.php:33
-#: src/js/editor.js:279
+#: src/js/editor.js:415
 msgid "Turgenev"
 msgstr ""
 
@@ -42,37 +42,37 @@ msgstr ""
 msgid "https://ziscod.com"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:110
-#: src/js/editor.js:69
+#: src/Admin/EditorIntegration.php:133
+#: src/js/editor.js:73
 msgid "Turgenev is ready, but an API key has not been configured yet."
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:113
-#: src/js/editor.js:80
+#: src/Admin/EditorIntegration.php:136
+#: src/js/editor.js:84
 msgid "Configure API key"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:119
+#: src/Admin/EditorIntegration.php:142
 #: src/Admin/SettingsPage.php:183
 #: src/index.js:203
-#: src/js/editor.js:194
+#: src/js/editor.js:317
 msgid "Current balance:"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:126
-#: src/js/editor.js:224
+#: src/Admin/EditorIntegration.php:149
+#: src/js/editor.js:351
 msgid "Analyze plain text only"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:128
+#: src/Admin/EditorIntegration.php:151
 msgid "When enabled, HTML markup is removed before the text is sent for analysis."
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:130
+#: src/Admin/EditorIntegration.php:153
 msgid "Analyze content"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:134
+#: src/Admin/EditorIntegration.php:157
 msgid "Top up Turgenev balance"
 msgstr ""
 
@@ -158,58 +158,94 @@ msgstr ""
 msgid "You are not allowed to use Turgenev."
 msgstr ""
 
-#: src/Ajax/ApiController.php:45
+#: src/Ajax/ApiController.php:51
 msgid "Unsupported Turgenev request."
 msgstr ""
 
-#: src/Ajax/ApiController.php:53
+#: src/Ajax/ApiController.php:59
 msgid "Unexpected Turgenev integration error."
 msgstr ""
 
-#: src/Api/ApiClient.php:32
+#: src/Api/ApiClient.php:33
 msgid "Turgenev returned an invalid balance response."
 msgstr ""
 
-#: src/Api/ApiClient.php:45
+#: src/Api/ApiClient.php:46
 msgid "There is no content to analyze."
 msgstr ""
 
 #. translators: %d: maximum character count.
-#: src/Api/ApiClient.php:53
+#: src/Api/ApiClient.php:54
 #, php-format
 msgid "Turgenev accepts up to %d characters per check."
 msgstr ""
 
-#: src/Api/ApiClient.php:76
+#: src/Api/ApiClient.php:77
+msgid "Turgenev report reference is invalid."
+msgstr ""
+
+#. translators: %s: WordPress HTTP API error.
+#: src/Api/ApiClient.php:108
+#, php-format
+msgid "Could not retrieve the Turgenev report: %s"
+msgstr ""
+
+#. translators: %d: HTTP status code.
+#: src/Api/ApiClient.php:119
+#, php-format
+msgid "Turgenev report returned HTTP %d."
+msgstr ""
+
+#: src/Api/ApiClient.php:127
+msgid "Turgenev report markup is unavailable."
+msgstr ""
+
+#: src/Api/ApiClient.php:141
 msgid "Unsupported Turgenev API operation."
 msgstr ""
 
-#: src/Api/ApiClient.php:81
+#: src/Api/ApiClient.php:146
 msgid "Configure a Turgenev API key first."
 msgstr ""
 
 #. translators: %s: WordPress HTTP API error.
-#: src/Api/ApiClient.php:111
+#: src/Api/ApiClient.php:176
 #, php-format
 msgid "Could not reach the Turgenev API: %s"
 msgstr ""
 
 #. translators: %d: HTTP status code.
-#: src/Api/ApiClient.php:122
+#: src/Api/ApiClient.php:187
 #, php-format
 msgid "Turgenev API returned HTTP %d."
 msgstr ""
 
-#: src/Api/ApiClient.php:130
+#: src/Api/ApiClient.php:195
 msgid "Turgenev API returned an empty response."
 msgstr ""
 
-#: src/Api/ApiClient.php:136
+#: src/Api/ApiClient.php:201
 msgid "Turgenev API returned malformed JSON."
 msgstr ""
 
-#: src/Api/ApiClient.php:140
+#: src/Api/ApiClient.php:205
 msgid "Turgenev API returned an unexpected response."
+msgstr ""
+
+#: src/Api/ReportHighlightParser.php:20
+msgid "This server cannot parse Turgenev report highlights."
+msgstr ""
+
+#: src/Api/ReportHighlightParser.php:25
+msgid "Turgenev report did not contain highlight markup."
+msgstr ""
+
+#: src/Api/ReportHighlightParser.php:35
+msgid "Turgenev report text does not match the analyzed block."
+msgstr ""
+
+#: src/Api/ReportHighlightParser.php:92
+msgid "Turgenev report markup could not be parsed."
 msgstr ""
 
 #. translators: 1: minimum WordPress version, 2: minimum PHP version.
@@ -224,37 +260,37 @@ msgstr ""
 
 #: src/index.js:80
 #: src/index_old.js:20
-#: src/js/client.js:74
+#: src/js/client.js:75
 msgid "Frequency"
 msgstr ""
 
 #: src/index.js:83
 #: src/index_old.js:23
-#: src/js/client.js:75
+#: src/js/client.js:76
 msgid "Style"
 msgstr ""
 
 #: src/index.js:86
 #: src/index_old.js:26
-#: src/js/client.js:76
+#: src/js/client.js:77
 msgid "Keywords"
 msgstr ""
 
 #: src/index.js:89
 #: src/index_old.js:29
-#: src/js/client.js:77
+#: src/js/client.js:78
 msgid "Formality"
 msgstr ""
 
 #: src/index.js:92
 #: src/index_old.js:32
-#: src/js/client.js:78
+#: src/js/client.js:79
 msgid "Readability"
 msgstr ""
 
 #: src/index.js:110
 #: src/index_old.js:48
-#: src/js/client.js:118
+#: src/js/client.js:141
 msgid "Overall risk"
 msgstr ""
 
@@ -292,12 +328,12 @@ msgid "Top-up balance"
 msgstr ""
 
 #: src/js/classic.js:46
-#: src/js/editor.js:109
+#: src/js/editor.js:121
 msgid "Could not load balance."
 msgstr ""
 
 #: src/js/classic.js:58
-#: src/js/editor.js:121
+#: src/js/editor.js:242
 msgid "Configure a Turgenev API key before running an analysis."
 msgstr ""
 
@@ -306,55 +342,92 @@ msgid "Add content to the editor before running Turgenev."
 msgstr ""
 
 #: src/js/classic.js:89
-#: src/js/editor.js:156
+#: src/js/editor.js:274
 msgid "The content is longer than the maximum size accepted by Turgenev."
 msgstr ""
 
 #: src/js/classic.js:111
-#: src/js/editor.js:177
+#: src/js/editor.js:300
 msgid "Content analysis failed."
 msgstr ""
 
-#: src/js/client.js:44
+#: src/js/client.js:45
 msgid "Could not connect to WordPress. Check your network connection and try again."
 msgstr ""
 
-#: src/js/client.js:56
+#: src/js/client.js:57
 msgid "WordPress returned an invalid response."
 msgstr ""
 
-#: src/js/client.js:64
+#: src/js/client.js:65
 msgid "Turgenev request failed."
 msgstr ""
 
-#: src/js/client.js:100
+#: src/js/client.js:104
 msgid "Open report"
 msgstr ""
 
-#: src/js/client.js:130
-msgid "Detailed report"
+#: src/js/client.js:112
+msgid "Highlight"
 msgstr ""
 
-#: src/js/editor.js:131
+#: src/js/client.js:224
+#: src/js/client.js:325
+#: src/js/client.js:348
+msgid "Turgenev returned invalid highlight data."
+msgstr ""
+
+#: src/js/client.js:268
+msgid "Gutenberg rich text is unavailable."
+msgstr ""
+
+#: src/js/client.js:285
+msgid "Turgenev highlight"
+msgstr ""
+
+#: src/js/client.js:333
+#: src/js/editor-content.js:101
+#: src/js/editor.js:150
+#: src/js/editor.js:170
+msgid "The selected block changed since this report was created."
+msgstr ""
+
+#: src/js/editor.js:186
+msgid "This report has no highlighted fragments."
+msgstr ""
+
+#: src/js/editor.js:196
+msgid "Could not highlight the selected block."
+msgstr ""
+
+#: src/js/editor.js:231
+msgid "Could not reset the highlighted block."
+msgstr ""
+
+#: src/js/editor.js:252
 msgid "Your Turgenev balance is empty. Top it up before running an analysis."
 msgstr ""
 
-#: src/js/editor.js:147
+#: src/js/editor.js:265
 msgid "Add text to the selected block before running Turgenev."
 msgstr ""
 
-#: src/js/editor.js:206
+#: src/js/editor.js:329
 msgid "Your balance is empty. Top it up to analyze this block."
 msgstr ""
 
-#: src/js/editor.js:225
+#: src/js/editor.js:352
 msgid "Remove HTML markup before sending the text to Turgenev."
 msgstr ""
 
-#: src/js/editor.js:241
+#: src/js/editor.js:368
 msgid "Analyze selected block"
 msgstr ""
 
-#: src/js/editor.js:254
+#: src/js/editor.js:379
+msgid "Reset view"
+msgstr ""
+
+#: src/js/editor.js:391
 msgid "Top up balance"
 msgstr ""

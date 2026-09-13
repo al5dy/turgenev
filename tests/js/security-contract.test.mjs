@@ -10,17 +10,39 @@ async function source( file ) {
 }
 
 test( 'browser code never references a provider api_key field', async () => {
-	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js' ] ) {
+	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js' ] ) {
 		const text = await source( file );
 		assert.equal( /api_key|apiKey/.test( text ), false, `${ file } must not contain the provider key` );
 	}
 } );
 
 test( 'provider-controlled results are not assigned through innerHTML', async () => {
-	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js' ] ) {
+	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js' ] ) {
 		const text = await source( file );
 		assert.equal( /\.innerHTML\s*=/.test( text ), false, `${ file } must not assign innerHTML` );
 	}
+} );
+
+test( 'report highlights are parsed server-side and applied through Gutenberg rich text', async () => {
+	const parser = await source( 'src/Api/ReportHighlightParser.php' );
+	const controller = await source( 'src/Ajax/ApiController.php' );
+	const client = await source( 'src/js/client.js' );
+	const editor = await source( 'src/js/editor.js' );
+	const content = await source( 'src/js/editor-content.js' );
+	assert.match( parser, /DOMDocument/ );
+	assert.match( parser, /report text does not match/i );
+	assert.match( controller, /'highlights'/ );
+	assert.match( controller, /reportHighlights/ );
+	assert.match( client, /wp\.richText\.applyFormat/ );
+	assert.match( client, /wp\.richText\.removeFormat/ );
+	assert.match( client, /data-turgenev-category/ );
+	assert.match( client, /appendReportActions/ );
+	assert.doesNotMatch( client, /renderHighlights/ );
+	assert.doesNotMatch( client, /Highlights preview/ );
+	assert.match( content, /updateBlockAttributes/ );
+	assert.match( editor, /Reset view/ );
+	assert.match( editor, /useRegistry/ );
+	assert.match( content, /innerBlocks/ );
 } );
 
 test( 'localized browser config contains nonce but no api key', async () => {
@@ -54,11 +76,11 @@ test( 'classic editor metabox uses the active screen rather than post-type capab
 
 test( 'gutenberg adds Turgenev controls to the selected text block inspector', async () => {
 	const js = await source( 'src/js/editor.js' );
+	const content = await source( 'src/js/editor-content.js' );
 	assert.match( js, /InspectorControls/ );
 	assert.match( js, /editor\.BlockEdit/ );
-	assert.match( js, /core\/paragraph/ );
-	assert.match( js, /core\/block-editor/ );
-	assert.match( js, /wp\.blocks\.serialize/ );
+	assert.match( content, /core\/paragraph/ );
+	assert.match( content, /core\/block-editor/ );
 	assert.match( js, /Analyze selected block/ );
 	assert.match( js, /topUpUrl/ );
 } );

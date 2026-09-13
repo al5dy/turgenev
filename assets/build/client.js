@@ -7,6 +7,7 @@
 
 	const { __ } = wp.i18n;
 	const config = window.TurgenevConfig;
+	const HIGHLIGHT_FORMAT = 'turgenev/highlight';
 
 	function apiErrorMessage( payload, fallback ) {
 		if (
@@ -89,19 +90,41 @@
 		return cell;
 	}
 
-	function appendReportLink( cell, token ) {
+	function appendReportActions( cell, token, onHighlight ) {
 		if ( typeof token !== 'string' || ! token ) {
 			return;
 		}
+
+		const actions = document.createElement( 'span' );
+		actions.className = 'turgenev-report-actions';
 		const link = document.createElement( 'a' );
 		link.href = `${ config.reportBaseUrl }${ encodeURIComponent( token ) }`;
 		link.target = '_blank';
 		link.rel = 'noopener noreferrer';
 		link.textContent = __( 'Open report', 'turgenev' );
-		cell.appendChild( link );
+		actions.appendChild( link );
+
+		if ( typeof onHighlight === 'function' ) {
+			const button = document.createElement( 'button' );
+			button.type = 'button';
+			button.className =
+				'button button-secondary turgenev-highlight-action';
+			button.textContent = __( 'Highlight', 'turgenev' );
+			button.addEventListener( 'click', async () => {
+				button.disabled = true;
+				try {
+					await onHighlight( token );
+				} finally {
+					button.disabled = false;
+				}
+			} );
+			actions.appendChild( button );
+		}
+
+		cell.appendChild( actions );
 	}
 
-	function renderResult( container, data ) {
+	function renderResult( container, data, options = {} ) {
 		if ( ! container ) {
 			return;
 		}
@@ -121,19 +144,9 @@
 			'td',
 			`${ String( data.level || '—' ) } (${ String( data.risk ?? '—' ) })`
 		);
+		appendReportActions( summary, data.link, options.onHighlight );
 		summaryRow.appendChild( summary );
 		tbody.appendChild( summaryRow );
-
-		if ( data.link ) {
-			const reportRow = document.createElement( 'tr' );
-			reportRow.appendChild(
-				makeCell( 'th', __( 'Detailed report', 'turgenev' ) )
-			);
-			const reportCell = document.createElement( 'td' );
-			appendReportLink( reportCell, data.link );
-			reportRow.appendChild( reportCell );
-			tbody.appendChild( reportRow );
-		}
 
 		const details = Array.isArray( data.details ) ? data.details : [];
 		details.forEach( ( detail ) => {
@@ -152,7 +165,7 @@
 				)
 			);
 			const linkCell = document.createElement( 'td' );
-			appendReportLink( linkCell, detail.link );
+			appendReportActions( linkCell, detail.link, options.onHighlight );
 			heading.appendChild( linkCell );
 			tbody.appendChild( heading );
 
@@ -178,6 +191,182 @@
 		table.appendChild( tbody );
 		wrapper.appendChild( table );
 		container.appendChild( wrapper );
+	}
+
+	function validHighlights( text, marks ) {
+		const allowedCategories = new Set( [
+			'frequency',
+			'formality',
+			'keywords',
+			'readability',
+			'style',
+		] );
+		if (
+			! Array.isArray( marks ) ||
+			marks.some(
+				( mark ) =>
+					! (
+						mark &&
+						typeof mark === 'object' &&
+						Number.isInteger( mark.start ) &&
+						Number.isInteger( mark.end ) &&
+						mark.start >= 0 &&
+						mark.end > mark.start &&
+						mark.end <= text.length &&
+						allowedCategories.has( mark.category ) &&
+						Number.isInteger( mark.level ) &&
+						mark.level >= 1 &&
+						mark.level <= 3
+					)
+			)
+		) {
+			throw new Error(
+				__( 'Turgenev returned invalid highlight data.', 'turgenev' )
+			);
+		}
+		return [ ...marks ].sort( ( left, right ) => left.start - right.start );
+	}
+
+	function normalizedTextOffsets( text ) {
+		let normalized = '';
+		let sourceOffset = 0;
+		let whitespaceStart = null;
+		let whitespaceEnd = null;
+		const offsets = [];
+
+		for ( const character of text ) {
+			const nextOffset = sourceOffset + character.length;
+			if ( /[\s\u00a0]/u.test( character ) ) {
+				if ( normalized ) {
+					whitespaceStart ??= sourceOffset;
+					whitespaceEnd = nextOffset;
+				}
+				sourceOffset = nextOffset;
+				continue;
+			}
+
+			if ( null !== whitespaceStart ) {
+				offsets[ normalized.length ] = whitespaceStart;
+				normalized += ' ';
+				offsets[ normalized.length ] = whitespaceEnd;
+				whitespaceStart = null;
+				whitespaceEnd = null;
+			}
+
+			offsets[ normalized.length ] = sourceOffset;
+			normalized += character;
+			offsets[ normalized.length ] = nextOffset;
+			sourceOffset = nextOffset;
+		}
+
+		return { text: normalized, offsets };
+	}
+
+	function ensureHighlightFormat() {
+		if ( ! wp.richText ) {
+			throw new Error(
+				__( 'Gutenberg rich text is unavailable.', 'turgenev' )
+			);
+		}
+
+		const richTextStore =
+			wp.data && typeof wp.data.select === 'function'
+				? wp.data.select( 'core/rich-text' )
+				: null;
+		if (
+			richTextStore &&
+			typeof richTextStore.getFormatType === 'function' &&
+			richTextStore.getFormatType( HIGHLIGHT_FORMAT )
+		) {
+			return;
+		}
+
+		wp.richText.registerFormatType( HIGHLIGHT_FORMAT, {
+			title: __( 'Turgenev highlight', 'turgenev' ),
+			tagName: 'span',
+			className: 'turgenev-highlight',
+			attributes: {
+				'data-turgenev-category': 'data-turgenev-category',
+				'data-turgenev-level': 'data-turgenev-level',
+			},
+			edit: () => null,
+		} );
+	}
+
+	function clearHighlights( html ) {
+		ensureHighlightFormat();
+		const value = wp.richText.create( { html: String( html || '' ) } );
+		if (
+			! value.formats.some( ( formats ) =>
+				formats?.some( ( format ) => format.type === HIGHLIGHT_FORMAT )
+			)
+		) {
+			return { html: String( html || '' ), text: value.text };
+		}
+		const cleared = wp.richText.removeFormat(
+			value,
+			HIGHLIGHT_FORMAT,
+			0,
+			value.text.length
+		);
+
+		return {
+			html: wp.richText.toHTMLString( {
+				value: cleared,
+				preserveWhiteSpace: true,
+			} ),
+			text: cleared.text,
+		};
+	}
+
+	function applyHighlights( html, data ) {
+		if ( ! data || typeof data.text !== 'string' ) {
+			throw new Error(
+				__( 'Turgenev returned invalid highlight data.', 'turgenev' )
+			);
+		}
+
+		const cleared = clearHighlights( html );
+		const source = normalizedTextOffsets( cleared.text );
+		if ( source.text !== data.text ) {
+			throw new Error(
+				__(
+					'The selected block changed since this report was created.',
+					'turgenev'
+				)
+			);
+		}
+
+		const marks = validHighlights( data.text, data.marks );
+
+		let value = wp.richText.create( { html: cleared.html } );
+		marks.forEach( ( mark ) => {
+			const start = source.offsets[ mark.start ];
+			const end = source.offsets[ mark.end ];
+			if ( ! Number.isInteger( start ) || ! Number.isInteger( end ) ) {
+				throw new Error(
+					__(
+						'Turgenev returned invalid highlight data.',
+						'turgenev'
+					)
+				);
+			}
+
+			value = wp.richText.applyFormat(
+				value,
+				{
+					type: HIGHLIGHT_FORMAT,
+					attributes: {
+						'data-turgenev-category': mark.category,
+						'data-turgenev-level': String( mark.level ),
+					},
+				},
+				start,
+				end
+			);
+		} );
+
+		return wp.richText.toHTMLString( { value, preserveWhiteSpace: true } );
 	}
 
 	function renderMessage( container, message, type = 'error' ) {
@@ -227,6 +416,11 @@
 	}
 
 	window.TurgenevClient = Object.freeze( {
+		normalizedTextOffsets,
+		validHighlights,
+		ensureHighlightFormat,
+		applyHighlights,
+		clearHighlights,
 		request,
 		toPlainText,
 		maxTextLength: Number( config.maxTextLength ) || 20000,

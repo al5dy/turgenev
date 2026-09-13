@@ -5,6 +5,8 @@
 
 define( 'ABSPATH', __DIR__ . '/wordpress/' );
 define( 'TURGENEV_VERSION', '2.0.0' );
+define( 'TURGENEV_DIR', dirname( __DIR__, 2 ) . '/' );
+define( 'TURGENEV_URL', 'https://example.test/wp-content/plugins/turgenev/' );
 
 $GLOBALS['turgenev_test_options'] = array();
 $GLOBALS['turgenev_http_handler'] = null;
@@ -32,10 +34,23 @@ function wp_remote_post( string $url, array $args ) {
 	return $handler ? $handler( $url, $args ) : new WP_Error( 'No HTTP handler configured.' );
 }
 
+function is_admin(): bool { return true; }
+function admin_url( string $path ): string { return 'https://example.test/wp-admin/' . $path; }
+function wp_create_nonce( string $action ): string { return 'test-nonce'; }
+function wp_script_is( string $handle, string $status ): bool { return isset( $GLOBALS['test_scripts'][ $handle ] ); }
+function wp_register_script( string $handle, string $src, array $deps, string $version, bool $footer ): void { $GLOBALS['test_scripts'][ $handle ] = compact( 'src', 'deps', 'version' ); }
+function wp_enqueue_script( string $handle, string $src = '', array $deps = array(), string $version = '', bool $footer = false ): void { if ( $src ) { wp_register_script( $handle, $src, $deps, $version, $footer ); } }
+function wp_register_style( string $handle, string $src, array $deps, string $version ): void { $GLOBALS['test_styles'][ $handle ] = compact( 'src', 'deps', 'version' ); }
+function wp_enqueue_style( string $handle, string $src = '', array $deps = array(), string $version = '' ): void { if ( $src ) { wp_register_style( $handle, $src, $deps, $version ); } }
+function wp_localize_script( string $handle, string $name, array $config ): void { $GLOBALS['test_localized'][ $handle ] = $config; }
+function wp_set_script_translations( string $handle, string $domain, string $path ): void {}
+
 require_once dirname( __DIR__, 2 ) . '/src/Support/OptionStore.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ApiException.php';
+require_once dirname( __DIR__, 2 ) . '/src/Api/ReportHighlightParser.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ApiClient.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/SettingsPage.php';
+require_once dirname( __DIR__, 2 ) . '/src/Admin/EditorIntegration.php';
 
 use Al5dy\Turgenev\Api\ApiClient;
 use Al5dy\Turgenev\Api\ApiException;
@@ -67,6 +82,16 @@ function expect_exception( callable $callback, string $contains ): void {
 }
 
 try {
+	$integration = new Al5dy\Turgenev\Admin\EditorIntegration( new OptionStore() );
+	$integration->enqueueBlockEditorAssets();
+	$integration->enqueueCanvasStyles();
+	expect_true( ApiClient::REPORT_BASE_URL === $GLOBALS['test_localized']['turgenev-client']['reportBaseUrl'], 'editor bootstrap resolves report URL at runtime' );
+	expect_true( in_array( 'turgenev-editor-content', $GLOBALS['test_scripts']['turgenev-editor']['deps'], true ), 'editor loads its content adapter before rendering' );
+	expect_true( isset( $GLOBALS['test_styles']['turgenev-canvas'] ), 'highlight colors load inside the editor iframe' );
+	foreach ( $GLOBALS['test_scripts'] as $script ) {
+		expect_true( is_file( TURGENEV_DIR . substr( $script['src'], strlen( TURGENEV_URL ) ) ), 'every enqueued runtime asset exists' );
+	}
+
 	$GLOBALS['turgenev_test_options']['turgenev'] = array( 'api_key' => 'saved-secret' );
 	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '{"balance":"42.50"}' );
 	$client = new ApiClient( new OptionStore() );
@@ -82,6 +107,20 @@ try {
 	expect_true( '4' === $result['risk'], 'risk response is returned' );
 	expect_true( '1' === $GLOBALS['turgenev_last_request']['args']['body']['more'], 'extended result flag is sent' );
 	expect_true( 'Useful test content.' === $GLOBALS['turgenev_last_request']['args']['body']['text'], 'analysis text is sent intact' );
+
+	$report_markup = '<html><body><textarea id="textfield"><p>Text <span class="xhl slop2 xhint xhint-1-1">with style</span> here.</p></textarea></body></html>';
+	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $report_markup );
+	$highlights = $client->reportHighlights( 'abc12345', 'Text with style here.' );
+	expect_true( 'Text with style here.' === $highlights['text'], 'report highlight text matches the analyzed block' );
+	expect_true( 1 === count( $highlights['marks'] ), 'highlighted report span becomes one safe mark' );
+	expect_true( 5 === $highlights['marks'][0]['start'] && 15 === $highlights['marks'][0]['end'], 'highlight offsets use browser-compatible UTF-16 positions' );
+	expect_true( 'style' === $highlights['marks'][0]['category'] && 2 === $highlights['marks'][0]['level'], 'highlight category and level are extracted from classes' );
+	expect_true( 'https://turgenev.ashmanov.com/' === $GLOBALS['turgenev_last_request']['url'], 'report is requested from the fixed provider endpoint' );
+	expect_true( 'abc12345' === $GLOBALS['turgenev_last_request']['args']['body']['t'], 'report reference is sent using the provider POST form' );
+	expect_true( false === isset( $GLOBALS['turgenev_last_request']['args']['body']['key'] ), 'report retrieval never sends the API key' );
+	expect_exception( static fn() => $client->reportHighlights( 'invalid report URL', 'Text with style here.' ), 'reference is invalid' );
+	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $report_markup );
+	expect_exception( static fn() => $client->reportHighlights( 'abc12345', 'Different text.' ), 'does not match' );
 
 	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '{not-json' );
 	expect_exception( static fn() => $client->balance(), 'malformed JSON' );

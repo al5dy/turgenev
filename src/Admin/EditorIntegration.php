@@ -21,6 +21,7 @@ final class EditorIntegration {
 
 	public function register(): void {
 		add_action( 'enqueue_block_editor_assets', array( $this, 'enqueueBlockEditorAssets' ) );
+		add_action( 'enqueue_block_assets', array( $this, 'enqueueCanvasStyles' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueueAdminAssets' ) );
 		add_action( 'add_meta_boxes', array( $this, 'addMetaBoxes' ) );
 	}
@@ -34,14 +35,36 @@ final class EditorIntegration {
 	public function enqueueBlockEditorAssets(): void {
 		$this->enqueueClient();
 		wp_enqueue_script(
+			'turgenev-editor-content',
+			TURGENEV_URL . 'assets/build/editor-content.js',
+			array( 'turgenev-client', 'wp-blocks', 'wp-data', 'wp-rich-text' ),
+			$this->assetVersion( 'assets/build/editor-content.js' ),
+			true
+		);
+		wp_set_script_translations( 'turgenev-editor-content', 'turgenev', TURGENEV_DIR . 'languages' );
+		wp_enqueue_script(
 			'turgenev-editor',
 			TURGENEV_URL . 'assets/build/editor.js',
-			array( 'turgenev-client', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-compose', 'wp-data', 'wp-element', 'wp-hooks', 'wp-i18n' ),
-			TURGENEV_VERSION,
+			array( 'turgenev-editor-content', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-compose', 'wp-data', 'wp-element', 'wp-hooks', 'wp-i18n' ),
+			$this->assetVersion( 'assets/build/editor.js' ),
 			true
 		);
 		wp_set_script_translations( 'turgenev-editor', 'turgenev', TURGENEV_DIR . 'languages' );
 		wp_enqueue_style( 'turgenev-admin' );
+	}
+
+	/**
+	 * Load highlight colors inside Gutenberg's iframe as well as the admin page.
+	 */
+	public function enqueueCanvasStyles(): void {
+		if ( is_admin() ) {
+			wp_enqueue_style(
+				'turgenev-canvas',
+				TURGENEV_URL . 'assets/build/admin.css',
+				array(),
+				$this->assetVersion( 'assets/build/admin.css' )
+			);
+		}
 	}
 
 	/**
@@ -146,14 +169,14 @@ final class EditorIntegration {
 			'turgenev-admin',
 			TURGENEV_URL . 'assets/build/admin.css',
 			array(),
-			TURGENEV_VERSION
+			$this->assetVersion( 'assets/build/admin.css' )
 		);
 
 		wp_register_script(
 			'turgenev-client',
 			TURGENEV_URL . 'assets/build/client.js',
-			array( 'wp-i18n' ),
-			TURGENEV_VERSION,
+			array( 'wp-i18n', 'wp-rich-text' ),
+			$this->assetVersion( 'assets/build/client.js' ),
 			true
 		);
 
@@ -180,9 +203,15 @@ final class EditorIntegration {
 			'turgenev-classic',
 			TURGENEV_URL . 'assets/build/classic.js',
 			array( 'turgenev-client', 'wp-i18n' ),
-			TURGENEV_VERSION,
+			$this->assetVersion( 'assets/build/classic.js' ),
 			true
 		);
 		wp_set_script_translations( 'turgenev-classic', 'turgenev', TURGENEV_DIR . 'languages' );
+	}
+
+	private function assetVersion( string $relative_path ): string {
+		$modified_at = filemtime( TURGENEV_DIR . $relative_path );
+
+		return false === $modified_at ? TURGENEV_VERSION : (string) $modified_at;
 	}
 }

@@ -30,6 +30,11 @@ This repository is maintained as production WordPress software. Changes made by 
 
 ## Required checks before declaring work complete
 
+The final verification step for every task is `php tools/check-php-syntax.php`.
+It must complete successfully and scans every PHP file in the plugin (excluding
+dependencies), not only files touched by the task. Do not declare a task complete
+while any PHP syntax error remains.
+
 Run, at minimum:
 
 ```bash
