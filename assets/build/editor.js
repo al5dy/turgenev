@@ -1,7 +1,12 @@
 ( function ( window, wp ) {
 	'use strict';
 
-	if ( ! window.TurgenevClient || ! window.TurgenevUI || ! wp ) {
+	if (
+		! window.TurgenevClient ||
+		! window.TurgenevUI ||
+		! window.TurgenevEditorContent ||
+		! wp
+	) {
 		return;
 	}
 
@@ -25,6 +30,7 @@
 	const {
 		createElement: el,
 		Fragment,
+		useCallback,
 		useEffect,
 		useRef,
 		useState,
@@ -32,58 +38,20 @@
 	const { addFilter } = wp.hooks;
 	const client = window.TurgenevClient;
 	const ui = window.TurgenevUI;
+	const blockContent = window.TurgenevEditorContent;
+	const sessions = new Map();
+	client.ensureHighlightFormat();
 
-	const textAttributes = {
-		'core/code': 'content',
-		'core/freeform': 'content',
-		'core/heading': 'content',
-		'core/list-item': 'content',
-		'core/paragraph': 'content',
-		'core/preformatted': 'content',
-		'core/pullquote': 'value',
-		'core/quote': 'value',
-		'core/verse': 'content',
-	};
-
-	function blockContent( name, attributes ) {
-		const attribute = textAttributes[ name ];
-		const content = attribute && attributes ? attributes[ attribute ] : '';
-		return typeof content === 'string' ? content : '';
-	}
-
-	function currentBlock( clientId ) {
-		const store = wp.data.select( 'core/block-editor' );
-		return store && typeof store.getBlock === 'function'
-			? store.getBlock( clientId )
-			: null;
-	}
-
-	function selectedBlockContent( props ) {
-		const selectedBlock = currentBlock( props.clientId );
-		const name = selectedBlock ? selectedBlock.name : props.name;
-		const attributes = selectedBlock
-			? selectedBlock.attributes
-			: props.attributes;
-		const directContent = blockContent( name, attributes );
-
-		if ( directContent.trim() ) {
-			return directContent;
+	function sessionFor( clientId ) {
+		if ( ! sessions.has( clientId ) ) {
+			sessions.set( clientId, {
+				result: null,
+				text: '',
+				originals: new Map(),
+				sequence: 0,
+			} );
 		}
-
-		if (
-			! selectedBlock ||
-			! wp.blocks ||
-			typeof wp.blocks.serialize !== 'function'
-		) {
-			return directContent;
-		}
-
-		// Serialization includes inner blocks, such as the paragraph inside a Quote or Group.
-		return wp.blocks.serialize( [ selectedBlock ] );
-	}
-
-	function hasTextContent( content ) {
-		return client.toPlainText( content ).trim().length > 0;
+		return sessions.get( clientId );
 	}
 
 	function isEmptyBalance( balance ) {
@@ -118,11 +86,19 @@
 		);
 	}
 
-	function AnalysisPanel( { content } ) {
+	function AnalysisPanel( { clientId } ) {
+		const registry = wp.data.useRegistry();
 		const [ plainText, setPlainText ] = useState( true );
 		const [ busy, setBusy ] = useState( false );
 		const [ balance, setBalance ] = useState( null );
 		const [ error, setError ] = useState( '' );
+		const session = sessionFor( clientId );
+		const [ result, setResult ] = useState( session.result );
+		const [ highlighting, setHighlighting ] = useState( false );
+		const [ isHighlighted, setIsHighlighted ] = useState( () =>
+			blockContent.hasHighlights( clientId, registry )
+		);
+		const [ notice, setNotice ] = useState( '' );
 		const resultRef = useRef( null );
 		const balanceIsEmpty = isEmptyBalance( balance );
 		let balanceLabel = '—';
@@ -151,6 +127,115 @@
 			refreshBalance();
 		}, [] );
 
+		useEffect( () => {
+			return () => {
+				session.sequence++;
+			};
+		}, [ session ] );
+
+		const highlightReport = useCallback(
+			async ( reportToken ) => {
+				const sequence = ++session.sequence;
+				setHighlighting( true );
+				setError( '' );
+				setNotice( '' );
+				try {
+					// Bind to the analyzed root, even when clicking a sidebar button moves focus.
+					const source = blockContent.snapshot( clientId, registry );
+					if (
+						! source.fields.length ||
+						source.text !== session.text
+					) {
+						throw new Error(
+							__(
+								'The selected block changed since this report was created.',
+								'turgenev'
+							)
+						);
+					}
+					const response = await client.request( 'highlights', {
+						report_token: reportToken,
+						text: source.text,
+					} );
+					if ( sequence !== session.sequence ) {
+						return;
+					}
+					if (
+						blockContent.signature( source ) !==
+						blockContent.signature(
+							blockContent.snapshot( clientId, registry )
+						)
+					) {
+						throw new Error(
+							__(
+								'The selected block changed since this report was created.',
+								'turgenev'
+							)
+						);
+					}
+					const count = blockContent.apply(
+						source,
+						response.highlights,
+						session.originals
+					);
+					setIsHighlighted(
+						blockContent.hasHighlights( clientId, registry )
+					);
+					if ( ! count ) {
+						setNotice(
+							__(
+								'This report has no highlighted fragments.',
+								'turgenev'
+							)
+						);
+					}
+				} catch ( exception ) {
+					if ( sequence === session.sequence ) {
+						setError(
+							exception.message ||
+								__(
+									'Could not highlight the selected block.',
+									'turgenev'
+								)
+						);
+					}
+				} finally {
+					if ( sequence === session.sequence ) {
+						setHighlighting( false );
+					}
+				}
+			},
+			[ clientId, registry, session ]
+		);
+
+		useEffect( () => {
+			if ( result ) {
+				ui.renderResult( resultRef.current, result, {
+					onHighlight: highlightReport,
+				} );
+			}
+		}, [ result, highlightReport ] );
+
+		function resetView() {
+			// Reset also cancels an in-flight highlight response.
+			session.sequence++;
+			setHighlighting( false );
+			try {
+				blockContent.reset( clientId, session.originals, registry );
+				setError( '' );
+				setNotice( '' );
+				setIsHighlighted( false );
+			} catch ( exception ) {
+				setError(
+					exception.message ||
+						__(
+							'Could not reset the highlighted block.',
+							'turgenev'
+						)
+				);
+			}
+		}
+
 		async function analyze() {
 			if ( ! client.isConfigured ) {
 				setError(
@@ -172,11 +257,11 @@
 				return;
 			}
 
-			let text = String( content || '' );
-			if ( plainText ) {
-				text = client.toPlainText( text );
-			}
-			text = text.trim();
+			const source = blockContent.snapshot( clientId, registry );
+			const html = source.fields
+				.map( ( field ) => client.clearHighlights( field.html ).html )
+				.join( '\n' );
+			const text = ( plainText ? source.text : html ).trim();
 
 			if ( ! text ) {
 				setError(
@@ -197,15 +282,20 @@
 				return;
 			}
 
+			resetView();
 			setBusy( true );
 			setError( '' );
+			setResult( null );
+			session.result = null;
 			if ( resultRef.current ) {
 				resultRef.current.replaceChildren();
 			}
 
 			try {
 				const data = await client.request( 'risk', { text } );
-				ui.renderResult( resultRef.current, data.result || {} );
+				session.text = source.text;
+				session.result = data.result || {};
+				setResult( session.result );
 				await refreshBalance();
 			} catch ( exception ) {
 				setError(
@@ -256,6 +346,10 @@
 						error
 				  )
 				: null,
+			notice
+				? el( Notice, { status: 'info', isDismissible: false }, notice )
+				: null,
+			highlighting ? el( Spinner ) : null,
 			el( ToggleControl, {
 				label: __( 'Analyze plain text only', 'turgenev' ),
 				help: __(
@@ -277,6 +371,16 @@
 					: __( 'Analyze selected block', 'turgenev' )
 			),
 			el( 'div', { ref: resultRef, className: 'turgenev-result-host' } ),
+			el(
+				Button,
+				{
+					variant: 'secondary',
+					onClick: resetView,
+					disabled: busy || ( ! isHighlighted && ! highlighting ),
+					className: 'turgenev-reset-view',
+				},
+				__( 'Reset view', 'turgenev' )
+			),
 			balanceIsEmpty && client.topUpUrl
 				? el(
 						'a',
@@ -295,14 +399,10 @@
 
 	const withTurgenevInspector = createHigherOrderComponent(
 		( BlockEdit ) => ( props ) => {
-			const content = props.isSelected
-				? selectedBlockContent( props )
-				: '';
-			const isKnownTextBlock = Object.prototype.hasOwnProperty.call(
-				textAttributes,
-				props.name
-			);
-			const isTextBlock = isKnownTextBlock || hasTextContent( content );
+			const registry = wp.data.useRegistry();
+			const isTextBlock =
+				props.isSelected &&
+				blockContent.snapshot( props.clientId, registry ).supported;
 
 			return el(
 				Fragment,
@@ -318,7 +418,9 @@
 									title: __( 'Turgenev', 'turgenev' ),
 									initialOpen: true,
 								},
-								el( AnalysisPanel, { content } )
+								el( AnalysisPanel, {
+									clientId: props.clientId,
+								} )
 							)
 					  )
 					: null

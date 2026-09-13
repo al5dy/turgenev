@@ -6,9 +6,11 @@ const files = [
 	'src/js/client.js',
 	'src/js/classic.js',
 	'src/js/editor.js',
+	'src/js/editor-content.js',
 	'assets/build/client.js',
 	'assets/build/classic.js',
 	'assets/build/editor.js',
+	'assets/build/editor-content.js',
 ];
 
 for ( const file of files ) {

@@ -15,6 +15,7 @@ final class ApiClient {
 	public const ENDPOINT        = 'https://turgenev.ashmanov.com/';
 	public const REPORT_BASE_URL = 'https://turgenev.ashmanov.com/?t=';
 	public const MAX_TEXT_LENGTH = 20000;
+	public const MAX_REPORT_LENGTH = 1048576;
 
 	private OptionStore $options;
 	private ?string $apiKeyOverride;
@@ -63,6 +64,70 @@ final class ApiClient {
 				'more' => $more ? '1' : '0',
 			)
 		);
+	}
+
+	/**
+	 * Fetch report markup through the fixed provider URL and return presentation-safe ranges.
+	 *
+	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, level: int}>}
+	 */
+	public function reportHighlights( string $report_token, string $expected_text ): array {
+		$report_token = trim( $report_token );
+		if ( ! preg_match( '/^[A-Za-z0-9_-]{8,128}$/', $report_token ) ) {
+			throw new ApiException( __( 'Turgenev report reference is invalid.', 'turgenev' ) );
+		}
+
+		/*
+		 * The provider's read-only report form submits its reference with POST.
+		 * A GET request may return a report shell without the annotated textarea.
+		 */
+		$response = wp_remote_post(
+			self::ENDPOINT,
+			array(
+				'timeout'     => 20,
+				'redirection' => 0,
+				'httpversion' => '1.1',
+				'sslverify'   => true,
+				'headers'     => array(
+					'Accept'     => 'text/html',
+					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION . '; ' . home_url( '/' ),
+				),
+				'body'        => array(
+					't'         => $report_token,
+					'keep_isum' => '',
+					'scroll_x'  => '',
+					'scroll_y'  => '',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new ApiException(
+				sprintf(
+					/* translators: %s: WordPress HTTP API error. */
+					__( 'Could not retrieve the Turgenev report: %s', 'turgenev' ),
+					$response->get_error_message()
+				)
+			);
+		}
+
+		$status = wp_remote_retrieve_response_code( $response );
+		if ( $status < 200 || $status >= 300 ) {
+			throw new ApiException(
+				sprintf(
+					/* translators: %d: HTTP status code. */
+					__( 'Turgenev report returned HTTP %d.', 'turgenev' ),
+					$status
+				)
+			);
+		}
+
+		$markup = wp_remote_retrieve_body( $response );
+		if ( '' === trim( $markup ) || strlen( $markup ) > self::MAX_REPORT_LENGTH ) {
+			throw new ApiException( __( 'Turgenev report markup is unavailable.', 'turgenev' ) );
+		}
+
+		return ( new ReportHighlightParser() )->parse( $markup, $expected_text );
 	}
 
 	/**

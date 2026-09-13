@@ -62,6 +62,41 @@
 	margin-top: 12px;
 }
 
+.turgenev-report-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: 8px;
+}
+
+.turgenev-highlight {
+	border-radius: 2px;
+	box-decoration-break: clone;
+	padding: 1px 0;
+}
+
+.turgenev-highlight[data-turgenev-category="style"][data-turgenev-level="1"],
+.turgenev-highlight[data-turgenev-category="frequency"][data-turgenev-level="1"] {
+	background: #d7f5e7;
+}
+
+.turgenev-highlight[data-turgenev-category="style"][data-turgenev-level="2"],
+.turgenev-highlight[data-turgenev-category="frequency"][data-turgenev-level="2"],
+.turgenev-highlight[data-turgenev-category="formality"] {
+	background: #fff3cd;
+}
+
+.turgenev-highlight[data-turgenev-category="style"][data-turgenev-level="3"],
+.turgenev-highlight[data-turgenev-category="frequency"][data-turgenev-level="3"],
+.turgenev-highlight[data-turgenev-category="keywords"],
+.turgenev-highlight[data-turgenev-category="readability"] {
+	background: #f8d7da;
+}
+
+.turgenev-reset-view {
+	margin-top: 12px !important;
+}
+
 .turgenev-top-up {
 	margin-top: 12px;
 }

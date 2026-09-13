@@ -42,6 +42,12 @@ final class ApiController {
 				wp_send_json_success( array( 'result' => $this->client->analyze( $text, true ) ) );
 			}
 
+			if ( 'highlights' === $operation ) {
+				$report_token = isset( $_POST['report_token'] ) && is_string( $_POST['report_token'] ) ? wp_unslash( $_POST['report_token'] ) : '';
+				$text         = isset( $_POST['text'] ) && is_string( $_POST['text'] ) ? wp_unslash( $_POST['text'] ) : '';
+				wp_send_json_success( array( 'highlights' => $this->client->reportHighlights( $report_token, $text ) ) );
+			}
+
 			wp_send_json_error( array( 'message' => __( 'Unsupported Turgenev request.', 'turgenev' ) ), 400 );
 		} catch ( ApiException $exception ) {
 			wp_send_json_error( array( 'message' => wp_strip_all_tags( $exception->getMessage() ) ), 502 );
