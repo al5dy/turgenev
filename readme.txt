@@ -4,7 +4,7 @@ Tags: seo, content analysis, readability, yandex, gutenberg
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 2.0.1
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -111,10 +111,6 @@ This WordPress plugin is GPL-licensed software. The external Turgenev service is
 2. Turgenev content-analysis panel in the editor.
 
 == Changelog ==
-
-= 2.0.1 - 2026-09-13 =
-* Add a Turgenev panel to the Block inspector for selected text blocks.
-* Analyze only the selected text block, display the updated balance and show a top-up link when the balance is empty.
 
 = 2.0.0 - 2026-09-13 =
 * Major production-focused rewrite for WordPress 6.6+ and PHP 8.1+.

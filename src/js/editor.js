@@ -10,6 +10,7 @@
 		! blockEditor ||
 		! wp.components ||
 		! wp.compose ||
+		! wp.data ||
 		! wp.element ||
 		! wp.hooks ||
 		! wp.i18n
@@ -48,6 +49,41 @@
 		const attribute = textAttributes[ name ];
 		const content = attribute && attributes ? attributes[ attribute ] : '';
 		return typeof content === 'string' ? content : '';
+	}
+
+	function currentBlock( clientId ) {
+		const store = wp.data.select( 'core/block-editor' );
+		return store && typeof store.getBlock === 'function'
+			? store.getBlock( clientId )
+			: null;
+	}
+
+	function selectedBlockContent( props ) {
+		const selectedBlock = currentBlock( props.clientId );
+		const name = selectedBlock ? selectedBlock.name : props.name;
+		const attributes = selectedBlock
+			? selectedBlock.attributes
+			: props.attributes;
+		const directContent = blockContent( name, attributes );
+
+		if ( directContent.trim() ) {
+			return directContent;
+		}
+
+		if (
+			! selectedBlock ||
+			! wp.blocks ||
+			typeof wp.blocks.serialize !== 'function'
+		) {
+			return directContent;
+		}
+
+		// Serialization includes inner blocks, such as the paragraph inside a Quote or Group.
+		return wp.blocks.serialize( [ selectedBlock ] );
+	}
+
+	function hasTextContent( content ) {
+		return client.toPlainText( content ).trim().length > 0;
 	}
 
 	function isEmptyBalance( balance ) {
@@ -259,11 +295,14 @@
 
 	const withTurgenevInspector = createHigherOrderComponent(
 		( BlockEdit ) => ( props ) => {
-			const content = blockContent( props.name, props.attributes );
-			const isTextBlock = Object.prototype.hasOwnProperty.call(
+			const content = props.isSelected
+				? selectedBlockContent( props )
+				: '';
+			const isKnownTextBlock = Object.prototype.hasOwnProperty.call(
 				textAttributes,
 				props.name
 			);
+			const isTextBlock = isKnownTextBlock || hasTextContent( content );
 
 			return el(
 				Fragment,

@@ -57,6 +57,8 @@ test( 'gutenberg adds Turgenev controls to the selected text block inspector', a
 	assert.match( js, /InspectorControls/ );
 	assert.match( js, /editor\.BlockEdit/ );
 	assert.match( js, /core\/paragraph/ );
+	assert.match( js, /core\/block-editor/ );
+	assert.match( js, /wp\.blocks\.serialize/ );
 	assert.match( js, /Analyze selected block/ );
 	assert.match( js, /topUpUrl/ );
 } );
