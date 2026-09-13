@@ -34,24 +34,35 @@
 				method: 'POST',
 				credentials: 'same-origin',
 				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+					'Content-Type':
+						'application/x-www-form-urlencoded; charset=UTF-8',
 				},
 				body: body.toString(),
 			} );
-		} catch ( error ) {
-			throw new Error( __( 'Could not connect to WordPress. Check your network connection and try again.', 'turgenev' ) );
+		} catch {
+			throw new Error(
+				__(
+					'Could not connect to WordPress. Check your network connection and try again.',
+					'turgenev'
+				)
+			);
 		}
 
 		let payload;
 		try {
 			payload = await response.json();
-		} catch ( error ) {
-			throw new Error( __( 'WordPress returned an invalid response.', 'turgenev' ) );
+		} catch {
+			throw new Error(
+				__( 'WordPress returned an invalid response.', 'turgenev' )
+			);
 		}
 
 		if ( ! response.ok || ! payload || payload.success !== true ) {
 			throw new Error(
-				apiErrorMessage( payload, __( 'Turgenev request failed.', 'turgenev' ) )
+				apiErrorMessage(
+					payload,
+					__( 'Turgenev request failed.', 'turgenev' )
+				)
 			);
 		}
 
@@ -103,7 +114,9 @@
 		const tbody = document.createElement( 'tbody' );
 
 		const summaryRow = document.createElement( 'tr' );
-		summaryRow.appendChild( makeCell( 'th', __( 'Overall risk', 'turgenev' ) ) );
+		summaryRow.appendChild(
+			makeCell( 'th', __( 'Overall risk', 'turgenev' ) )
+		);
 		const summary = makeCell(
 			'td',
 			`${ String( data.level || '—' ) } (${ String( data.risk ?? '—' ) })`
@@ -113,7 +126,9 @@
 
 		if ( data.link ) {
 			const reportRow = document.createElement( 'tr' );
-			reportRow.appendChild( makeCell( 'th', __( 'Detailed report', 'turgenev' ) ) );
+			reportRow.appendChild(
+				makeCell( 'th', __( 'Detailed report', 'turgenev' ) )
+			);
 			const reportCell = document.createElement( 'td' );
 			appendReportLink( reportCell, data.link );
 			reportRow.appendChild( reportCell );
@@ -131,7 +146,9 @@
 			heading.appendChild(
 				makeCell(
 					'th',
-					`${ blockLabel( detail.block ) } (${ String( detail.sum ?? '—' ) })`
+					`${ blockLabel( detail.block ) } (${ String(
+						detail.sum ?? '—'
+					) })`
 				)
 			);
 			const linkCell = document.createElement( 'td' );
@@ -149,7 +166,9 @@
 				row.appendChild(
 					makeCell(
 						'td',
-						`${ String( parameter.value ?? '—' ) } (${ String( parameter.score ?? '0' ) })`
+						`${ String( parameter.value ?? '—' ) } (${ String(
+							parameter.score ?? '0'
+						) })`
 					)
 				);
 				tbody.appendChild( row );
@@ -181,7 +200,10 @@
 		}
 		const numeric = Number.parseFloat( String( balance ) );
 		container.textContent = `${ String( balance ) } ₽`;
-		container.classList.toggle( 'is-low', Number.isFinite( numeric ) && numeric < 1 );
+		container.classList.toggle(
+			'is-low',
+			Number.isFinite( numeric ) && numeric < 1
+		);
 	}
 
 	function setBusy( panel, busy ) {
@@ -197,7 +219,10 @@
 
 	function toPlainText( html ) {
 		const parser = new window.DOMParser();
-		const parsed = parser.parseFromString( String( html || '' ), 'text/html' );
+		const parsed = parser.parseFromString(
+			String( html || '' ),
+			'text/html'
+		);
 		return parsed.body ? parsed.body.textContent || '' : '';
 	}
 
@@ -206,7 +231,9 @@
 		toPlainText,
 		maxTextLength: Number( config.maxTextLength ) || 20000,
 		isConfigured: Boolean( config.isConfigured ),
-		settingsUrl: typeof config.settingsUrl === 'string' ? config.settingsUrl : '',
+		settingsUrl:
+			typeof config.settingsUrl === 'string' ? config.settingsUrl : '',
+		topUpUrl: typeof config.topUpUrl === 'string' ? config.topUpUrl : '',
 	} );
 	window.TurgenevUI = Object.freeze( {
 		renderBalance,
