@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.1 — 2026-09-13
+
+- Added a Turgenev panel to the Block inspector for selected text blocks.
+- Analyze only the selected text block, refresh the balance after analysis and offer a top-up link when the balance is empty.
+
 ## 2.0.0 — 2026-09-13
 
 - Reworked the plugin around WordPress 6.6+ and PHP 8.1+.

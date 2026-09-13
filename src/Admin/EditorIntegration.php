@@ -36,7 +36,7 @@ final class EditorIntegration {
 		wp_enqueue_script(
 			'turgenev-editor',
 			TURGENEV_URL . 'assets/build/editor.js',
-			array( 'turgenev-client', 'wp-components', 'wp-data', 'wp-editor', 'wp-element', 'wp-i18n', 'wp-plugins' ),
+			array( 'turgenev-client', 'wp-block-editor', 'wp-components', 'wp-compose', 'wp-data', 'wp-element', 'wp-hooks', 'wp-i18n' ),
 			TURGENEV_VERSION,
 			true
 		);
@@ -167,6 +167,7 @@ final class EditorIntegration {
 				'maxTextLength' => ApiClient::MAX_TEXT_LENGTH,
 				'isConfigured'  => $this->options->hasApiKey(),
 				'settingsUrl'   => admin_url( 'options-general.php?page=turgenev-settings' ),
+				'topUpUrl'      => 'https://turgenev.ashmanov.com/?a=pay',
 			)
 		);
 

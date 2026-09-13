@@ -4,7 +4,7 @@ Tags: seo, content analysis, readability, yandex, gutenberg
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,7 +16,7 @@ Analyze WordPress content for SEO over-optimization, keyword stuffing, readabili
 
 Turgenev connects WordPress to the Turgenev text-quality and SEO analysis service so editors, copywriters, content teams and SEO specialists can evaluate content without constantly copying drafts between WordPress and a separate browser tab.
 
-Run an analysis from Gutenberg / the Block Editor or the Classic Editor and review the overall risk score, analysis sections and links to detailed Turgenev reports.
+Select a supported text block in Gutenberg / the Block Editor and run an analysis from its Turgenev panel in the Block inspector, or use the Classic Editor metabox. Paragraphs, headings, list items, quotes, pullquotes, code, preformatted and verse blocks are supported. Review the overall risk score, analysis sections and links to detailed Turgenev reports.
 
 = SEO and content checks inside WordPress =
 
@@ -37,7 +37,7 @@ The plugin is useful for SEO content review, copywriting QA, editorial workflows
 Version 2.0.0 is a major technical rewrite:
 
 * **WordPress 6.6+ and PHP 8.1+** baseline;
-* **Block Editor / Gutenberg sidebar** integration;
+* **Block Editor / Gutenberg Block inspector** integration for selected text blocks;
 * **Classic Editor metabox** integration;
 * **server-side Turgenev API requests** through the WordPress HTTP API;
 * **API key never exposed to browser JavaScript**;
@@ -54,14 +54,14 @@ Version 2.0.0 is a major technical rewrite:
 2. Open **Settings → Turgenev**.
 3. Add your Turgenev API key.
 4. Open a post or page.
-5. Click **Analyze content** in the Turgenev editor panel.
+5. Select a text block and click **Analyze selected block** in its Turgenev panel.
 6. Review the score and open detailed reports when needed.
 
 = Privacy and API-key security =
 
 The saved API key remains on the WordPress server. It is not inserted into page source or localized JavaScript.
 
-Text is sent to the external Turgenev service only after an authenticated editor explicitly starts an analysis.
+Text from the selected Block Editor text block, or the active Classic Editor document, is sent to the external Turgenev service only after an authenticated editor explicitly starts an analysis.
 
 = External service =
 
@@ -111,6 +111,10 @@ This WordPress plugin is GPL-licensed software. The external Turgenev service is
 2. Turgenev content-analysis panel in the editor.
 
 == Changelog ==
+
+= 2.0.1 - 2026-09-13 =
+* Add a Turgenev panel to the Block inspector for selected text blocks.
+* Analyze only the selected text block, display the updated balance and show a top-up link when the balance is empty.
 
 = 2.0.0 - 2026-09-13 =
 * Major production-focused rewrite for WordPress 6.6+ and PHP 8.1+.

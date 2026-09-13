@@ -52,8 +52,11 @@ test( 'classic editor metabox uses the active screen rather than post-type capab
 	assert.doesNotMatch( php, /use_block_editor_for_post_type/ );
 } );
 
-test( 'gutenberg prefers a visible document settings panel', async () => {
+test( 'gutenberg adds Turgenev controls to the selected text block inspector', async () => {
 	const js = await source( 'src/js/editor.js' );
-	assert.match( js, /PluginDocumentSettingPanel/ );
-	assert.match( js, /turgenev-analysis/ );
+	assert.match( js, /InspectorControls/ );
+	assert.match( js, /editor\.BlockEdit/ );
+	assert.match( js, /core\/paragraph/ );
+	assert.match( js, /Analyze selected block/ );
+	assert.match( js, /topUpUrl/ );
 } );

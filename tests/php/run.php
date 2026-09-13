@@ -4,7 +4,7 @@
  */
 
 define( 'ABSPATH', __DIR__ . '/wordpress/' );
-define( 'TURGENEV_VERSION', '2.0.0' );
+define( 'TURGENEV_VERSION', '2.0.1' );
 
 $GLOBALS['turgenev_test_options'] = array();
 $GLOBALS['turgenev_http_handler'] = null;

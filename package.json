@@ -1,6 +1,6 @@
 {
   "name": "turgenev",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "WordPress integration for the Turgenev content analysis API.",
   "author": "Anton Lokotkov aka al5dy",
