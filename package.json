@@ -25,8 +25,10 @@
   "scripts": {
     "build": "node tools/build-assets.mjs",
     "check:syntax": "node tools/check-js-syntax.mjs",
+    "check:assets": "node tools/check-assets.mjs",
     "test:js": "node --test tests/js/*.test.mjs",
-    "test:e2e": "playwright test",
+    "test:e2e": "node tools/browser-smoke.mjs",
+    "test:e2e:admin": "playwright test",
     "lint:js": "wp-scripts lint-js src/js",
     "lint:css": "wp-scripts lint-style src/css/*.css",
     "lint:pkg-json": "wp-scripts lint-pkg-json",
@@ -34,6 +36,7 @@
     "test": "npm run check:syntax && npm run test:js"
   },
   "devDependencies": {
+    "@playwright/cli": "0.1.19",
     "@playwright/test": "1.63.0",
     "@wordpress/scripts": "35.0.0"
   }

@@ -10,20 +10,20 @@ async function source( file ) {
 }
 
 test( 'browser code never references a provider api_key field', async () => {
-	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js' ] ) {
+	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
 		const text = await source( file );
 		assert.equal( /api_key|apiKey/.test( text ), false, `${ file } must not contain the provider key` );
 	}
 } );
 
 test( 'provider-controlled results are not assigned through innerHTML', async () => {
-	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js' ] ) {
+	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
 		const text = await source( file );
 		assert.equal( /\.innerHTML\s*=/.test( text ), false, `${ file } must not assign innerHTML` );
 	}
 } );
 
-test( 'report highlights are parsed server-side and applied through Gutenberg rich text', async () => {
+test( 'highlights have no write path to block attributes, editor DOM or rich-text formats', async () => {
 	const parser = await source( 'src/Api/ReportHighlightParser.php' );
 	const controller = await source( 'src/Ajax/ApiController.php' );
 	const client = await source( 'src/js/client.js' );
@@ -33,16 +33,19 @@ test( 'report highlights are parsed server-side and applied through Gutenberg ri
 	assert.match( parser, /report text does not match/i );
 	assert.match( controller, /'highlights'/ );
 	assert.match( controller, /reportHighlights/ );
-	assert.match( client, /wp\.richText\.applyFormat/ );
-	assert.match( client, /wp\.richText\.removeFormat/ );
-	assert.match( client, /data-turgenev-category/ );
+	const decorations = await source( 'src/js/highlights.js' );
+	const session = await source( 'src/js/analysis.js' );
+	for ( const text of [ client, editor, content, decorations, session ] ) {
+		assert.doesNotMatch( text, /updateBlockAttributes|applyFormat|registerFormatType|editPost|insertBlocks|setContent\s*\(/ );
+	}
+	assert.match( decorations, /CSS\.highlights/ );
+	assert.match( decorations, /documentElement\.appendChild/ );
 	assert.match( client, /appendReportActions/ );
 	assert.doesNotMatch( client, /renderHighlights/ );
 	assert.doesNotMatch( client, /Highlights preview/ );
-	assert.match( content, /updateBlockAttributes/ );
-	assert.match( editor, /Reset view/ );
+	assert.match( session, /Reset view/ );
 	assert.match( editor, /useRegistry/ );
-	assert.match( content, /innerBlocks/ );
+	assert.match( content, /getEditedPostContent/ );
 } );
 
 test( 'localized browser config contains nonce but no api key', async () => {
@@ -53,7 +56,7 @@ test( 'localized browser config contains nonce but no api key', async () => {
 
 test( 'ajax controller requires nonce and capability', async () => {
 	const php = await source( 'src/Ajax/ApiController.php' );
-	assert.match( php, /check_ajax_referer\( 'turgenev_api', 'nonce' \)/ );
+	assert.match( php, /check_ajax_referer\( 'turgenev_api', 'nonce', false \)/ );
 	assert.match( php, /current_user_can\( 'edit_posts' \)/ );
 	assert.match( php, /current_user_can\( 'manage_options' \)/ );
 } );
@@ -74,13 +77,14 @@ test( 'classic editor metabox uses the active screen rather than post-type capab
 	assert.doesNotMatch( php, /use_block_editor_for_post_type/ );
 } );
 
-test( 'gutenberg adds Turgenev controls to the selected text block inspector', async () => {
+test( 'gutenberg uses a permanent document panel independent of block selection', async () => {
 	const js = await source( 'src/js/editor.js' );
 	const content = await source( 'src/js/editor-content.js' );
-	assert.match( js, /InspectorControls/ );
-	assert.match( js, /editor\.BlockEdit/ );
-	assert.match( content, /core\/paragraph/ );
-	assert.match( content, /core\/block-editor/ );
-	assert.match( js, /Analyze selected block/ );
-	assert.match( js, /topUpUrl/ );
+	assert.match( js, /PluginDocumentSettingPanel/ );
+	assert.match( js, /registerPlugin/ );
+	assert.match( content, /core\/editor/ );
+	assert.doesNotMatch( js, /isSelected|selectedBlock|InspectorControls/ );
+	const session = await source( 'src/js/analysis.js' );
+	assert.match( session, /Analyze document/ );
+	assert.match( session, /topUpUrl/ );
 } );

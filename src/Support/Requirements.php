@@ -9,10 +9,12 @@ namespace Al5dy\Turgenev\Support;
 
 defined( 'ABSPATH' ) || exit;
 
+/** Centralizes the supported WordPress and PHP baseline. */
 final class Requirements {
 	public const MIN_PHP = '8.1';
 	public const MIN_WP  = '6.6';
 
+	/** Check the running environment before registering integrations. */
 	public static function isSatisfied(): bool {
 		global $wp_version;
 
@@ -21,6 +23,7 @@ final class Requirements {
 			&& version_compare( $wp_version, self::MIN_WP, '>=' );
 	}
 
+	/** Explain an unsupported environment to administrators. */
 	public static function registerAdminNotice(): void {
 		add_action(
 			'admin_notices',

@@ -24,14 +24,14 @@ define( 'TURGENEV_DIR', plugin_dir_path( __FILE__ ) );
 define( 'TURGENEV_URL', plugin_dir_url( __FILE__ ) );
 
 spl_autoload_register(
-	static function ( string $class ): void {
+	static function ( string $class_name ): void {
 		$prefix = 'Al5dy\\Turgenev\\';
 
-		if ( 0 !== strpos( $class, $prefix ) ) {
+		if ( 0 !== strpos( $class_name, $prefix ) ) {
 			return;
 		}
 
-		$file = TURGENEV_DIR . 'src/' . str_replace( '\\', '/', substr( $class, strlen( $prefix ) ) ) . '.php';
+		$file = TURGENEV_DIR . 'src/' . str_replace( '\\', '/', substr( $class_name, strlen( $prefix ) ) ) . '.php';
 
 		if ( is_readable( $file ) ) {
 			require_once $file;

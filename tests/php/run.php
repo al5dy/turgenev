@@ -35,6 +35,7 @@ function wp_remote_post( string $url, array $args ) {
 }
 
 function is_admin(): bool { return true; }
+function get_the_ID(): int { return 42; }
 function admin_url( string $path ): string { return 'https://example.test/wp-admin/' . $path; }
 function wp_create_nonce( string $action ): string { return 'test-nonce'; }
 function wp_script_is( string $handle, string $status ): bool { return isset( $GLOBALS['test_scripts'][ $handle ] ); }
@@ -47,10 +48,33 @@ function wp_set_script_translations( string $handle, string $domain, string $pat
 
 require_once dirname( __DIR__, 2 ) . '/src/Support/OptionStore.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ApiException.php';
+require_once dirname( __DIR__, 2 ) . '/src/Api/ResponseValidator.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ReportHighlightParser.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ApiClient.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/SettingsPage.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/EditorIntegration.php';
+require_once dirname( __DIR__, 2 ) . '/src/Ajax/ApiController.php';
+
+class JsonExit extends RuntimeException {
+	public function __construct( public array $data, public int $status, public bool $success ) { parent::__construct( 'JSON response' ); }
+}
+function wp_send_json_success( array $data ): void { throw new JsonExit( $data, 200, true ); }
+function wp_send_json_error( array $data, int $status ): void { throw new JsonExit( $data, $status, false ); }
+function check_ajax_referer( string $action, string $field, bool $stop = true ) { return ( $_POST[ $field ] ?? '' ) === 'valid-nonce' ? 1 : false; }
+function current_user_can( string $capability, ...$args ): bool { return in_array( $capability, $GLOBALS['test_caps'] ?? array(), true ); }
+function absint( $value ): int { return abs( (int) $value ); }
+function sanitize_key( string $value ): string { return preg_replace( '/[^a-z0-9_-]/', '', strtolower( $value ) ); }
+function wp_strip_all_tags( string $value ): string { return strip_tags( $value ); }
+function fixture_analysis(): array {
+	$result = array( 'risk' => '4', 'level' => 'low', 'link' => 'risk12345', 'details' => array_map( static fn( $block ) => array( 'block' => $block, 'sum' => '1', 'link' => $block . '12345', 'params' => array() ), Al5dy\Turgenev\Api\ResponseValidator::SECTIONS ) );
+	$result['details'][0]['params'] = array(
+		array( 'name' => 'Сверхчастые слова', 'value' => 'Нет', 'score' => '0' ),
+	);
+	return $result;
+}
+function respond( $data ): void {
+	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => json_encode( $data ) );
+}
 
 use Al5dy\Turgenev\Api\ApiClient;
 use Al5dy\Turgenev\Api\ApiException;
@@ -99,14 +123,42 @@ try {
 	expect_true( 'saved-secret' === $GLOBALS['turgenev_last_request']['args']['body']['key'], 'saved key is sent server-side' );
 	expect_true( 'balance' === $GLOBALS['turgenev_last_request']['args']['body']['api'], 'balance operation is selected' );
 
-	$GLOBALS['turgenev_http_handler'] = static fn() => array(
-		'response' => array( 'code' => 200 ),
-		'body' => '{"link":"abc","risk":"4","level":"low","details":[]}',
-	);
+	respond( fixture_analysis() );
 	$result = $client->analyze( 'Useful test content.' );
 	expect_true( '4' === $result['risk'], 'risk response is returned' );
 	expect_true( '1' === $GLOBALS['turgenev_last_request']['args']['body']['more'], 'extended result flag is sent' );
 	expect_true( 'Useful test content.' === $GLOBALS['turgenev_last_request']['args']['body']['text'], 'analysis text is sent intact' );
+	expect_true( 'Нет' === $result['details'][0]['params'][0]['value'], 'textual parameter values do not invalidate a complete analysis' );
+
+	foreach ( array( 'Нет', '12.5%', '1,25', '0.123456789012345', '—', 0, 15.9, 0.123456789012345, '<b>Нет</b>' ) as $value ) {
+		$fixture = fixture_analysis();
+		$fixture['details'][0]['params'][0]['value'] = $value;
+		respond( $fixture );
+		$result = $client->analyze( 'Useful test content.' );
+		expect_true( sanitize_text_field( (string) $value ) === $result['details'][0]['params'][0]['value'], 'display values preserve text, formatting and precision as sanitized strings' );
+	}
+	foreach ( array( null, true, false, array(), (object) array( 'value' => 1 ), '', '  ', '<b></b>', str_repeat( 'a', 1001 ) ) as $value ) {
+		$fixture = fixture_analysis();
+		$fixture['details'][0]['params'][0]['value'] = $value;
+		respond( $fixture );
+		expect_exception( static fn() => $client->analyze( 'text' ), 'invalid analysis' );
+	}
+	foreach ( array( NAN, INF, -INF ) as $value ) {
+		$fixture = fixture_analysis();
+		$fixture['details'][0]['params'][0]['value'] = $value;
+		expect_exception( static fn() => Al5dy\Turgenev\Api\ResponseValidator::analysis( $fixture ), 'invalid analysis' );
+	}
+	foreach ( array( 'Нет', '12.5%', '1,25', true, array() ) as $value ) {
+		foreach ( array( 'risk', 'sum', 'score', 'balance' ) as $field ) {
+			$fixture = fixture_analysis();
+			if ( 'risk' === $field ) { $fixture['risk'] = $value; }
+			if ( 'sum' === $field ) { $fixture['details'][0]['sum'] = $value; }
+			if ( 'score' === $field ) { $fixture['details'][0]['params'][0]['score'] = $value; }
+			if ( 'balance' === $field ) { $fixture = array( 'balance' => $value ); }
+			respond( $fixture );
+			expect_exception( static fn() => 'balance' === $field ? $client->balance() : $client->analyze( 'text' ), 'balance' === $field ? 'invalid balance' : 'invalid numeric' );
+		}
+	}
 
 	$report_markup = '<html><body><textarea id="textfield"><p>Text <span class="xhl slop2 xhint xhint-1-1">with style</span> here.</p></textarea></body></html>';
 	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $report_markup );
@@ -126,7 +178,7 @@ try {
 	expect_exception( static fn() => $client->balance(), 'malformed JSON' );
 
 	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '{"error":"Bad key"}' );
-	expect_exception( static fn() => $client->balance(), 'Bad key' );
+	expect_exception( static fn() => $client->balance(), 'rejected' );
 
 	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 503 ), 'body' => '{}' );
 	expect_exception( static fn() => $client->balance(), 'HTTP 503' );
@@ -166,6 +218,76 @@ try {
 	expect_true( array() === $cleared, 'explicit clear removes saved key' );
 
 	expect_true( '••••••••-key' === $store->maskedApiKey(), 'masked key never returns the full secret' );
+
+	foreach ( array( null, true, array(), 'NaN', 'INF', '1e4', ' 1 ', '1.1.1' ) as $invalid ) {
+		respond( array( 'balance' => $invalid ) );
+		expect_exception( static fn() => $client->balance(), 'invalid balance' );
+	}
+	foreach ( array( array(), array( 'risk' => 1 ), array( 'error' => null ), array( 'error' => array( 'secret' => 'working-key' ) ) ) as $invalid ) {
+		respond( $invalid );
+		expect_exception( static fn() => $client->analyze( 'text' ), '' );
+	}
+	foreach ( array( 'risk', 'level', 'link', 'details' ) as $field ) {
+		$invalid = fixture_analysis(); unset( $invalid[ $field ] ); respond( $invalid );
+		expect_exception( static fn() => $client->analyze( 'text' ), 'incomplete' );
+	}
+	$invalid = fixture_analysis(); $invalid['details'][1] = $invalid['details'][0]; respond( $invalid );
+	expect_exception( static fn() => $client->analyze( 'text' ), 'section' );
+	$invalid = fixture_analysis(); $invalid['details'][0]['params'] = array( array( 'name' => 'parameter' ) ); respond( $invalid );
+	expect_exception( static fn() => $client->analyze( 'text' ), 'parameters' );
+	respond( array( 'error' => 'working-key' ) );
+	try { $client->balance(); } catch ( ApiException $error ) { expect_true( ! str_contains( $error->getMessage(), 'working-key' ), 'provider error never reflects key' ); }
+	$GLOBALS['turgenev_http_handler'] = static fn() => new WP_Error( 'working-key' );
+	try { $client->balance(); } catch ( ApiException $error ) { expect_true( ! str_contains( $error->getMessage(), 'working-key' ), 'transport error never reflects key' ); }
+	$fixture = fixture_analysis(); $fixture['secret'] = 'working-key'; $fixture['level'] = 'working-key';
+	$fixture['details'][0]['params'][0]['value'] = 'working-key'; respond( $fixture );
+	$safe = $client->analyze( 'text' );
+	expect_true( ! str_contains( json_encode( $safe ), 'working-key' ) && ! isset( $safe['secret'] ), 'allowlisted response does not expose secrets or unknown fields' );
+	expect_true( 0 === $GLOBALS['turgenev_last_request']['args']['redirection'], 'key cannot follow redirects' );
+	expect_true( isset( $GLOBALS['turgenev_last_request']['args']['limit_response_size'] ), 'HTTP response size is bounded before buffering' );
+	expect_exception( static fn() => $client->analyze( '' ), 'no content' );
+	expect_exception( static fn() => $client->analyze( "a\0b" ), 'encoding' );
+	expect_exception( static fn() => $client->analyze( "\xFF" ), 'encoding' );
+	respond( fixture_analysis() );
+	$client->analyze( str_repeat( '😀', ApiClient::MAX_TEXT_LENGTH ) );
+	expect_true( strlen( $GLOBALS['turgenev_last_request']['args']['body']['text'] ) === ApiClient::MAX_TEXT_LENGTH * 4, 'Unicode payload at limit is not truncated' );
+	expect_exception( static fn() => $client->analyze( str_repeat( '😀', ApiClient::MAX_TEXT_LENGTH + 1 ) ), 'up to' );
+	$GLOBALS['turgenev_test_options']['turgenev'] = array( 'api_key' => 'tiny' );
+	expect_true( ! str_contains( $store->maskedApiKey(), 'tiny' ), 'short keys are not exposed by masking' );
+	$GLOBALS['turgenev_test_options']['turgenev'] = array( 'api_key' => 'working-key' );
+
+	$controller = new Al5dy\Turgenev\Ajax\ApiController( $client );
+	$cases = array(
+		array( array(), array(), 403 ),
+		array( array( 'nonce' => 'valid-nonce', 'operation' => 'risk', 'text' => 'Text' ), array(), 403 ),
+		array( array( 'nonce' => 'valid-nonce', 'operation' => array( 'risk' ) ), array( 'edit_posts' ), 400 ),
+		array( array( 'nonce' => 'valid-nonce', 'operation' => 'risk', 'text' => 'Text', 'post_id' => '42' ), array( 'edit_posts' ), 403 ),
+		array( array( 'nonce' => 'valid-nonce', 'operation' => 'risk', 'text' => 'Text', 'post_id' => '42' ), array( 'edit_post' ), 200 ),
+		array( array( 'nonce' => 'valid-nonce', 'operation' => 'risk', 'text' => array( 'Text' ) ), array( 'edit_posts' ), 502 ),
+	);
+	foreach ( $cases as [ $post, $caps, $status ] ) {
+		$_POST = $post; $GLOBALS['test_caps'] = $caps; $GLOBALS['turgenev_last_request'] = null;
+		respond( fixture_analysis() );
+		try { $controller->handle(); throw new RuntimeException( 'Controller did not return JSON.' ); }
+		catch ( JsonExit $response ) {
+			expect_true( $response->status === $status, 'AJAX validates nonce, capability, CPT permissions and scalar inputs' );
+			if ( 200 === $status ) { expect_true( 'Нет' === $response->data['result']['details'][0]['params'][0]['value'], 'AJAX returns validated textual measurements to the editor' ); }
+			if ( in_array( $status, array( 400, 403 ), true ) ) { expect_true( null === $GLOBALS['turgenev_last_request'], 'rejected request never reaches paid API' ); }
+		}
+	}
+
+	$parser = new Al5dy\Turgenev\Api\ReportHighlightParser();
+	$unicode = $parser->parse( '<textarea id="textfield"><p>😀 <span class="xhl slop2">слово</span></p><p>далее &lt;текст&gt;</p></textarea>', '😀 слово далее <текст>' );
+	expect_true( 3 === $unicode['marks'][0]['start'] && 8 === $unicode['marks'][0]['end'], 'Unicode offsets and paragraph boundaries are correct' );
+	$blocks = $parser->parse( '<textarea id="textfield"><p>one</p><p><span class="xhl fog1">two</span></p></textarea>', 'one two' );
+	expect_true( 4 === $blocks['marks'][0]['start'], 'adjacent HTML block elements are separated' );
+	$dense = $parser->parse( '<textarea id="textfield"><p>' . str_repeat( '<span class="xhl slop2">текст</span> ', 700 ) . '</p></textarea>', trim( str_repeat( 'текст ', 700 ) ) );
+	expect_true( 700 === count( $dense['marks'] ), 'long valid documents retain every provider highlight beyond the old 500-mark limit' );
+	expect_true( 4194 === $dense['marks'][699]['start'], 'dense report offsets remain exact through the final fragment' );
+	$sections = $parser->parse( '<textarea id="textfield"><section><span class="xhl slop2">one</span></section><section><span class="xhl slop2">two</span></section></textarea>', 'one two' );
+	expect_true( 4 === $sections['marks'][1]['start'], 'HTML section boundaries match the editor whitespace model' );
+	$bom = $parser->parse( "<textarea id=\"textfield\"><p>\u{FEFF}<span class=\"xhl slop2\">😀 слово</span>\u{FEFF}</p></textarea>", '😀 слово' );
+	expect_true( 0 === $bom['marks'][0]['start'] && 8 === $bom['marks'][0]['end'], 'editor zero-width no-break spaces do not shift UTF-16 highlights' );
 
 	echo 'PHP smoke tests passed: ' . $tests . PHP_EOL;
 } catch ( Throwable $exception ) {

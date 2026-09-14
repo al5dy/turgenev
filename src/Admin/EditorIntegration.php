@@ -12,13 +12,25 @@ use Al5dy\Turgenev\Support\OptionStore;
 
 defined( 'ABSPATH' ) || exit;
 
+/** Registers editor UI independently of API configuration or selected block. */
 final class EditorIntegration {
+	/**
+	 * Configuration presence for initial UI state.
+	 *
+	 * @var OptionStore
+	 */
 	private OptionStore $options;
 
+	/**
+	 * Bind server-side configuration access.
+	 *
+	 * @param OptionStore $options Configuration store.
+	 */
 	public function __construct( OptionStore $options ) {
 		$this->options = $options;
 	}
 
+	/** Register scoped admin/editor hooks. */
 	public function register(): void {
 		add_action( 'enqueue_block_editor_assets', array( $this, 'enqueueBlockEditorAssets' ) );
 		add_action( 'enqueue_block_assets', array( $this, 'enqueueCanvasStyles' ) );
@@ -37,7 +49,7 @@ final class EditorIntegration {
 		wp_enqueue_script(
 			'turgenev-editor-content',
 			TURGENEV_URL . 'assets/build/editor-content.js',
-			array( 'turgenev-client', 'wp-blocks', 'wp-data', 'wp-rich-text' ),
+			array( 'turgenev-analysis', 'turgenev-highlights', 'wp-blocks', 'wp-data', 'wp-editor' ),
 			$this->assetVersion( 'assets/build/editor-content.js' ),
 			true
 		);
@@ -45,7 +57,7 @@ final class EditorIntegration {
 		wp_enqueue_script(
 			'turgenev-editor',
 			TURGENEV_URL . 'assets/build/editor.js',
-			array( 'turgenev-editor-content', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-compose', 'wp-data', 'wp-element', 'wp-hooks', 'wp-i18n' ),
+			array( 'turgenev-editor-content', 'wp-editor', 'wp-plugins', 'wp-data', 'wp-element', 'wp-i18n' ),
 			$this->assetVersion( 'assets/build/editor.js' ),
 			true
 		);
@@ -69,6 +81,8 @@ final class EditorIntegration {
 
 	/**
 	 * Load settings / Classic Editor assets.
+	 *
+	 * @param string $hook_suffix Current admin page.
 	 */
 	public function enqueueAdminAssets( string $hook_suffix ): void {
 		$screen      = get_current_screen();
@@ -81,7 +95,7 @@ final class EditorIntegration {
 			return;
 		}
 
-		if ( ! $screen || ! $screen->post_type || ! post_type_supports( $screen->post_type, 'editor' ) ) {
+		if ( ! in_array( $hook_suffix, array( 'post.php', 'post-new.php' ), true ) || ! $screen || ! $screen->post_type || ! post_type_supports( $screen->post_type, 'editor' ) ) {
 			return;
 		}
 
@@ -125,6 +139,7 @@ final class EditorIntegration {
 		}
 	}
 
+	/** Render an accessible no-key state before the shared client mounts. */
 	public function renderMetaBox(): void {
 		?>
 		<div id="turgenev-panel" class="turgenev-panel">
@@ -159,6 +174,7 @@ final class EditorIntegration {
 		<?php
 	}
 
+	/** Register shared assets and non-secret configuration. */
 	private function enqueueClient(): void {
 		if ( wp_script_is( 'turgenev-client', 'registered' ) ) {
 			wp_enqueue_script( 'turgenev-client' );
@@ -175,7 +191,7 @@ final class EditorIntegration {
 		wp_register_script(
 			'turgenev-client',
 			TURGENEV_URL . 'assets/build/client.js',
-			array( 'wp-i18n', 'wp-rich-text' ),
+			array( 'wp-i18n' ),
 			$this->assetVersion( 'assets/build/client.js' ),
 			true
 		);
@@ -191,24 +207,36 @@ final class EditorIntegration {
 				'isConfigured'  => $this->options->hasApiKey(),
 				'settingsUrl'   => admin_url( 'options-general.php?page=turgenev-settings' ),
 				'topUpUrl'      => 'https://turgenev.ashmanov.com/?a=pay',
+				'postId'        => (int) get_the_ID(),
 			)
 		);
 
 		wp_enqueue_script( 'turgenev-client' );
 		wp_set_script_translations( 'turgenev-client', 'turgenev', TURGENEV_DIR . 'languages' );
+		foreach ( array( 'highlights', 'analysis' ) as $module ) {
+			wp_enqueue_script( 'turgenev-' . $module, TURGENEV_URL . 'assets/build/' . $module . '.js', array( 'turgenev-client' ), $this->assetVersion( 'assets/build/' . $module . '.js' ), true );
+			wp_set_script_translations( 'turgenev-' . $module, 'turgenev', TURGENEV_DIR . 'languages' );
+		}
 	}
 
+	/** Enqueue the full-document Classic Editor adapter. */
 	private function enqueueClassicScript(): void {
 		wp_enqueue_script(
 			'turgenev-classic',
 			TURGENEV_URL . 'assets/build/classic.js',
-			array( 'turgenev-client', 'wp-i18n' ),
+			array( 'turgenev-analysis', 'turgenev-highlights', 'wp-i18n' ),
 			$this->assetVersion( 'assets/build/classic.js' ),
 			true
 		);
 		wp_set_script_translations( 'turgenev-classic', 'turgenev', TURGENEV_DIR . 'languages' );
 	}
 
+	/**
+	 * Bust development caches without changing the release version.
+	 *
+	 * @param string $relative_path Runtime asset path.
+	 * @return string
+	 */
 	private function assetVersion( string $relative_path ): string {
 		$modified_at = filemtime( TURGENEV_DIR . $relative_path );
 

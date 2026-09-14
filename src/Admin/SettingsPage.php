@@ -13,13 +13,25 @@ use Al5dy\Turgenev\Support\OptionStore;
 
 defined( 'ABSPATH' ) || exit;
 
+/** Secret-safe settings UI and non-destructive key rotation. */
 final class SettingsPage {
+	/**
+	 * Stored configuration.
+	 *
+	 * @var OptionStore
+	 */
 	private OptionStore $options;
 
+	/**
+	 * Bind configuration access.
+	 *
+	 * @param OptionStore $options Configuration store.
+	 */
 	public function __construct( OptionStore $options ) {
 		$this->options = $options;
 	}
 
+	/** Register the admin settings hooks. */
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'addPage' ) );
 		add_action( 'admin_init', array( $this, 'registerSettings' ) );
@@ -27,6 +39,7 @@ final class SettingsPage {
 		add_filter( 'plugin_row_meta', array( $this, 'rowMeta' ), 10, 2 );
 	}
 
+	/** Add the capability-protected settings page. */
 	public function addPage(): void {
 		add_options_page(
 			__( 'Turgenev Settings', 'turgenev' ),
@@ -37,6 +50,7 @@ final class SettingsPage {
 		);
 	}
 
+	/** Register Settings API validation and fields. */
 	public function registerSettings(): void {
 		register_setting(
 			'turgenev-options',
@@ -65,6 +79,8 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Keep the previous key unless a replacement is verified or explicitly removed.
+	 *
 	 * @param mixed $input Submitted option value.
 	 * @return array<string, string>
 	 */
@@ -126,10 +142,6 @@ final class SettingsPage {
 			// Never destroy a previously working key because of a typo or provider outage.
 			return $current;
 		} catch ( \Throwable $exception ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( 'Turgenev key validation error: ' . $exception->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			}
-
 			add_settings_error(
 				'turgenev-options',
 				'turgenev_key_validation_failed',
@@ -140,6 +152,7 @@ final class SettingsPage {
 		}
 	}
 
+	/** Render the form through the Settings API nonce/capability boundary. */
 	public function renderPage(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -159,6 +172,7 @@ final class SettingsPage {
 		<?php
 	}
 
+	/** Explain external processing and show a balance refresh control. */
 	public function renderApiSection(): void {
 		printf(
 			'<p>%s</p>',
@@ -190,6 +204,7 @@ final class SettingsPage {
 		}
 	}
 
+	/** Render an empty password field; never echo the saved secret. */
 	public function renderApiKeyField(): void {
 		$has_key = $this->options->hasApiKey();
 		?>
@@ -222,6 +237,8 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Add a settings shortcut to the plugin row.
+	 *
 	 * @param array<string, string> $links Plugin action links.
 	 * @return array<string, string>
 	 */
@@ -237,6 +254,8 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Link the external service without embedding account credentials.
+	 *
 	 * @param array<string, string> $links Existing row meta.
 	 * @param string                $file Plugin basename.
 	 * @return array<string, string>
