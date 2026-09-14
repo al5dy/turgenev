@@ -9,10 +9,18 @@ namespace Al5dy\Turgenev\Api;
 
 defined( 'ABSPATH' ) || exit;
 
+/** Converts untrusted provider markup to validated text offsets, never HTML. */
 final class ReportHighlightParser {
-	private const MAX_MARKS = 500;
+	private const MAX_MARKS = 20000;
+	/** ECMAScript whitespace: the browser and provider ranges must use the same offsets. */
+	private const WHITESPACE = '/[\x{0009}-\x{000D}\x{0020}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]+/u';
 
 	/**
+	 * Extract ranges only when the complete document text matches.
+	 *
+	 * @param string $report_html Provider report page.
+	 * @param string $expected_text Current normalized document text.
+	 * @throws ApiException On missing, mismatched or oversized markup.
 	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, level: int}>}
 	 */
 	public function parse( string $report_html, string $expected_text ): array {
@@ -32,15 +40,17 @@ final class ReportHighlightParser {
 
 		$normalized_text = $this->normalize( $raw_text );
 		if ( '' === $normalized_text || $normalized_text !== $this->normalize( $expected_text ) ) {
-			throw new ApiException( __( 'Turgenev report text does not match the analyzed block.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev report text does not match the analyzed document.', 'turgenev' ) );
 		}
 
-		$marks = array();
+		$marks   = array();
+		$offsets = $this->normalized_offsets( $raw_text );
+		$length  = $this->utf16_length( $normalized_text );
 		foreach ( $raw_marks as $raw_mark ) {
-			$start = $this->utf16_length( $this->normalize_prefix( substr( $raw_text, 0, $raw_mark['start'] ) ) );
-			$end   = $this->utf16_length( $this->normalize_prefix( substr( $raw_text, 0, $raw_mark['end'] ) ) );
+			$start = $offsets[ $raw_mark['start'] ];
+			$end   = min( $length, $offsets[ $raw_mark['end'] ] );
 
-			if ( $start >= $end || $end > $this->utf16_length( $normalized_text ) ) {
+			if ( $start >= $end ) {
 				continue;
 			}
 
@@ -54,29 +64,26 @@ final class ReportHighlightParser {
 
 		usort(
 			$marks,
-			static fn( array $left, array $right ): int => $left['start'] <=> $right['start'] ?: $left['end'] <=> $right['end']
+			static fn( array $left, array $right ): int => ( $left['start'] === $right['start'] ? $left['end'] <=> $right['end'] : $left['start'] <=> $right['start'] )
 		);
 
-		$non_overlapping = array();
-		$last_end        = 0;
-		foreach ( $marks as $mark ) {
-			if ( $mark['start'] < $last_end ) {
-				continue;
-			}
-
-			$non_overlapping[] = $mark;
-			$last_end          = $mark['end'];
-			if ( count( $non_overlapping ) >= self::MAX_MARKS ) {
-				break;
-			}
+		if ( count( $marks ) > self::MAX_MARKS ) {
+			throw new ApiException( __( 'This report contains too many highlights. Use the full report.', 'turgenev' ) );
 		}
 
 		return array(
 			'text'  => $normalized_text,
-			'marks' => $non_overlapping,
+			'marks' => $marks,
 		);
 	}
 
+	/**
+	 * Parse inert HTML with network access disabled.
+	 *
+	 * @param string $html Markup fragment.
+	 * @return \DOMDocument
+	 * @throws ApiException On parse failure.
+	 */
 	private function load_html( string $html ): \DOMDocument {
 		$document = new \DOMDocument();
 		$previous = libxml_use_internal_errors( true );
@@ -95,6 +102,12 @@ final class ReportHighlightParser {
 		return $document;
 	}
 
+	/**
+	 * Preserve provider textarea contents before HTML parsing.
+	 *
+	 * @param string $report_html Full report page.
+	 * @return string
+	 */
 	private function report_markup( string $report_html ): string {
 		/*
 		 * Turgenev writes annotated HTML directly inside a textarea. DOMDocument
@@ -111,11 +124,15 @@ final class ReportHighlightParser {
 			return '';
 		}
 
-		return html_entity_decode( $match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		return preg_match( '/<(?:p|span|div)\b/i', $match[2] ) ? $match[2] : html_entity_decode( $match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 	}
 
 	/**
-	 * @param list<array{start: int, end: int, category: string, level: int}> $marks
+	 * Collect visible text and byte ranges before UTF-16 conversion.
+	 *
+	 * @param \DOMNode                                                        $node Current inert node.
+	 * @param string                                                          $text Accumulated source text.
+	 * @param list<array{start: int, end: int, category: string, level: int}> $marks Collected annotations.
 	 */
 	private function collect( \DOMNode $node, string &$text, array &$marks ): void {
 		if ( XML_TEXT_NODE === $node->nodeType || XML_CDATA_SECTION_NODE === $node->nodeType ) {
@@ -123,6 +140,13 @@ final class ReportHighlightParser {
 			return;
 		}
 
+		if ( $node instanceof \DOMElement && ( in_array( strtolower( $node->tagName ), array( 'script', 'style', 'template', 'noscript', 'svg', 'canvas', 'iframe' ), true ) || $node->hasAttribute( 'hidden' ) || 'true' === $node->getAttribute( 'aria-hidden' ) ) ) {
+			return;
+		}
+		$separated = $node instanceof \DOMElement && preg_match( '/^(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul)$/i', $node->tagName );
+		if ( $separated ) {
+			$text .= ' ';
+		}
 		$mark  = $node instanceof \DOMElement ? $this->mark_for_element( $node ) : null;
 		$start = strlen( $text );
 
@@ -135,13 +159,19 @@ final class ReportHighlightParser {
 			$mark['end']   = strlen( $text );
 			$marks[]       = $mark;
 		}
+		if ( $separated ) {
+			$text .= ' ';
+		}
 	}
 
 	/**
+	 * Accept only recognized category/severity classes.
+	 *
+	 * @param \DOMElement $element Provider element.
 	 * @return array{category: string, level: int}|null
 	 */
 	private function mark_for_element( \DOMElement $element ): ?array {
-		$class_names = preg_split( '/\s+/', trim( $element->getAttribute( 'class' ) ) ) ?: array();
+		$class_names = (array) preg_split( '/\s+/', trim( $element->getAttribute( 'class' ) ) );
 		if ( ! in_array( 'xhl', $class_names, true ) ) {
 			return null;
 		}
@@ -175,23 +205,63 @@ final class ReportHighlightParser {
 		return null;
 	}
 
+	/**
+	 * Trim collapsed whitespace to match browser text.
+	 *
+	 * @param string $text Source text.
+	 * @return string
+	 */
 	private function normalize( string $text ): string {
 		return trim( $this->collapse_whitespace( $text ) );
 	}
 
-	private function normalize_prefix( string $text ): string {
-		return ltrim( $this->collapse_whitespace( $text ) );
+	/**
+	 * Map byte boundaries to normalized UTF-16 offsets in one pass, even for dense reports.
+	 *
+	 * @param string $text Source text.
+	 * @return array<int,int>
+	 */
+	private function normalized_offsets( string $text ): array {
+		$offsets = array( 0 => 0 );
+		$length  = 0;
+		$space   = false;
+		preg_match_all( '/./us', $text, $characters, PREG_OFFSET_CAPTURE );
+		foreach ( $characters[0] as [ $character, $offset ] ) {
+			if ( preg_match( self::WHITESPACE, $character ) ) {
+				if ( $length > 0 && ! $space ) {
+					++$length;
+				}
+				$space = true;
+			} else {
+				$length += 4 === strlen( $character ) ? 2 : 1;
+				$space   = false;
+			}
+			$offsets[ $offset + strlen( $character ) ] = $length;
+		}
+		return $offsets;
 	}
 
+	/**
+	 * Use the shared Unicode whitespace convention.
+	 *
+	 * @param string $text Source text.
+	 * @return string
+	 */
 	private function collapse_whitespace( string $text ): string {
-		return (string) preg_replace( '/[\s\x{00A0}]+/u', ' ', $text );
+		return (string) preg_replace( self::WHITESPACE, ' ', $text );
 	}
 
+	/**
+	 * Count browser UTF-16 units even without mbstring.
+	 *
+	 * @param string $text Source text.
+	 * @return int
+	 */
 	private function utf16_length( string $text ): int {
 		if ( function_exists( 'mb_convert_encoding' ) ) {
 			return (int) ( strlen( mb_convert_encoding( $text, 'UTF-16LE', 'UTF-8' ) ) / 2 );
 		}
 
-		return strlen( $text );
+		return (int) preg_match_all( '/./us', $text ) + (int) preg_match_all( '/[\x{10000}-\x{10FFFF}]/u', $text );
 	}
 }

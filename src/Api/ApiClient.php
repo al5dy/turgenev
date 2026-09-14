@@ -11,42 +11,73 @@ use Al5dy\Turgenev\Support\OptionStore;
 
 defined( 'ABSPATH' ) || exit;
 
+/** Owns provider transport, size limits and operation validation. */
 final class ApiClient {
-	public const ENDPOINT        = 'https://turgenev.ashmanov.com/';
-	public const REPORT_BASE_URL = 'https://turgenev.ashmanov.com/?t=';
-	public const MAX_TEXT_LENGTH = 20000;
+	public const ENDPOINT          = 'https://turgenev.ashmanov.com/';
+	public const REPORT_BASE_URL   = 'https://turgenev.ashmanov.com/?t=';
+	public const MAX_TEXT_LENGTH   = 20000;
 	public const MAX_REPORT_LENGTH = 1048576;
 
+	/**
+	 * Server-side configuration.
+	 *
+	 * @var OptionStore
+	 */
 	private OptionStore $options;
-	private ?string $apiKeyOverride;
+	/**
+	 * Candidate used only during key rotation.
+	 *
+	 * @var string|null
+	 */
+	private ?string $api_key_override;
 
-	public function __construct( OptionStore $options, ?string $apiKeyOverride = null ) {
-		$this->options        = $options;
-		$this->apiKeyOverride = null === $apiKeyOverride ? null : trim( $apiKeyOverride );
+	/**
+	 * Bind the saved configuration or a candidate key.
+	 *
+	 * @param OptionStore $options Stored configuration.
+	 * @param string|null $api_key_override Candidate key.
+	 */
+	public function __construct( OptionStore $options, ?string $api_key_override = null ) {
+		$this->options          = $options;
+		$this->api_key_override = null === $api_key_override ? null : trim( $api_key_override );
 	}
 
+	/**
+	 * Retrieve a validated decimal balance.
+	 *
+	 * @return string
+	 * @throws ApiException On transport or validation failure.
+	 */
 	public function balance(): string {
 		$response = $this->request( 'balance' );
 		$balance  = $response['balance'] ?? null;
 
-		if ( ! is_scalar( $balance ) || ! is_numeric( (string) $balance ) ) {
+		try {
+			return ResponseValidator::decimal( $balance );
+		} catch ( ApiException $exception ) {
 			throw new ApiException( __( 'Turgenev returned an invalid balance response.', 'turgenev' ) );
 		}
-
-		return (string) $balance;
 	}
 
 	/**
+	 * Analyze text without truncation.
+	 *
+	 * @param string $text Document text or explicit HTML payload.
+	 * @param bool   $more Request extended criteria.
 	 * @return array<string, mixed>
+	 * @throws ApiException On invalid content or response.
 	 */
 	public function analyze( string $text, bool $more = true ): array {
-		$text = trim( str_replace( "\0", '', $text ) );
+		$text = trim( $text );
 
 		if ( '' === $text ) {
 			throw new ApiException( __( 'There is no content to analyze.', 'turgenev' ) );
 		}
 
-		$length = function_exists( 'mb_strlen' ) ? mb_strlen( $text ) : strlen( $text );
+		if ( str_contains( $text, "\0" ) || ! preg_match( '//u', $text ) ) {
+			throw new ApiException( __( 'The content contains invalid text encoding.', 'turgenev' ) );
+		}
+		$length = preg_match_all( '/./us', $text );
 		if ( $length > self::MAX_TEXT_LENGTH ) {
 			throw new ApiException(
 				sprintf(
@@ -57,11 +88,13 @@ final class ApiClient {
 			);
 		}
 
-		return $this->request(
-			'risk',
-			array(
-				'text' => $text,
-				'more' => $more ? '1' : '0',
+		return ResponseValidator::analysis(
+			$this->request(
+				'risk',
+				array(
+					'text' => $text,
+					'more' => $more ? '1' : '0',
+				)
 			)
 		);
 	}
@@ -69,12 +102,16 @@ final class ApiClient {
 	/**
 	 * Fetch report markup through the fixed provider URL and return presentation-safe ranges.
 	 *
+	 * @param string $report_token Opaque report identifier.
+	 * @param string $expected_text Current document text.
+	 * @throws ApiException On invalid or mismatched report data.
+	 *
 	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, level: int}>}
 	 */
 	public function reportHighlights( string $report_token, string $expected_text ): array {
-		$report_token = trim( $report_token );
-		if ( ! preg_match( '/^[A-Za-z0-9_-]{8,128}$/', $report_token ) ) {
-			throw new ApiException( __( 'Turgenev report reference is invalid.', 'turgenev' ) );
+		$report_token = ResponseValidator::token( $report_token );
+		if ( '' === trim( $expected_text ) || strlen( $expected_text ) > self::MAX_TEXT_LENGTH * 4 || ! preg_match( '//u', $expected_text ) ) {
+			throw new ApiException( __( 'The highlight source is empty or too large.', 'turgenev' ) );
 		}
 
 		/*
@@ -84,15 +121,16 @@ final class ApiClient {
 		$response = wp_remote_post(
 			self::ENDPOINT,
 			array(
-				'timeout'     => 20,
-				'redirection' => 0,
-				'httpversion' => '1.1',
-				'sslverify'   => true,
-				'headers'     => array(
+				'timeout'             => 20,
+				'redirection'         => 0,
+				'limit_response_size' => self::MAX_REPORT_LENGTH + 1,
+				'httpversion'         => '1.1',
+				'sslverify'           => true,
+				'headers'             => array(
 					'Accept'     => 'text/html',
 					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION . '; ' . home_url( '/' ),
 				),
-				'body'        => array(
+				'body'                => array(
 					't'         => $report_token,
 					'keep_isum' => '',
 					'scroll_x'  => '',
@@ -102,13 +140,7 @@ final class ApiClient {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new ApiException(
-				sprintf(
-					/* translators: %s: WordPress HTTP API error. */
-					__( 'Could not retrieve the Turgenev report: %s', 'turgenev' ),
-					$response->get_error_message()
-				)
-			);
+			throw new ApiException( __( 'Could not retrieve the Turgenev report. Try again later.', 'turgenev' ) );
 		}
 
 		$status = wp_remote_retrieve_response_code( $response );
@@ -131,6 +163,9 @@ final class ApiClient {
 	}
 
 	/**
+	 * Execute a bounded authenticated provider request.
+	 *
+	 * @throws ApiException On transport, JSON or provider errors.
 	 * @param string               $operation API operation.
 	 * @param array<string, mixed> $parameters Additional request parameters.
 	 * @return array<string, mixed>
@@ -147,36 +182,31 @@ final class ApiClient {
 		}
 
 		$body = array_merge(
+			$parameters,
 			array(
 				'api' => $operation,
 				'key' => $key,
-			),
-			$parameters
+			)
 		);
 
 		$response = wp_remote_post(
 			self::ENDPOINT,
 			array(
-				'timeout'     => 20,
-				'redirection' => 2,
-				'httpversion' => '1.1',
-				'sslverify'   => true,
-				'headers'     => array(
+				'timeout'             => 20,
+				'redirection'         => 0,
+				'limit_response_size' => self::MAX_REPORT_LENGTH + 1,
+				'httpversion'         => '1.1',
+				'sslverify'           => true,
+				'headers'             => array(
 					'Accept'     => 'application/json',
 					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION . '; ' . home_url( '/' ),
 				),
-				'body'        => $body,
+				'body'                => $body,
 			)
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new ApiException(
-				sprintf(
-					/* translators: %s: WordPress HTTP API error. */
-					__( 'Could not reach the Turgenev API: %s', 'turgenev' ),
-					$response->get_error_message()
-				)
-			);
+			throw new ApiException( __( 'Could not reach the Turgenev API. Try again later.', 'turgenev' ) );
 		}
 
 		$status = wp_remote_retrieve_response_code( $response );
@@ -191,6 +221,9 @@ final class ApiClient {
 		}
 
 		$raw = wp_remote_retrieve_body( $response );
+		if ( strlen( $raw ) > self::MAX_REPORT_LENGTH ) {
+			throw new ApiException( __( 'Turgenev API returned an oversized response.', 'turgenev' ) );
+		}
 		if ( '' === trim( $raw ) ) {
 			throw new ApiException( __( 'Turgenev API returned an empty response.', 'turgenev' ) );
 		}
@@ -201,18 +234,37 @@ final class ApiClient {
 			throw new ApiException( __( 'Turgenev API returned malformed JSON.', 'turgenev' ), 0, $exception );
 		}
 
-		if ( ! is_array( $decoded ) ) {
+		if ( ! is_array( $decoded ) || array_is_list( $decoded ) ) {
 			throw new ApiException( __( 'Turgenev API returned an unexpected response.', 'turgenev' ) );
 		}
 
-		if ( isset( $decoded['error'] ) && is_scalar( $decoded['error'] ) ) {
-			throw new ApiException( sanitize_text_field( (string) $decoded['error'] ) );
+		if ( array_key_exists( 'error', $decoded ) ) {
+			// Provider/transport messages can reflect secrets. Only plugin-owned messages cross this boundary.
+			$error = is_string( $decoded['error'] ) ? $decoded['error'] : '';
+			if ( preg_match( '/balanc|fund|credit|баланс|средств|денег/iu', $error ) ) {
+				throw new ApiException( __( 'Turgenev reports insufficient balance. Top up your account and try again.', 'turgenev' ) );
+			}
+			throw new ApiException( __( 'Turgenev rejected the request. Check the API key and account status in Settings → Turgenev.', 'turgenev' ) );
 		}
+
+		// Do not forward a reflected key, including unexpected fields, to any caller.
+		array_walk_recursive(
+			$decoded,
+			static function ( &$value ) use ( $key ): void {
+				if ( is_string( $value ) ) {
+					$value = str_replace( $key, '[redacted]', $value ); }
+			}
+		);
 
 		return $decoded;
 	}
 
+	/**
+	 * Resolve the secret without exposing it outside this transport.
+	 *
+	 * @return string
+	 */
 	private function apiKey(): string {
-		return null === $this->apiKeyOverride ? $this->options->apiKey() : $this->apiKeyOverride;
+		return null === $this->api_key_override ? $this->options->apiKey() : $this->api_key_override;
 	}
 }

@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <ruleset name="Turgenev">
 	<description>WordPress coding standards for Turgenev.</description>
+	<arg name="extensions" value="php" />
 	<file>turgenev.php</file>
 	<file>uninstall.php</file>
 	<file>src</file>
@@ -16,5 +17,23 @@
 	<rule ref="WordPress.Files.FileName.InvalidClassFileName">
 		<exclude-pattern>src/*</exclude-pattern>
 	</rule>
+	<!-- PSR-4 paths intentionally match class names, not WordPress procedural filenames. -->
+	<rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+		<exclude-pattern>src/*</exclude-pattern>
+	</rule>
 	<config name="minimum_supported_wp_version" value="6.6" />
+	<!-- API exceptions are caught at AJAX/settings boundaries and escaped there, not rendered here. -->
+	<rule ref="WordPress.Security.EscapeOutput.ExceptionNotEscaped">
+		<exclude-pattern>src/Api/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.NamingConventions.ValidVariableName">
+		<properties>
+			<property name="allowed_custom_properties" type="array">
+				<element value="nodeType" />
+				<element value="nodeValue" />
+				<element value="tagName" />
+				<element value="childNodes" />
+			</property>
+		</properties>
+	</rule>
 </ruleset>

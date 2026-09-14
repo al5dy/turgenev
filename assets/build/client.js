@@ -7,7 +7,9 @@
 
 	const { __ } = wp.i18n;
 	const config = window.TurgenevConfig;
-	const HIGHLIGHT_FORMAT = 'turgenev/highlight';
+	const textareaModels = new WeakMap();
+	const blockBoundary =
+		/^(ADDRESS|ARTICLE|ASIDE|BLOCKQUOTE|BR|DD|DIV|DL|DT|FIGCAPTION|FIGURE|H[1-6]|HR|LI|MAIN|OL|P|PRE|SECTION|TABLE|TD|TH|TR|UL)$/;
 
 	function apiErrorMessage( payload, fallback ) {
 		if (
@@ -21,12 +23,13 @@
 		return fallback;
 	}
 
-	async function request( operation, parameters = {} ) {
+	async function request( operation, parameters = {}, signal ) {
 		const body = new URLSearchParams( {
 			action: 'turgenev_api',
+			...parameters,
 			nonce: config.nonce,
 			operation,
-			...parameters,
+			post_id: String( parameters.post_id ?? config.postId ?? 0 ),
 		} );
 
 		let response;
@@ -39,8 +42,12 @@
 						'application/x-www-form-urlencoded; charset=UTF-8',
 				},
 				body: body.toString(),
+				signal,
 			} );
-		} catch {
+		} catch ( error ) {
+			if ( signal?.aborted ) {
+				throw error;
+			}
 			throw new Error(
 				__(
 					'Could not connect to WordPress. Check your network connection and try again.',
@@ -67,7 +74,16 @@
 			);
 		}
 
-		return payload.data || {};
+		if (
+			! payload.data ||
+			typeof payload.data !== 'object' ||
+			Array.isArray( payload.data )
+		) {
+			throw new Error(
+				__( 'WordPress returned an invalid response.', 'turgenev' )
+			);
+		}
+		return payload.data;
 	}
 
 	function blockLabel( key ) {
@@ -83,6 +99,9 @@
 
 	function makeCell( tag, text, className = '' ) {
 		const cell = document.createElement( tag );
+		if ( tag === 'th' ) {
+			cell.scope = 'row';
+		}
 		cell.textContent = String( text ?? '' );
 		if ( className ) {
 			cell.className = className;
@@ -90,7 +109,7 @@
 		return cell;
 	}
 
-	function appendReportActions( cell, token, onHighlight ) {
+	function appendReportActions( cell, token, onHighlight, activeToken ) {
 		if ( typeof token !== 'string' || ! token ) {
 			return;
 		}
@@ -110,6 +129,10 @@
 			button.className =
 				'button button-secondary turgenev-highlight-action';
 			button.textContent = __( 'Highlight', 'turgenev' );
+			button.setAttribute(
+				'aria-pressed',
+				String( token === activeToken )
+			);
 			button.addEventListener( 'click', async () => {
 				button.disabled = true;
 				try {
@@ -144,7 +167,12 @@
 			'td',
 			`${ String( data.level || '—' ) } (${ String( data.risk ?? '—' ) })`
 		);
-		appendReportActions( summary, data.link, options.onHighlight );
+		appendReportActions(
+			summary,
+			data.link,
+			options.onHighlight,
+			options.activeToken
+		);
 		summaryRow.appendChild( summary );
 		tbody.appendChild( summaryRow );
 
@@ -165,7 +193,12 @@
 				)
 			);
 			const linkCell = document.createElement( 'td' );
-			appendReportActions( linkCell, detail.link, options.onHighlight );
+			appendReportActions(
+				linkCell,
+				detail.link,
+				options.onHighlight,
+				options.activeToken
+			);
 			heading.appendChild( linkCell );
 			tbody.appendChild( heading );
 
@@ -203,6 +236,7 @@
 		] );
 		if (
 			! Array.isArray( marks ) ||
+			marks.length > 20000 ||
 			marks.some(
 				( mark ) =>
 					! (
@@ -262,113 +296,6 @@
 		return { text: normalized, offsets };
 	}
 
-	function ensureHighlightFormat() {
-		if ( ! wp.richText ) {
-			throw new Error(
-				__( 'Gutenberg rich text is unavailable.', 'turgenev' )
-			);
-		}
-
-		const richTextStore =
-			wp.data && typeof wp.data.select === 'function'
-				? wp.data.select( 'core/rich-text' )
-				: null;
-		if (
-			richTextStore &&
-			typeof richTextStore.getFormatType === 'function' &&
-			richTextStore.getFormatType( HIGHLIGHT_FORMAT )
-		) {
-			return;
-		}
-
-		wp.richText.registerFormatType( HIGHLIGHT_FORMAT, {
-			title: __( 'Turgenev highlight', 'turgenev' ),
-			tagName: 'span',
-			className: 'turgenev-highlight',
-			attributes: {
-				'data-turgenev-category': 'data-turgenev-category',
-				'data-turgenev-level': 'data-turgenev-level',
-			},
-			edit: () => null,
-		} );
-	}
-
-	function clearHighlights( html ) {
-		ensureHighlightFormat();
-		const value = wp.richText.create( { html: String( html || '' ) } );
-		if (
-			! value.formats.some( ( formats ) =>
-				formats?.some( ( format ) => format.type === HIGHLIGHT_FORMAT )
-			)
-		) {
-			return { html: String( html || '' ), text: value.text };
-		}
-		const cleared = wp.richText.removeFormat(
-			value,
-			HIGHLIGHT_FORMAT,
-			0,
-			value.text.length
-		);
-
-		return {
-			html: wp.richText.toHTMLString( {
-				value: cleared,
-				preserveWhiteSpace: true,
-			} ),
-			text: cleared.text,
-		};
-	}
-
-	function applyHighlights( html, data ) {
-		if ( ! data || typeof data.text !== 'string' ) {
-			throw new Error(
-				__( 'Turgenev returned invalid highlight data.', 'turgenev' )
-			);
-		}
-
-		const cleared = clearHighlights( html );
-		const source = normalizedTextOffsets( cleared.text );
-		if ( source.text !== data.text ) {
-			throw new Error(
-				__(
-					'The selected block changed since this report was created.',
-					'turgenev'
-				)
-			);
-		}
-
-		const marks = validHighlights( data.text, data.marks );
-
-		let value = wp.richText.create( { html: cleared.html } );
-		marks.forEach( ( mark ) => {
-			const start = source.offsets[ mark.start ];
-			const end = source.offsets[ mark.end ];
-			if ( ! Number.isInteger( start ) || ! Number.isInteger( end ) ) {
-				throw new Error(
-					__(
-						'Turgenev returned invalid highlight data.',
-						'turgenev'
-					)
-				);
-			}
-
-			value = wp.richText.applyFormat(
-				value,
-				{
-					type: HIGHLIGHT_FORMAT,
-					attributes: {
-						'data-turgenev-category': mark.category,
-						'data-turgenev-level': String( mark.level ),
-					},
-				},
-				start,
-				end
-			);
-		} );
-
-		return wp.richText.toHTMLString( { value, preserveWhiteSpace: true } );
-	}
-
 	function renderMessage( container, message, type = 'error' ) {
 		if ( ! container ) {
 			return;
@@ -387,12 +314,9 @@
 		if ( ! container ) {
 			return;
 		}
-		const numeric = Number.parseFloat( String( balance ) );
+		const empty = isEmptyBalance( balance );
 		container.textContent = `${ String( balance ) } ₽`;
-		container.classList.toggle(
-			'is-low',
-			Number.isFinite( numeric ) && numeric < 1
-		);
+		container.classList.toggle( 'is-low', empty );
 	}
 
 	function setBusy( panel, busy ) {
@@ -406,21 +330,223 @@
 		} );
 	}
 
+	// One whitespace model for requests and read-only DOM highlight ranges.
+	function textModel( root, editor = false ) {
+		let raw = '';
+		const points = [];
+		function walk( node ) {
+			if ( node.nodeType === 3 ) {
+				for ( let i = 0; i < node.data.length; i++ ) {
+					points[ raw.length ] = { node, offset: i };
+					raw += node.data[ i ];
+				}
+				return;
+			}
+			if ( node.nodeType !== 1 ) {
+				return;
+			}
+			if (
+				/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|SVG|CANVAS|IFRAME)$/.test(
+					node.tagName
+				) ||
+				node.hidden ||
+				node.getAttribute( 'aria-hidden' ) === 'true' ||
+				( editor &&
+					node.matches(
+						'button, input, select, textarea, [data-mce-bogus="all"], .block-editor-block-toolbar, .block-editor-block-list__insertion-point'
+					) )
+			) {
+				return;
+			}
+			const separated = blockBoundary.test( node.tagName );
+			if ( separated ) {
+				raw += ' ';
+			}
+			node.childNodes.forEach( walk );
+			if ( separated ) {
+				raw += ' ';
+			}
+		}
+		walk( root );
+		const model = normalizedTextOffsets( raw );
+		function range( start, end ) {
+			let first = model.offsets[ start ];
+			let last = model.offsets[ end ] - 1;
+			if ( ! Number.isInteger( first ) || ! Number.isInteger( last ) ) {
+				return null;
+			}
+			while ( first <= last && ! points[ first ] ) {
+				first++;
+			}
+			while ( last >= first && ! points[ last ] ) {
+				last--;
+			}
+			if ( ! points[ first ] || ! points[ last ] ) {
+				return null;
+			}
+			const result = root.ownerDocument.createRange();
+			result.setStart( points[ first ].node, points[ first ].offset );
+			result.setEnd( points[ last ].node, points[ last ].offset + 1 );
+			return result;
+		}
+		return { text: model.text, range };
+	}
+
 	function toPlainText( html ) {
-		const parser = new window.DOMParser();
-		const parsed = parser.parseFromString(
+		const parsed = new window.DOMParser().parseFromString(
 			String( html || '' ),
 			'text/html'
 		);
-		return parsed.body ? parsed.body.textContent || '' : '';
+		return textModel( parsed.body ).text;
+	}
+
+	// Map decoded text back to literal HTML offsets, including entities and split inline tags.
+	// The native parser remains the authority: never apply a guessed source mapping.
+	function sourceModel( html ) {
+		const parser = new window.DOMParser();
+		const tokens =
+			/<!--[\s\S]*?(?:-->|$)|<![^>]*>|<\/?[a-zA-Z][\w:-]*(?:[^>"']|"[^"]*"|'[^']*')*>|&(?:#[xX][\da-fA-F]+;?|#\d+;?|[a-zA-Z][a-zA-Z\d]+;?)/g;
+		const points = [];
+		let raw = '',
+			cursor = 0;
+		function append( value, start, end = null ) {
+			for ( let i = 0; i < value.length; i++ ) {
+				points[ raw.length ] = {
+					start: end === null ? start + i : start,
+					end: end === null ? start + i + 1 : end,
+				};
+				raw += value[ i ];
+			}
+		}
+		for (
+			let token = tokens.exec( html );
+			token;
+			token = tokens.exec( html )
+		) {
+			append( html.slice( cursor, token.index ), cursor );
+			cursor = tokens.lastIndex;
+			if ( token[ 0 ][ 0 ] === '&' ) {
+				append(
+					parser.parseFromString( token[ 0 ], 'text/html' ).body
+						.textContent,
+					token.index,
+					cursor
+				);
+				continue;
+			}
+			const tag = /^<(\/?)([\w:-]+)/.exec( token[ 0 ] );
+			if ( ! tag ) {
+				continue;
+			}
+			const name = tag[ 2 ].toUpperCase();
+			if (
+				! tag[ 1 ] &&
+				/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|SVG|CANVAS|IFRAME)$/.test(
+					name
+				)
+			) {
+				const close = new RegExp( '</' + name + '\\s*>', 'ig' );
+				close.lastIndex = cursor;
+				cursor = close.exec( html ) ? close.lastIndex : html.length;
+				tokens.lastIndex = cursor;
+			} else if ( blockBoundary.test( name ) ) {
+				raw += ' ';
+			}
+		}
+		append( html.slice( cursor ), cursor );
+		const model = normalizedTextOffsets( raw );
+		if ( model.text !== toPlainText( html ) ) {
+			return null;
+		}
+		return {
+			text: model.text,
+			ranges( start, end ) {
+				const ranges = [];
+				for (
+					let i = model.offsets[ start ];
+					i < model.offsets[ end ];
+					i++
+				) {
+					const point = points[ i ];
+					if ( ! point ) {
+						continue;
+					}
+					const previous = ranges.at( -1 );
+					if ( previous && point.start <= previous.end ) {
+						previous.end = Math.max( previous.end, point.end );
+					} else {
+						ranges.push( { ...point } );
+					}
+				}
+				return ranges;
+			},
+		};
+	}
+
+	function textareaTarget( textarea ) {
+		if ( ! textarea?.getClientRects().length ) {
+			return null;
+		}
+		let cached = textareaModels.get( textarea );
+		if ( cached?.html !== textarea.value ) {
+			cached = {
+				html: textarea.value,
+				model: sourceModel( textarea.value ),
+			};
+			textareaModels.set( textarea, cached );
+		}
+		const model = cached.model;
+		return model
+			? { ...model, textarea, document: textarea.ownerDocument }
+			: null;
+	}
+
+	function alignTargets( text, models, offset = 0 ) {
+		const targets = [];
+		let cursor = 0;
+		for ( const model of models ) {
+			if ( ! model?.text ) {
+				continue;
+			}
+			const start = text.indexOf( model.text, cursor );
+			if ( start < 0 ) {
+				continue;
+			}
+			targets.push( { ...model, offset: offset + start } );
+			cursor = start + model.text.length;
+		}
+		// Repeated text must have the same placement from both ends. Otherwise a
+		// missing editor field could shift a later occurrence onto an earlier one.
+		cursor = text.length;
+		const unambiguous = [];
+		for ( const target of targets.reverse() ) {
+			const start = text.lastIndexOf(
+				target.text,
+				cursor - target.text.length
+			);
+			if ( start === target.offset - offset ) {
+				unambiguous.push( target );
+			}
+			cursor = start;
+		}
+		return unambiguous.reverse();
+	}
+
+	function isEmptyBalance( balance ) {
+		return (
+			typeof balance === 'string' &&
+			/^(?:-\d+(?:\.\d+)?|0+(?:\.0+)?)$/.test( balance )
+		);
 	}
 
 	window.TurgenevClient = Object.freeze( {
 		normalizedTextOffsets,
+		textModel,
+		sourceModel,
+		textareaTarget,
+		alignTargets,
+		isEmptyBalance,
 		validHighlights,
-		ensureHighlightFormat,
-		applyHighlights,
-		clearHighlights,
 		request,
 		toPlainText,
 		maxTextLength: Number( config.maxTextLength ) || 20000,

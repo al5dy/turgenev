@@ -11,6 +11,8 @@ const files = [
 	[ 'src/js/classic.js', 'assets/build/classic.js' ],
 	[ 'src/js/editor.js', 'assets/build/editor.js' ],
 	[ 'src/js/editor-content.js', 'assets/build/editor-content.js' ],
+	[ 'src/js/analysis.js', 'assets/build/analysis.js' ],
+	[ 'src/js/highlights.js', 'assets/build/highlights.js' ],
 	[ 'src/css/admin.css', 'assets/build/admin.css' ],
 ];
 
@@ -21,11 +23,18 @@ for ( const [ source, target ] of files ) {
 // WordPress resolves translation hashes from the enqueued asset path, not src/js.
 const languages = resolve( root, 'languages' );
 const catalogs = await readdir( languages );
-for ( const [ source, target ] of files.filter( ( [ path ] ) => path.endsWith( '.js' ) ) ) {
+for ( const [ source, target ] of files.filter( ( [ path ] ) =>
+	path.endsWith( '.js' )
+) ) {
 	const sourceHash = createHash( 'md5' ).update( source ).digest( 'hex' );
 	const targetHash = createHash( 'md5' ).update( target ).digest( 'hex' );
-	for ( const catalog of catalogs.filter( ( name ) => name.endsWith( `-${ sourceHash }.json` ) ) ) {
-		await copyFile( resolve( languages, catalog ), resolve( languages, catalog.replace( sourceHash, targetHash ) ) );
+	for ( const catalog of catalogs.filter( ( name ) =>
+		name.endsWith( `-${ sourceHash }.json` )
+	) ) {
+		await copyFile(
+			resolve( languages, catalog ),
+			resolve( languages, catalog.replace( sourceHash, targetHash ) )
+		);
 	}
 }
 
