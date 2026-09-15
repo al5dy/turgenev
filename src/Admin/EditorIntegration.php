@@ -49,7 +49,7 @@ final class EditorIntegration {
 		wp_enqueue_script(
 			'turgenev-editor-content',
 			TURGENEV_URL . 'assets/build/editor-content.js',
-			array( 'turgenev-analysis', 'turgenev-highlights', 'wp-blocks', 'wp-data', 'wp-editor' ),
+			array( 'turgenev-analysis', 'turgenev-highlights', 'turgenev-content-reset', 'wp-blocks', 'wp-data', 'wp-editor' ),
 			$this->assetVersion( 'assets/build/editor-content.js' ),
 			true
 		);
@@ -213,7 +213,7 @@ final class EditorIntegration {
 
 		wp_enqueue_script( 'turgenev-client' );
 		wp_set_script_translations( 'turgenev-client', 'turgenev', TURGENEV_DIR . 'languages' );
-		foreach ( array( 'highlights', 'analysis' ) as $module ) {
+		foreach ( array( 'highlights', 'analysis', 'content-reset' ) as $module ) {
 			wp_enqueue_script( 'turgenev-' . $module, TURGENEV_URL . 'assets/build/' . $module . '.js', array( 'turgenev-client' ), $this->assetVersion( 'assets/build/' . $module . '.js' ), true );
 			wp_set_script_translations( 'turgenev-' . $module, 'turgenev', TURGENEV_DIR . 'languages' );
 		}
@@ -224,7 +224,7 @@ final class EditorIntegration {
 		wp_enqueue_script(
 			'turgenev-classic',
 			TURGENEV_URL . 'assets/build/classic.js',
-			array( 'turgenev-analysis', 'turgenev-highlights', 'wp-i18n' ),
+			array( 'turgenev-analysis', 'turgenev-highlights', 'turgenev-content-reset', 'wp-i18n' ),
 			$this->assetVersion( 'assets/build/classic.js' ),
 			true
 		);

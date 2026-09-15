@@ -8,6 +8,7 @@ await mkdir( output, { recursive: true } );
 
 const files = [
 	[ 'src/js/client.js', 'assets/build/client.js' ],
+	[ 'src/js/content-reset.js', 'assets/build/content-reset.js' ],
 	[ 'src/js/classic.js', 'assets/build/classic.js' ],
 	[ 'src/js/editor.js', 'assets/build/editor.js' ],
 	[ 'src/js/editor-content.js', 'assets/build/editor-content.js' ],

@@ -39,7 +39,36 @@
 		} );
 		const session = window.TurgenevAnalysis.create(
 			getSource,
-			decorations
+			decorations,
+			window.TurgenevContentReset.create(
+				() => [ { key: 'content', html: getSource().html } ],
+				( [ { html } ] ) => {
+					const editor = visualEditor();
+					if ( editor ) {
+						const bookmark = editor.selection.getBookmark(
+							2,
+							true
+						);
+						editor.undoManager.transact( () => {
+							editor.setContent( html );
+							editor.selection.moveToBookmark( bookmark );
+						} );
+						editor.save();
+						editor.setDirty( true );
+					} else {
+						const textarea = document.getElementById( 'content' );
+						if ( textarea ) {
+							textarea.value = html;
+							textarea.dispatchEvent(
+								new window.Event( 'input', { bubbles: true } )
+							);
+							textarea.dispatchEvent(
+								new window.Event( 'change', { bubbles: true } )
+							);
+						}
+					}
+				}
+			)
 		);
 		window.TurgenevAnalysis.mount( panel, session, { settings } );
 		const textarea = document.getElementById( 'content' );

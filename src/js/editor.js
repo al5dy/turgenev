@@ -29,7 +29,8 @@
 					window.TurgenevHighlights.create(
 						( source ) => content.targets( source, registry ),
 						content.documents
-					)
+					),
+					content.createReset( registry )
 				),
 			[ registry ]
 		);

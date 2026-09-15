@@ -5,6 +5,7 @@
 	function analysisHTML( html, registry ) {
 		let error = '';
 		let expandedSize = 0;
+		const patterns = new Map();
 		function expand( content, ancestors = [] ) {
 			return content.replace(
 				/<!--\s+wp:(?:core\/)?block\s+(\{[\s\S]*?\})\s*\/-->/g,
@@ -47,6 +48,12 @@
 						);
 						return comment;
 					}
+					patterns.set( ref, {
+						key: 'wp_block:' + ref,
+						type: 'wp_block',
+						id: ref,
+						html: value,
+					} );
 					expandedSize += value.length;
 					if ( expandedSize > client.maxTextLength * 100 ) {
 						error = wp.i18n.__(
@@ -60,7 +67,7 @@
 			);
 		}
 		const resolved = expand( html );
-		return { html: resolved, error };
+		return { html: resolved, error, patterns: [ ...patterns.values() ] };
 	}
 
 	function snapshot( registry = wp.data ) {
@@ -214,7 +221,43 @@
 		return result;
 	}
 
+	function createReset( registry = wp.data ) {
+		return window.TurgenevContentReset.create(
+			() => {
+				const editor = registry.select( 'core/editor' );
+				const type = editor.getCurrentPostType();
+				const id = editor.getCurrentPostId();
+				const html = editor.getEditedPostContent() || '';
+				return [
+					{ key: type + ':' + id, type, id, html },
+					...analysisHTML( html, registry ).patterns,
+				];
+			},
+			( changes ) => {
+				registry.batch( () => {
+					for ( const { record, html } of changes ) {
+						// Use the same entity edit as WordPress's code editor. Never
+						// replace the template tree or write expanded patterns into a post.
+						registry
+							.dispatch( 'core' )
+							.editEntityRecord(
+								'postType',
+								record.type,
+								record.id,
+								{
+									content: html,
+									blocks: undefined,
+									selection: undefined,
+								}
+							);
+					}
+				} );
+			}
+		);
+	}
+
 	window.TurgenevEditorContent = Object.freeze( {
+		createReset,
 		snapshot,
 		targets,
 		documents,

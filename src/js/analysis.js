@@ -5,7 +5,7 @@
 	const ui = window.TurgenevUI;
 
 	// This session outlives sidebar fills. Selection, focus and saves do not invalidate it.
-	function create( getSource, decorations ) {
+	function create( getSource, decorations, contentReset = null ) {
 		let state = {
 			result: null,
 			error: '',
@@ -25,6 +25,7 @@
 		let balanceRequest = null;
 		let sequence = 0;
 		let disposed = false;
+		let resetting = false;
 		const listeners = new Set();
 		function update( changes ) {
 			if ( disposed ) {
@@ -38,7 +39,7 @@
 			pending?.abort();
 			pending = null;
 		}
-		function reset() {
+		function clearView() {
 			cancel();
 			decorations?.clear();
 			update( {
@@ -51,9 +52,38 @@
 				notice: '',
 			} );
 		}
+		function reset() {
+			clearView();
+			resetting = true;
+			try {
+				contentReset?.reset();
+				if ( source ) {
+					const current = getSource();
+					if (
+						current.postId === source.postId &&
+						current.text === source.text
+					) {
+						// Removing legacy wrappers does not invalidate a text report.
+						source = current;
+					} else {
+						source = null;
+						update( { result: null } );
+					}
+				}
+			} catch {
+				update( {
+					error: __(
+						'Could not remove the old Turgenev markup. Your text has not been restored from an older version. Try Reset view again.',
+						'turgenev'
+					),
+				} );
+			} finally {
+				resetting = false;
+			}
+		}
 		function invalidate() {
-			if ( source && source.key !== getSource().key ) {
-				reset();
+			if ( ! resetting && source && source.key !== getSource().key ) {
+				clearView();
 				source = null;
 				update( {
 					result: null,
@@ -95,7 +125,8 @@
 			if ( state.busy || disposed ) {
 				return;
 			}
-			reset();
+			clearView();
+			contentReset?.clear();
 			update( { result: null } );
 			source = getSource();
 			if ( source.error ) {
@@ -190,6 +221,7 @@
 				notice: '',
 			} );
 			try {
+				contentReset?.capture();
 				const response = await client.request(
 					'highlights',
 					{
@@ -248,6 +280,7 @@
 			dispose() {
 				disposed = true;
 				cancel();
+				contentReset?.clear();
 				balanceRequest?.abort();
 				decorations?.dispose();
 				listeners.clear();
@@ -433,11 +466,7 @@
 				}
 				if ( highlights ) {
 					container.append(
-						button(
-							__( 'Reset view', 'turgenev' ),
-							session.reset,
-							! state.highlighted && ! state.highlighting
-						)
+						button( __( 'Reset view', 'turgenev' ), session.reset )
 					);
 				}
 			}
