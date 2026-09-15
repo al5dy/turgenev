@@ -42,7 +42,7 @@ const classicHtml = html.replace( '<div id="editor"></div>', '<main style="max-w
 http.createServer( async ( request, response ) => {
 	const url = new URL( request.url, 'http://127.0.0.1:8897' );
 	if ( url.pathname === '/classic' ) { response.setHeader( 'Content-Type', 'text/html; charset=utf-8' ); response.end( classicHtml.replace( 'isConfigured:true', 'isConfigured:' + ! url.searchParams.has( 'unconfigured' ) ) ); return; }
-	if ( request.url.startsWith( '/wp/v2/' ) ) { response.setHeader( 'Content-Type', 'application/json' ); response.end( '{}' ); return; }
+	if ( request.url.startsWith( '/wp/v2/' ) ) { response.setHeader( 'Content-Type', 'application/json' ); response.setHeader( 'Allow', 'GET, POST, PUT, PATCH, DELETE' ); response.end( '{}' ); return; }
 	if ( request.url === '/favicon.ico' ) { response.writeHead( 204 ); response.end(); return; }
 	if ( url.pathname === '/' ) { response.setHeader( 'Content-Type', 'text/html; charset=utf-8' ); response.end( html.replace( 'isConfigured:true', 'isConfigured:' + ! url.searchParams.has( 'unconfigured' ) ) ); return; }
 	const path = routes.get( url.pathname );

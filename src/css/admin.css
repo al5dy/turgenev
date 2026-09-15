@@ -108,3 +108,22 @@
 .turgenev-panel .components-spinner {
 	margin: 0 6px 0 0;
 }
+
+.turgenev-highlight-text {
+	margin: 12px 0;
+	padding: 12px;
+	border: 1px solid #dcdcde;
+	background: #fff;
+}
+
+.turgenev-highlight-text-content {
+	max-height: 360px;
+	overflow: auto;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	line-height: 1.6;
+}
+
+.turgenev-highlight-text-content mark {
+	color: #1e1e1e;
+}

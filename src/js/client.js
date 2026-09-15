@@ -369,6 +369,35 @@
 		}
 		walk( root );
 		const model = normalizedTextOffsets( raw );
+		let hiddenOffsets = null;
+		function isVisible( start, end ) {
+			if ( ! hiddenOffsets ) {
+				const visibleNodes = new WeakMap();
+				hiddenOffsets = new Uint32Array( raw.length + 1 );
+				for ( let i = 0; i < raw.length; i++ ) {
+					hiddenOffsets[ i + 1 ] = hiddenOffsets[ i ];
+					const point = points[ i ];
+					if ( ! point || /\s/u.test( raw[ i ] ) ) {
+						continue;
+					}
+					if ( ! visibleNodes.has( point.node ) ) {
+						const probe = root.ownerDocument.createRange();
+						probe.selectNodeContents( point.node );
+						visibleNodes.set(
+							point.node,
+							probe.getClientRects().length > 0
+						);
+					}
+					if ( ! visibleNodes.get( point.node ) ) {
+						hiddenOffsets[ i + 1 ]++;
+					}
+				}
+			}
+			return (
+				hiddenOffsets[ model.offsets[ start ] ] ===
+				hiddenOffsets[ model.offsets[ end ] ]
+			);
+		}
 		function range( start, end ) {
 			let first = model.offsets[ start ];
 			let last = model.offsets[ end ] - 1;
@@ -389,7 +418,7 @@
 			result.setEnd( points[ last ].node, points[ last ].offset + 1 );
 			return result;
 		}
-		return { text: model.text, range };
+		return { text: model.text, range, isVisible };
 	}
 
 	function toPlainText( html ) {
@@ -539,7 +568,62 @@
 		);
 	}
 
+	function highlightLevel( mark ) {
+		if ( [ 'keywords', 'readability' ].includes( mark.category ) ) {
+			return 3;
+		}
+		return mark.category === 'formality' ? 2 : mark.level;
+	}
+
+	function renderHighlightText( container, data ) {
+		const marks = validHighlights( data.text, data.marks );
+		const events = new Map();
+		for ( const mark of marks ) {
+			const level = highlightLevel( mark );
+			for ( const [ position, delta ] of [
+				[ mark.start, 1 ],
+				[ mark.end, -1 ],
+			] ) {
+				if ( ! events.has( position ) ) {
+					events.set( position, [] );
+				}
+				events.get( position ).push( { level, delta } );
+			}
+		}
+		const counts = [ 0, 0, 0, 0 ];
+		const colors = [ '', '#b5ead7', '#ffe299', '#f5a9b8' ];
+		let cursor = 0;
+		container.replaceChildren();
+		for ( const position of [ ...events.keys(), data.text.length ].sort(
+			( a, b ) => a - b
+		) ) {
+			if ( position > cursor ) {
+				const value = data.text.slice( cursor, position );
+				const level =
+					[ 3, 2, 1 ].find(
+						( candidate ) => counts[ candidate ] > 0
+					) || 0;
+				if ( level ) {
+					const mark =
+						container.ownerDocument.createElement( 'mark' );
+					mark.style.backgroundColor = colors[ level ];
+					mark.textContent = value;
+					container.appendChild( mark );
+				} else {
+					container.appendChild(
+						container.ownerDocument.createTextNode( value )
+					);
+				}
+			}
+			for ( const { level, delta } of events.get( position ) || [] ) {
+				counts[ level ] += delta;
+			}
+			cursor = position;
+		}
+	}
+
 	window.TurgenevClient = Object.freeze( {
+		highlightLevel,
 		normalizedTextOffsets,
 		textModel,
 		sourceModel,
@@ -556,6 +640,7 @@
 		topUpUrl: typeof config.topUpUrl === 'string' ? config.topUpUrl : '',
 	} );
 	window.TurgenevUI = Object.freeze( {
+		renderHighlightText,
 		renderBalance,
 		renderMessage,
 		renderResult,
