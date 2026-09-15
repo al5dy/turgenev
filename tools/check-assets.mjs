@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 const root = resolve( import.meta.dirname, '..' );
 const sources = [
-	...[ 'client', 'analysis', 'highlights', 'classic', 'editor', 'editor-content' ].map( name => [ 'src/js/' + name + '.js', 'assets/build/' + name + '.js' ] ),
+	...[ 'client', 'content-reset', 'analysis', 'highlights', 'classic', 'editor', 'editor-content' ].map( name => [ 'src/js/' + name + '.js', 'assets/build/' + name + '.js' ] ),
 	[ 'src/css/admin.css', 'assets/build/admin.css' ],
 ];
 for ( const [ source, target ] of sources ) {

@@ -24,7 +24,7 @@ function include( handle ) {
 }
 [ 'wp-block-library', 'wp-format-library', 'wp-editor', 'wp-plugins' ].forEach( include );
 const routes = new Map( files.map( ( file, index ) => [ `/core/${ index }.js`, `${ wordpress }/wp-includes/js/dist/${ file }` ] ) );
-for ( const file of [ 'client.js', 'analysis.js', 'highlights.js', 'classic.js', 'editor-content.js', 'editor.js', 'admin.css' ] ) routes.set( `/plugin/${ file }`, `${ root }/assets/build/${ file }` );
+for ( const file of [ 'client.js', 'content-reset.js', 'analysis.js', 'highlights.js', 'classic.js', 'editor-content.js', 'editor.js', 'admin.css' ] ) routes.set( `/plugin/${ file }`, `${ root }/assets/build/${ file }` );
 for ( const file of [ 'components', 'block-editor', 'block-library' ] ) routes.set( `/core/${ file }.css`, `${ wordpress }/wp-includes/css/dist/${ file }/style.css` );
 for ( const file of [ 'tinymce.min.js', 'themes/modern/theme.min.js', 'skins/lightgray/skin.min.css', 'skins/lightgray/content.min.css', 'skins/lightgray/fonts/tinymce.woff' ] ) routes.set( '/tinymce/' + file, wordpress + '/wp-includes/js/tinymce/' + file );
 routes.set( '/classic-harness.js', root + '/tests/browser/classic-harness.js' );
@@ -37,7 +37,7 @@ ${ [ 'components', 'block-editor', 'block-library' ].map( ( name ) => `<link rel
 <link rel="stylesheet" href="/core/buttons.css"><link rel="stylesheet" href="/plugin/admin.css"><style>body{font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1d2327;}td,th{padding:8px;}aside{max-width:360px;}</style><body><div id="editor"></div>
 ${ files.map( ( _, index ) => `<script src="/core/${ index }.js"></script>` ).join( '' ) }
 <script>window.TurgenevConfig={ajaxUrl:'/analysis',nonce:'smoke-nonce',reportBaseUrl:'https://turgenev.ashmanov.com/?t=',isConfigured:true,maxTextLength:20000,postId:42,settingsUrl:'/settings',topUpUrl:'https://turgenev.ashmanov.com/?a=pay'};</script>
-<script src="/plugin/client.js"></script><script src="/plugin/analysis.js"></script><script src="/plugin/highlights.js"></script><script src="/plugin/editor-content.js"></script><script src="/plugin/editor.js"></script><script src="/harness.js"></script></body></html>`;
+<script src="/plugin/client.js"></script><script src="/plugin/content-reset.js"></script><script src="/plugin/analysis.js"></script><script src="/plugin/highlights.js"></script><script src="/plugin/editor-content.js"></script><script src="/plugin/editor.js"></script><script src="/harness.js"></script></body></html>`;
 const classicHtml = html.replace( '<div id="editor"></div>', '<main style="max-width:900px;margin:30px;display:grid;grid-template-columns:1fr 340px;gap:30px"><section><textarea id="content">&lt;p&gt;Visual &lt;strong&gt;test&lt;/strong&gt; text 😀.&lt;/p&gt;&lt;p&gt;Second paragraph.&lt;/p&gt;</textarea></section><aside id="turgenev-panel"></aside></main>' ).replace( '<script src="/plugin/editor-content.js"></script><script src="/plugin/editor.js"></script><script src="/harness.js"></script>', '<script src="/tinymce/tinymce.min.js"></script><script src="/classic-harness.js"></script><script src="/plugin/classic.js"></script>' );
 http.createServer( async ( request, response ) => {
 	const url = new URL( request.url, 'http://127.0.0.1:8897' );

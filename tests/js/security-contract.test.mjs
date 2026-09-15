@@ -10,14 +10,14 @@ async function source( file ) {
 }
 
 test( 'browser code never references a provider api_key field', async () => {
-	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
+	for ( const file of [ 'src/js/client.js', 'src/js/content-reset.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
 		const text = await source( file );
 		assert.equal( /api_key|apiKey/.test( text ), false, `${ file } must not contain the provider key` );
 	}
 } );
 
 test( 'provider-controlled results are not assigned through innerHTML', async () => {
-	for ( const file of [ 'src/js/client.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
+	for ( const file of [ 'src/js/client.js', 'src/js/content-reset.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
 		const text = await source( file );
 		assert.equal( /\.innerHTML\s*=/.test( text ), false, `${ file } must not assign innerHTML` );
 	}

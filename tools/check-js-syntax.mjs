@@ -4,12 +4,14 @@ import { resolve } from 'node:path';
 const root = resolve( import.meta.dirname, '..' );
 const files = [
 	'src/js/client.js',
+	'src/js/content-reset.js',
 	'src/js/classic.js',
 	'src/js/editor.js',
 	'src/js/editor-content.js',
 	'src/js/analysis.js',
 	'src/js/highlights.js',
 	'assets/build/client.js',
+	'assets/build/content-reset.js',
 	'assets/build/classic.js',
 	'assets/build/editor.js',
 	'assets/build/editor-content.js',
