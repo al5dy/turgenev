@@ -8,15 +8,15 @@ const result = { risk: '3', level: 'low', link: 'risk12345', details: [] };
 function fixture( configured = true ) {
 	const requests = [];
 	let source = { text: 'Original text', html: '<p>Original text</p>', key: 'original' };
-	let state, cleared = 0, applied = 0;
+	let state, cleared = 0, applied = 0, counts = { visible: 1, total: 1 };
 	const sandbox = { URLSearchParams, console, window: { AbortController, TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 42, isConfigured: configured }, fetch: ( url, options ) => new Promise( resolve => requests.push( { body: new URLSearchParams( options.body ), options, resolve } ) ) }, document: {}, wp: { i18n: { __: value => value } } };
 	sandbox.window.wp = sandbox.wp;
 	vm.createContext( sandbox );
 	scripts.forEach( script => vm.runInContext( script, sandbox ) );
-	const session = sandbox.window.TurgenevAnalysis.create( () => source, { clear: () => cleared++, dispose() {}, apply: () => { applied++; return { visible: 1, total: 1 }; } } );
+	const session = sandbox.window.TurgenevAnalysis.create( () => source, { clear: () => cleared++, dispose() {}, apply: () => { applied++; return counts; } } );
 	session.subscribe( value => { state = value; } );
 	function respond( index, data, ok = true ) { requests[ index ].resolve( { ok, json: async () => ( { success: ok, data } ) } ); }
-	return { session, requests, respond, client: sandbox.window.TurgenevClient, setSource: value => { source = value; }, get state() { return state; }, get applied() { return applied; }, get cleared() { return cleared; } };
+	return { session, requests, respond, client: sandbox.window.TurgenevClient, setCounts: value => { counts = value; }, setSource: value => { source = value; }, get state() { return state; }, get applied() { return applied; }, get cleared() { return cleared; } };
 }
 
 test( 'decimal balances use exact string checks, never float thresholds', () => {
@@ -28,6 +28,13 @@ test( 'missing key and empty/oversize text never issue a paid request', async ()
 	const missing = fixture( false ); await missing.session.analyze(); assert.equal( missing.requests.length, 0 ); assert.match( missing.state.error, /Configure/ );
 	const empty = fixture(); empty.setSource( { text: '', html: '', key: '' } ); await empty.session.analyze(); assert.equal( empty.requests.length, 0 );
 	empty.setSource( { text: 'a'.repeat( 20001 ), html: '', key: 'large' } ); await empty.session.analyze(); assert.equal( empty.requests.length, 0 ); assert.match( empty.state.error, /longer/ );
+} );
+test( 'unresolved document dependencies prevent partial paid analysis', async () => {
+	const f = fixture();
+	f.setSource( { text: 'Only a partial body', html: '<p>Only a partial body</p>', key: 'incomplete', error: 'A synced pattern is unavailable.' } );
+	await f.session.analyze();
+	assert.equal( f.requests.length, 0 );
+	assert.equal( f.state.error, 'A synced pattern is unavailable.' );
 } );
 test( 'analyzes unsaved text with nonce and post ID, rejects duplicate clicks', async () => {
 	const f = fixture(); const pending = f.session.analyze(); await f.session.analyze();
@@ -56,6 +63,17 @@ test( 'switching category clears old decorations immediately and a failed respon
 	assert.equal( f.cleared, cleared + 1 ); assert.equal( f.state.activeToken, null ); assert.equal( f.state.highlighted, false );
 	f.respond( 3, { message: 'Provider unavailable' }, false ); await pending;
 	assert.equal( f.state.highlighted, false ); assert.equal( f.state.activeToken, null ); assert.ok( f.state.result );
+} );
+test( 'unrendered fragments get a local fallback that resets and is replaced with the selected category', async () => {
+	const f = fixture(); let pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
+	const highlights = { text: 'Original text', marks: [ { start: 0, end: 8, category: 'style', level: 2 } ] };
+	f.setCounts( { visible: 0, total: 1 } );
+	pending = f.session.highlight( 'style12345' ); f.respond( 2, { highlights } ); await pending;
+	assert.equal( f.state.error, '' ); assert.equal( f.state.highlighted, true ); assert.equal( f.state.highlightFallback, highlights );
+	f.session.reset(); assert.equal( f.state.highlightFallback, null );
+	f.setCounts( { visible: 1, total: 1 } );
+	pending = f.session.highlight( 'frequency12345' ); f.respond( 3, { highlights } ); await pending;
+	assert.equal( f.state.highlightFallback, null ); assert.equal( f.state.activeToken, 'frequency12345' );
 } );
 test( 'highlight validation accepts dense reports and rejects malformed ranges and excessive payloads', () => {
 	const { client } = fixture();

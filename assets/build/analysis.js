@@ -15,6 +15,7 @@
 			busy: false,
 			highlighting: false,
 			highlighted: false,
+			highlightFallback: null,
 			activeToken: null,
 			loadingBalance: false,
 			htmlMode: false,
@@ -44,6 +45,7 @@
 				busy: false,
 				highlighting: false,
 				highlighted: false,
+				highlightFallback: null,
 				activeToken: null,
 				error: '',
 				notice: '',
@@ -96,6 +98,10 @@
 			reset();
 			update( { result: null } );
 			source = getSource();
+			if ( source.error ) {
+				update( { error: source.error } );
+				return;
+			}
 			const text = state.htmlMode
 				? source.html.replace( /<!--[\s\S]*?-->/g, '' ).trim()
 				: source.text;
@@ -178,6 +184,7 @@
 			update( {
 				highlighting: true,
 				highlighted: false,
+				highlightFallback: null,
 				activeToken: null,
 				error: '',
 				notice: '',
@@ -206,6 +213,10 @@
 				}
 				update( {
 					highlighted: counts.total > 0,
+					highlightFallback:
+						counts.visible < counts.total
+							? response.highlights
+							: null,
 					activeToken: token,
 					notice,
 				} );
@@ -394,6 +405,32 @@
 					);
 				}
 				container.append( result );
+				if ( state.highlightFallback ) {
+					const fallback = node(
+						'section',
+						'',
+						'turgenev-highlight-text'
+					);
+					fallback.setAttribute(
+						'aria-label',
+						__( 'Analyzed text (read-only)', 'turgenev' )
+					);
+					fallback.append(
+						node(
+							'h3',
+							__( 'Analyzed text (read-only)', 'turgenev' )
+						)
+					);
+					const text = node(
+						'div',
+						'',
+						'turgenev-highlight-text-content'
+					);
+					text.tabIndex = 0;
+					ui.renderHighlightText( text, state.highlightFallback );
+					fallback.append( text );
+					container.append( fallback );
+				}
 				if ( highlights ) {
 					container.append(
 						button(

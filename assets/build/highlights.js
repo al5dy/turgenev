@@ -3,10 +3,7 @@
 	const client = window.TurgenevClient;
 	const colors = [ '#b5ead7', '#ffe299', '#f5a9b8' ];
 	function severity( mark ) {
-		if ( [ 'keywords', 'readability' ].includes( mark.category ) ) {
-			return 3;
-		}
-		return mark.category === 'formality' ? 2 : mark.level;
+		return client.highlightLevel( mark );
 	}
 	function layerFor( surface ) {
 		if ( ! surface.layer ) {
@@ -177,6 +174,7 @@
 					'class',
 					'style',
 					'hidden',
+					'open',
 					'contenteditable',
 				],
 			} );
@@ -240,11 +238,13 @@
 					if ( ! range ) {
 						continue;
 					}
-					coverage.fill(
-						1,
-						target.offset + start,
-						target.offset + end
-					);
+					if ( target.isVisible( start, end ) ) {
+						coverage.fill(
+							1,
+							target.offset + start,
+							target.offset + end
+						);
+					}
 					const level = severity( mark );
 					const name = 'turgenev-' + mark.category + '-' + level;
 					if ( win.CSS?.highlights && win.Highlight ) {
@@ -300,17 +300,18 @@
 					paintTextarea( target, sourceMarks, surface );
 				}
 			}
-			return active.marks.filter( ( mark ) => {
-				for ( let i = mark.start; i < mark.end; i++ ) {
-					if (
+			const missing = new Uint32Array( coverage.length + 1 );
+			for ( let i = 0; i < coverage.length; i++ ) {
+				missing[ i + 1 ] =
+					missing[ i ] +
+					Number(
 						! coverage[ i ] &&
-						! /\s/u.test( active.source.text[ i ] )
-					) {
-						return false;
-					}
-				}
-				return true;
-			} ).length;
+							! /\s/u.test( active.source.text[ i ] )
+					);
+			}
+			return active.marks.filter(
+				( mark ) => missing[ mark.end ] === missing[ mark.start ]
+			).length;
 		}
 		function schedule() {
 			if ( active && ! frame ) {
@@ -348,15 +349,8 @@
 					marks: client.validHighlights( data.text, data.marks ),
 				};
 				const visible = paint();
-				if ( visible !== active.marks.length ) {
-					clear();
-					throw new Error(
-						window.wp.i18n.__(
-							'Turgenev could not match all report fragments to the current editor content.',
-							'turgenev'
-						)
-					);
-				}
+				// Non-rendered third-party fields use the session's read-only text view.
+				// Keep every valid in-place decoration; malformed provider data still fails above.
 				return { visible, total: active.marks.length };
 			},
 			clear,

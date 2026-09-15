@@ -37,7 +37,7 @@ try {
 		server.stderr.on( 'data', data => process.stderr.write( data ) );
 	} );
 	await command( [ 'open', base ] );
-	for ( const [ file, results, expected ] of [ [ 'highlight-flow.js', 'smokeResults', 7 ], [ 'classic-flow.js', 'classicSmokeResults', 6 ], [ 'mapping-flow.js', 'mappingSmokeResults', 5 ], [ 'saved-post-flow.js', 'savedPostSmokeResults', 4 ] ] ) {
+	for ( const [ file, results, expected ] of [ [ 'highlight-flow.js', 'smokeResults', 7 ], [ 'classic-flow.js', 'classicSmokeResults', 6 ], [ 'mapping-flow.js', 'mappingSmokeResults', 5 ], [ 'saved-post-flow.js', 'savedPostSmokeResults', 4 ], [ 'template-flow.js', 'templateSmokeResults', 9 ] ] ) {
 		const flow = ( await readFile( resolve( root, 'tests/browser', file ), 'utf8' ) ).replaceAll( 'http://127.0.0.1:8897', base );
 		await command( [ 'run-code', flow ] );
 		const summary = await command( [ 'eval', '() => window.' + results + '?.length' ] );
