@@ -68,6 +68,8 @@ npm run lint:css
 
 ### Browser tests
 
+`npm run test:e2e` is real Playwright against a disposable WordPress installation; `npm run test:browser` is a self-contained fixture harness that needs no WordPress instance. See [`docs/testing.md`](docs/testing.md) for the difference.
+
 ```bash
 export WP_BASE_URL='http://localhost:8888'
 export WP_ADMIN_USER='admin'
@@ -75,8 +77,6 @@ export WP_ADMIN_PASSWORD='password'
 npx playwright install chromium
 npm run test:e2e
 ```
-
-See [`docs/testing.md`](docs/testing.md).
 
 ## API key handling
 

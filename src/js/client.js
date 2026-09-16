@@ -638,6 +638,7 @@
 		settingsUrl:
 			typeof config.settingsUrl === 'string' ? config.settingsUrl : '',
 		topUpUrl: typeof config.topUpUrl === 'string' ? config.topUpUrl : '',
+		highlightsAvailable: Boolean( config.highlightsAvailable ),
 	} );
 	window.TurgenevUI = Object.freeze( {
 		renderHighlightText,

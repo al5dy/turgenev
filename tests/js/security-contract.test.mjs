@@ -20,6 +20,7 @@ test( 'provider-controlled results are not assigned through innerHTML', async ()
 	for ( const file of [ 'src/js/client.js', 'src/js/content-reset.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
 		const text = await source( file );
 		assert.equal( /\.innerHTML\s*=/.test( text ), false, `${ file } must not assign innerHTML` );
+		assert.equal( /dangerouslySetInnerHTML/.test( text ), false, `${ file } must not use dangerouslySetInnerHTML` );
 	}
 } );
 
@@ -57,8 +58,14 @@ test( 'localized browser config contains nonce but no api key', async () => {
 test( 'ajax controller requires nonce and capability', async () => {
 	const php = await source( 'src/Ajax/ApiController.php' );
 	assert.match( php, /check_ajax_referer\( 'turgenev_api', 'nonce', false \)/ );
-	assert.match( php, /current_user_can\( 'edit_posts' \)/ );
+	assert.match( php, /current_user_can\( 'edit_post', \$post_id \)/ );
 	assert.match( php, /current_user_can\( 'manage_options' \)/ );
+} );
+
+test( 'risk and highlights never fall back to the generic edit_posts capability', async () => {
+	const php = await source( 'src/Ajax/ApiController.php' );
+	assert.doesNotMatch( php, /edit_posts/ );
+	assert.match( php, /! \$post_id \|\| ! \$post/ );
 } );
 
 test( 'editor UI is not hidden when the API key is missing', async () => {

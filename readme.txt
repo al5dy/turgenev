@@ -101,6 +101,10 @@ Version 2.0.0 validates the API key with the balance operation rather than sendi
 
 Yes. Turgenev adds a dedicated editor sidebar. The Classic Editor is also supported through a metabox.
 
+= Does Turgenev require the PHP DOM extension? =
+
+No. Content analysis and balance checks work without it. Only the optional in-editor "Highlight" preview needs the PHP DOM extension (`ext-dom`) to parse the provider's report markup. If it is not installed, the editor does not offer the Highlight action and shows a short notice instead; nothing else is affected.
+
 = Is Turgenev itself free? =
 
 This WordPress plugin is GPL-licensed software. The external Turgenev service is separate and can have paid API usage. Check the provider website for current terms and pricing.

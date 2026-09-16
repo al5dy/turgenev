@@ -7,6 +7,8 @@
 
 namespace Al5dy\Turgenev\Api;
 
+use Al5dy\Turgenev\Support\Requirements;
+
 defined( 'ABSPATH' ) || exit;
 
 /** Converts untrusted provider markup to validated text offsets, never HTML. */
@@ -14,6 +16,22 @@ final class ReportHighlightParser {
 	private const MAX_MARKS = 20000;
 	/** ECMAScript whitespace: the browser and provider ranges must use the same offsets. */
 	private const WHITESPACE = '/[\x{0009}-\x{000D}\x{0020}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]+/u';
+
+	/**
+	 * Whether this environment can parse highlight markup.
+	 *
+	 * @var bool
+	 */
+	private bool $has_dom;
+
+	/**
+	 * Resolve the environment's DOM capability, overridable for tests.
+	 *
+	 * @param bool|null $has_dom Forced capability; null resolves `Requirements::hasDom()`.
+	 */
+	public function __construct( ?bool $has_dom = null ) {
+		$this->has_dom = $has_dom ?? Requirements::hasDom();
+	}
 
 	/**
 	 * Extract ranges only when the complete document text matches.
@@ -24,8 +42,8 @@ final class ReportHighlightParser {
 	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, level: int}>}
 	 */
 	public function parse( string $report_html, string $expected_text ): array {
-		if ( ! class_exists( '\DOMDocument' ) ) {
-			throw new ApiException( __( 'This server cannot parse Turgenev report highlights.', 'turgenev' ) );
+		if ( ! $this->has_dom ) {
+			throw new ApiException( __( 'Highlighting is unavailable on this server (the PHP DOM extension is not installed). Analysis and balance are unaffected.', 'turgenev' ) );
 		}
 
 		$markup = $this->report_markup( $report_html );
