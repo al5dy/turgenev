@@ -9,6 +9,7 @@ namespace Al5dy\Turgenev\Admin;
 
 use Al5dy\Turgenev\Api\ApiClient;
 use Al5dy\Turgenev\Support\OptionStore;
+use Al5dy\Turgenev\Support\Requirements;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -22,12 +23,21 @@ final class EditorIntegration {
 	private OptionStore $options;
 
 	/**
+	 * Whether this environment can render highlight previews.
+	 *
+	 * @var bool
+	 */
+	private bool $has_dom;
+
+	/**
 	 * Bind server-side configuration access.
 	 *
 	 * @param OptionStore $options Configuration store.
+	 * @param bool|null   $has_dom Forced highlight capability; null resolves `Requirements::hasDom()`.
 	 */
-	public function __construct( OptionStore $options ) {
+	public function __construct( OptionStore $options, ?bool $has_dom = null ) {
 		$this->options = $options;
+		$this->has_dom = $has_dom ?? Requirements::hasDom();
 	}
 
 	/** Register scoped admin/editor hooks. */
@@ -200,14 +210,15 @@ final class EditorIntegration {
 			'turgenev-client',
 			'TurgenevConfig',
 			array(
-				'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
-				'nonce'         => wp_create_nonce( 'turgenev_api' ),
-				'reportBaseUrl' => ApiClient::REPORT_BASE_URL,
-				'maxTextLength' => ApiClient::MAX_TEXT_LENGTH,
-				'isConfigured'  => $this->options->hasApiKey(),
-				'settingsUrl'   => admin_url( 'options-general.php?page=turgenev-settings' ),
-				'topUpUrl'      => 'https://turgenev.ashmanov.com/?a=pay',
-				'postId'        => (int) get_the_ID(),
+				'ajaxUrl'             => admin_url( 'admin-ajax.php' ),
+				'nonce'               => wp_create_nonce( 'turgenev_api' ),
+				'reportBaseUrl'       => ApiClient::REPORT_BASE_URL,
+				'maxTextLength'       => ApiClient::MAX_TEXT_LENGTH,
+				'isConfigured'        => $this->options->hasApiKey(),
+				'settingsUrl'         => admin_url( 'options-general.php?page=turgenev-settings' ),
+				'topUpUrl'            => 'https://turgenev.ashmanov.com/?a=pay',
+				'postId'              => (int) get_the_ID(),
+				'highlightsAvailable' => $this->has_dom,
 			)
 		);
 

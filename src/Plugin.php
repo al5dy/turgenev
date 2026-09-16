@@ -13,6 +13,7 @@ use Al5dy\Turgenev\Ajax\ApiController;
 use Al5dy\Turgenev\Api\ApiClient;
 use Al5dy\Turgenev\Support\OptionStore;
 use Al5dy\Turgenev\Support\ContentProtection;
+use Al5dy\Turgenev\Support\RateLimiter;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -68,7 +69,7 @@ final class Plugin {
 		$options = new OptionStore();
 		$client  = new ApiClient( $options );
 
-		( new ApiController( $client ) )->register();
+		( new ApiController( $client, new RateLimiter() ) )->register();
 		( new ContentProtection() )->register();
 
 		if ( is_admin() ) {

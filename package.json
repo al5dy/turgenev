@@ -5,11 +5,6 @@
   "description": "WordPress integration for the Turgenev content analysis API.",
   "author": "Anton Lokotkov aka al5dy",
   "license": "GPL-2.0-or-later",
-  "homepage": "https://wordpress.org/plugins/turgenev/",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/al5dy/turgenev.git"
-  },
   "keywords": [
     "wordpress",
     "seo",
@@ -18,26 +13,34 @@
     "gutenberg",
     "turgenev"
   ],
+  "homepage": "https://wordpress.org/plugins/turgenev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/al5dy/turgenev.git"
+  },
+  "bugs": {
+    "url": "https://github.com/al5dy/turgenev/issues"
+  },
   "engines": {
     "node": ">=20.19.0",
     "npm": ">=10"
+  },
+  "devDependencies": {
+    "@playwright/cli": "0.1.19",
+    "@playwright/test": "1.63.0",
+    "@wordpress/scripts": "35.0.0"
   },
   "scripts": {
     "build": "node tools/build-assets.mjs",
     "check:syntax": "node tools/check-js-syntax.mjs",
     "check:assets": "node tools/check-assets.mjs",
     "test:js": "node --test tests/js/*.test.mjs",
-    "test:e2e": "node tools/browser-smoke.mjs",
-    "test:e2e:admin": "playwright test",
+    "test:browser": "node tools/browser-smoke.mjs",
+    "test:e2e": "playwright test",
     "lint:js": "wp-scripts lint-js src/js",
     "lint:css": "wp-scripts lint-style src/css/*.css",
     "lint:pkg-json": "wp-scripts lint-pkg-json",
     "check:licenses": "wp-scripts check-licenses",
     "test": "npm run check:assets && npm run check:syntax && npm run test:js"
-  },
-  "devDependencies": {
-    "@playwright/cli": "0.1.19",
-    "@playwright/test": "1.63.0",
-    "@wordpress/scripts": "35.0.0"
   }
 }

@@ -68,25 +68,7 @@ final class ApiClient {
 	 * @throws ApiException On invalid content or response.
 	 */
 	public function analyze( string $text, bool $more = true ): array {
-		$text = trim( $text );
-
-		if ( '' === $text ) {
-			throw new ApiException( __( 'There is no content to analyze.', 'turgenev' ) );
-		}
-
-		if ( str_contains( $text, "\0" ) || ! preg_match( '//u', $text ) ) {
-			throw new ApiException( __( 'The content contains invalid text encoding.', 'turgenev' ) );
-		}
-		$length = preg_match_all( '/./us', $text );
-		if ( $length > self::MAX_TEXT_LENGTH ) {
-			throw new ApiException(
-				sprintf(
-					/* translators: %d: maximum character count. */
-					__( 'Turgenev accepts up to %d characters per check.', 'turgenev' ),
-					self::MAX_TEXT_LENGTH
-				)
-			);
-		}
+		$text = $this->validateTextPayload( $text );
 
 		return ResponseValidator::analysis(
 			$this->request(
@@ -109,10 +91,8 @@ final class ApiClient {
 	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, level: int}>}
 	 */
 	public function reportHighlights( string $report_token, string $expected_text ): array {
-		$report_token = ResponseValidator::token( $report_token );
-		if ( '' === trim( $expected_text ) || strlen( $expected_text ) > self::MAX_TEXT_LENGTH * 4 || ! preg_match( '//u', $expected_text ) ) {
-			throw new ApiException( __( 'The highlight source is empty or too large.', 'turgenev' ) );
-		}
+		$report_token  = ResponseValidator::token( $report_token );
+		$expected_text = $this->validateTextPayload( $expected_text );
 
 		/*
 		 * The provider's read-only report form submits its reference with POST.
@@ -128,7 +108,7 @@ final class ApiClient {
 				'sslverify'           => true,
 				'headers'             => array(
 					'Accept'     => 'text/html',
-					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION . '; ' . home_url( '/' ),
+					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION,
 				),
 				'body'                => array(
 					't'         => $report_token,
@@ -199,7 +179,7 @@ final class ApiClient {
 				'sslverify'           => true,
 				'headers'             => array(
 					'Accept'     => 'application/json',
-					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION . '; ' . home_url( '/' ),
+					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION,
 				),
 				'body'                => $body,
 			)
@@ -266,5 +246,40 @@ final class ApiClient {
 	 */
 	private function apiKey(): string {
 		return null === $this->api_key_override ? $this->options->apiKey() : $this->api_key_override;
+	}
+
+	/**
+	 * Validate a document text payload against the one contract shared by risk and highlights.
+	 *
+	 * Length is counted in Unicode characters, never bytes: `strlen()` over-counts every
+	 * multi-byte character, so a byte-length check against `MAX_TEXT_LENGTH * 4` lets narrow
+	 * (e.g. ASCII) payloads through at up to 4x the intended character limit.
+	 *
+	 * @param string $text Untrusted document text.
+	 * @throws ApiException On empty content, invalid encoding or an oversized payload.
+	 * @return string Trimmed, validated text.
+	 */
+	private function validateTextPayload( string $text ): string {
+		$text = trim( $text );
+
+		if ( '' === $text ) {
+			throw new ApiException( __( 'There is no content to analyze.', 'turgenev' ) );
+		}
+
+		if ( str_contains( $text, "\0" ) || ! preg_match( '//u', $text ) ) {
+			throw new ApiException( __( 'The content contains invalid text encoding.', 'turgenev' ) );
+		}
+
+		if ( preg_match_all( '/./us', $text ) > self::MAX_TEXT_LENGTH ) {
+			throw new ApiException(
+				sprintf(
+					/* translators: %d: maximum character count. */
+					__( 'Turgenev accepts up to %d characters per check.', 'turgenev' ),
+					self::MAX_TEXT_LENGTH
+				)
+			);
+		}
+
+		return $text;
 	}
 }

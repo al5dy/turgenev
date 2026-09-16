@@ -53,8 +53,10 @@ composer lint
 npm install
 npm run lint:js
 npm run lint:css
-npm run test:e2e
+npm run test:browser
 ```
+
+`npm run test:e2e` is a different, heavier check: real Playwright against a live disposable WordPress installation (`WP_BASE_URL`/`WP_ADMIN_USER`/`WP_ADMIN_PASSWORD`), not something to run routinely alongside the checks above. See `docs/testing.md`. Mock provider requests through `pre_http_request` (`tests/e2e/mu-plugins/turgenev-e2e-support.php`); never point it at a real paid Turgenev account.
 
 Live provider checks are opt-in because they use a real account:
 

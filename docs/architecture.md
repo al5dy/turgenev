@@ -33,3 +33,11 @@ A new key is validated with the `balance` operation instead of a `risk` analysis
 ## Compatibility
 
 The public `TGEV()` helper and `$GLOBALS['turgenev']` remain available for lightweight backwards compatibility. Internal legacy classes/functions are not treated as a public API.
+
+## Optional capability: highlight rendering
+
+`ext-dom` is not in `composer.json`'s `require`; only highlight rendering needs it, not the plugin as a whole. `Requirements::hasDom()` is the single source of truth; `ReportHighlightParser` and `EditorIntegration` both resolve it (with a constructor override for tests, so `tests/php/run.php` never depends on whether the machine running it actually has `ext-dom`).
+
+- `ReportHighlightParser::parse()` throws a plain `ApiException` — never a fatal error — when `DOMDocument` is unavailable.
+- `EditorIntegration` reports `highlightsAvailable` to the browser through `TurgenevConfig`, so `src/js/analysis.js` never renders a Highlight button that is guaranteed to fail, and shows a short, non-fatal note instead.
+- Balance and document analysis (`risk`) never touch `ReportHighlightParser` and are unaffected either way.

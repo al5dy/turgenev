@@ -10,11 +10,15 @@
 	const { createElement: el, useEffect, useMemo, useRef } = wp.element;
 	const { __ } = wp.i18n;
 	const content = window.TurgenevEditorContent;
+	const client = window.TurgenevClient;
 
 	function PanelContent( { session } ) {
 		const host = useRef( null );
 		useEffect(
-			() => window.TurgenevAnalysis.mount( host.current, session ),
+			() =>
+				window.TurgenevAnalysis.mount( host.current, session, {
+					highlights: client.highlightsAvailable,
+				} ),
 			[ session ]
 		);
 		return el( 'div', { ref: host } );

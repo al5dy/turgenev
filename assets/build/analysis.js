@@ -406,6 +406,18 @@
 						'description'
 					)
 				);
+				if ( ! highlights ) {
+					container.append(
+						node(
+							'p',
+							__(
+								'Highlighting the analyzed text in reports is unavailable on this server (a required PHP component is missing). Analysis and balance are unaffected.',
+								'turgenev'
+							),
+							'description'
+						)
+					);
+				}
 				const analyze = button(
 					state.busy
 						? __( 'Analyzing document…', 'turgenev' )

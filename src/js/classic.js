@@ -70,7 +70,10 @@
 				}
 			)
 		);
-		window.TurgenevAnalysis.mount( panel, session, { settings } );
+		window.TurgenevAnalysis.mount( panel, session, {
+			settings,
+			highlights: client.highlightsAvailable,
+		} );
 		const textarea = document.getElementById( 'content' );
 		textarea?.addEventListener( 'input', session.invalidate );
 		textarea?.addEventListener( 'change', session.invalidate );
