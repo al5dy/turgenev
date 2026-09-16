@@ -33,7 +33,7 @@
     "lint:css": "wp-scripts lint-style src/css/*.css",
     "lint:pkg-json": "wp-scripts lint-pkg-json",
     "check:licenses": "wp-scripts check-licenses",
-    "test": "npm run check:syntax && npm run test:js"
+    "test": "npm run check:assets && npm run check:syntax && npm run test:js"
   },
   "devDependencies": {
     "@playwright/cli": "0.1.19",

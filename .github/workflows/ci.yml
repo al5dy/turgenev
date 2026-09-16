@@ -39,6 +39,7 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+      - run: npm run check:assets
       - run: npm run build
       - run: npm run check:syntax
       - run: npm run test:js

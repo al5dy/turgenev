@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Fixed `assets/build/*` runtime JS falling out of sync with `src/js/*` (a missing `content-reset.js` and four stale files carried an older build, so the shipped editor lacked the content-reset integration). Rebuilt via `tools/build-assets.mjs`; no source behavior changed.
+- Added a regression test (`tests/js/assets-sync.test.mjs`) and moved `npm run check:assets` ahead of `npm run build` in CI so a source change committed without a matching rebuild fails the pipeline instead of shipping stale assets.
+
 ## 2.0.0 — 2026-09-13
 
 - Reworked the plugin around WordPress 6.6+ and PHP 8.1+.

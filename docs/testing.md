@@ -8,9 +8,12 @@ These checks can run immediately after cloning:
 php tools/check-php-syntax.php
 php tools/check-version.php
 php tests/php/run.php
+npm run check:assets
 npm run check:syntax
 npm run test:js
 ```
+
+`npm run check:assets` fails if `assets/build/*` (or the language catalogs mapped to it) is missing or does not byte-for-byte match its `src/` counterpart. Run `npm run build` to regenerate it. CI runs `check:assets` before `build` so a source change committed without a matching rebuild fails the pipeline instead of being silently repaired.
 
 The PHP smoke suite stubs the WordPress HTTP API and verifies successful balance/risk responses plus malformed JSON, provider errors, unsupported operations and missing-key behavior.
 
