@@ -41,6 +41,7 @@ Run, at minimum:
 php tools/check-php-syntax.php
 php tools/check-version.php
 php tests/php/run.php
+TURGENEV_FORCE_NO_DOM=1 php tests/php/run.php
 npm run check:syntax
 npm run test:js
 ```

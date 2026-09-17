@@ -23,7 +23,7 @@ final class ResponseValidator {
 	 */
 	public static function decimal( $value ): string {
 		if ( ( ! is_string( $value ) && ! is_int( $value ) && ! is_float( $value ) ) || ! preg_match( '/^-?\d{1,12}(?:\.\d{1,8})?$/D', (string) $value ) ) {
-			throw new ApiException( __( 'Turgenev returned an invalid numeric value.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev returned an invalid numeric value.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 		return (string) $value;
 	}
@@ -37,7 +37,7 @@ final class ResponseValidator {
 	 */
 	public static function token( $value ): string {
 		if ( ! is_string( $value ) || ! preg_match( '/^[A-Za-z0-9_-]{8,128}$/D', $value ) ) {
-			throw new ApiException( __( 'Turgenev report reference is invalid.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev report reference is invalid.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 		return $value;
 	}
@@ -51,7 +51,7 @@ final class ResponseValidator {
 	 */
 	public static function analysis( array $data ): array {
 		if ( ! isset( $data['risk'], $data['level'], $data['link'], $data['details'] ) || ! is_array( $data['details'] ) || count( $data['details'] ) !== count( self::SECTIONS ) ) {
-			throw new ApiException( __( 'Turgenev returned an incomplete analysis.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev returned an incomplete analysis.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 		$result = array(
 			'risk'    => self::decimal( $data['risk'] ),
@@ -62,12 +62,12 @@ final class ResponseValidator {
 		$seen   = array();
 		foreach ( $data['details'] as $detail ) {
 			if ( ! is_array( $detail ) || ! isset( $detail['block'], $detail['sum'], $detail['link'] ) || ! is_string( $detail['block'] ) || ! in_array( $detail['block'], self::SECTIONS, true ) || isset( $seen[ $detail['block'] ] ) ) {
-				throw new ApiException( __( 'Turgenev returned an invalid analysis section.', 'turgenev' ) );
+				throw new ApiException( __( 'Turgenev returned an invalid analysis section.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 			}
 			$seen[ $detail['block'] ] = true;
 			$params                   = $detail['params'] ?? array();
 			if ( ! is_array( $params ) || count( $params ) > 100 ) {
-				throw new ApiException( __( 'Turgenev returned invalid analysis parameters.', 'turgenev' ) );
+				throw new ApiException( __( 'Turgenev returned invalid analysis parameters.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 			}
 			$section = array(
 				'block'  => $detail['block'],
@@ -77,7 +77,7 @@ final class ResponseValidator {
 			);
 			foreach ( $params as $param ) {
 				if ( ! is_array( $param ) || ! isset( $param['name'], $param['value'], $param['score'] ) ) {
-					throw new ApiException( __( 'Turgenev returned invalid analysis parameters.', 'turgenev' ) );
+					throw new ApiException( __( 'Turgenev returned invalid analysis parameters.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 				}
 				$section['params'][] = array(
 					'name'  => self::label( $param['name'] ),
@@ -103,7 +103,7 @@ final class ResponseValidator {
 		}
 		$value = self::label( $value );
 		if ( '' === $value ) {
-			throw new ApiException( __( 'Turgenev returned invalid analysis parameters.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev returned invalid analysis parameters.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 		return $value;
 	}
@@ -117,7 +117,7 @@ final class ResponseValidator {
 	 */
 	private static function label( $value ): string {
 		if ( ! is_string( $value ) || '' === trim( $value ) || strlen( $value ) > 1000 ) {
-			throw new ApiException( __( 'Turgenev returned an invalid analysis label.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev returned an invalid analysis label.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 		return sanitize_text_field( $value );
 	}

@@ -55,7 +55,7 @@ final class ApiClient {
 		try {
 			return ResponseValidator::decimal( $balance );
 		} catch ( ApiException $exception ) {
-			throw new ApiException( __( 'Turgenev returned an invalid balance response.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev returned an invalid balance response.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 	}
 
@@ -120,7 +120,7 @@ final class ApiClient {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new ApiException( __( 'Could not retrieve the Turgenev report. Try again later.', 'turgenev' ) );
+			throw new ApiException( __( 'Could not retrieve the Turgenev report. Try again later.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		$status = wp_remote_retrieve_response_code( $response );
@@ -128,15 +128,15 @@ final class ApiClient {
 			throw new ApiException(
 				sprintf(
 					/* translators: %d: HTTP status code. */
-					__( 'Turgenev report returned HTTP %d.', 'turgenev' ),
-					$status
+					__( 'Turgenev report returned HTTP %d.', 'turgenev' ), // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
+					$status // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 				)
 			);
 		}
 
 		$markup = wp_remote_retrieve_body( $response );
 		if ( '' === trim( $markup ) || strlen( $markup ) > self::MAX_REPORT_LENGTH ) {
-			throw new ApiException( __( 'Turgenev report markup is unavailable.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev report markup is unavailable.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		return ( new ReportHighlightParser() )->parse( $markup, $expected_text );
@@ -153,12 +153,12 @@ final class ApiClient {
 	public function request( string $operation, array $parameters = array() ): array {
 		$allowed = array( 'risk', 'frequency', 'style', 'keywords', 'formality', 'readability', 'balance' );
 		if ( ! in_array( $operation, $allowed, true ) ) {
-			throw new ApiException( __( 'Unsupported Turgenev API operation.', 'turgenev' ) );
+			throw new ApiException( __( 'Unsupported Turgenev API operation.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		$key = $this->apiKey();
 		if ( '' === $key ) {
-			throw new ApiException( __( 'Configure a Turgenev API key first.', 'turgenev' ) );
+			throw new ApiException( __( 'Configure a Turgenev API key first.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		$body = array_merge(
@@ -186,7 +186,7 @@ final class ApiClient {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			throw new ApiException( __( 'Could not reach the Turgenev API. Try again later.', 'turgenev' ) );
+			throw new ApiException( __( 'Could not reach the Turgenev API. Try again later.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		$status = wp_remote_retrieve_response_code( $response );
@@ -194,37 +194,37 @@ final class ApiClient {
 			throw new ApiException(
 				sprintf(
 					/* translators: %d: HTTP status code. */
-					__( 'Turgenev API returned HTTP %d.', 'turgenev' ),
-					$status
+					__( 'Turgenev API returned HTTP %d.', 'turgenev' ), // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
+					$status // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 				)
 			);
 		}
 
 		$raw = wp_remote_retrieve_body( $response );
 		if ( strlen( $raw ) > self::MAX_REPORT_LENGTH ) {
-			throw new ApiException( __( 'Turgenev API returned an oversized response.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev API returned an oversized response.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 		if ( '' === trim( $raw ) ) {
-			throw new ApiException( __( 'Turgenev API returned an empty response.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev API returned an empty response.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		try {
 			$decoded = json_decode( $raw, true, 512, JSON_THROW_ON_ERROR );
 		} catch ( \JsonException $exception ) {
-			throw new ApiException( __( 'Turgenev API returned malformed JSON.', 'turgenev' ), 0, $exception );
+			throw new ApiException( __( 'Turgenev API returned malformed JSON.', 'turgenev' ), 0, $exception ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		if ( ! is_array( $decoded ) || array_is_list( $decoded ) ) {
-			throw new ApiException( __( 'Turgenev API returned an unexpected response.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev API returned an unexpected response.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		if ( array_key_exists( 'error', $decoded ) ) {
 			// Provider/transport messages can reflect secrets. Only plugin-owned messages cross this boundary.
 			$error = is_string( $decoded['error'] ) ? $decoded['error'] : '';
 			if ( preg_match( '/balanc|fund|credit|баланс|средств|денег/iu', $error ) ) {
-				throw new ApiException( __( 'Turgenev reports insufficient balance. Top up your account and try again.', 'turgenev' ) );
+				throw new ApiException( __( 'Turgenev reports insufficient balance. Top up your account and try again.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 			}
-			throw new ApiException( __( 'Turgenev rejected the request. Check the API key and account status in Settings → Turgenev.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev rejected the request. Check the API key and account status in Settings → Turgenev.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		// Do not forward a reflected key, including unexpected fields, to any caller.
@@ -263,19 +263,19 @@ final class ApiClient {
 		$text = trim( $text );
 
 		if ( '' === $text ) {
-			throw new ApiException( __( 'There is no content to analyze.', 'turgenev' ) );
+			throw new ApiException( __( 'There is no content to analyze.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		if ( str_contains( $text, "\0" ) || ! preg_match( '//u', $text ) ) {
-			throw new ApiException( __( 'The content contains invalid text encoding.', 'turgenev' ) );
+			throw new ApiException( __( 'The content contains invalid text encoding.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		if ( preg_match_all( '/./us', $text ) > self::MAX_TEXT_LENGTH ) {
 			throw new ApiException(
 				sprintf(
 					/* translators: %d: maximum character count. */
-					__( 'Turgenev accepts up to %d characters per check.', 'turgenev' ),
-					self::MAX_TEXT_LENGTH
+					__( 'Turgenev accepts up to %d characters per check.', 'turgenev' ), // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
+					self::MAX_TEXT_LENGTH // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 				)
 			);
 		}

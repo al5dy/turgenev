@@ -4,13 +4,15 @@ Turgenev 2.0.0 deliberately uses a small layered architecture rather than mirror
 
 ## Request flow
 
-1. An authenticated editor opens the Classic Editor metabox or Gutenberg sidebar.
-2. Browser code receives only the WordPress AJAX URL, a nonce, the report base URL and the maximum text length.
-3. `wp_ajax_turgenev_api` validates the nonce and `edit_posts` capability.
-4. `ApiClient` reads the API key server-side and sends the request through the WordPress HTTP API.
-5. The provider response is checked for HTTP failure, malformed JSON, provider-level errors and operation-specific fields.
-6. The AJAX response returns analysis data to the browser; the API key never crosses the PHP/browser boundary.
-7. The UI renders provider data with `textContent`/DOM APIs rather than injecting HTML.
+1. An authenticated editor opens the Classic Editor metabox, or the permanent **Turgenev** panel in the Block Editor's document settings sidebar.
+2. Browser code receives only the WordPress AJAX URL, a nonce, the report base URL and the maximum text length — never the API key.
+3. Clicking **Analyze document** sends the entire current document text (including unsaved edits) to `wp_ajax_turgenev_api`.
+4. `ApiController` validates the nonce, requires a scalar positive `post_id` for an existing post, and requires `current_user_can( 'edit_post', $post_id )` for `risk`/`highlights` (or `edit_post`/`manage_options` for `balance`, depending on whether a post ID is present). A generic `edit_posts` capability is never sufficient on its own.
+5. `RateLimiter` checks a per-user/post burst bucket and a per-user global bucket (across every post) for the operation; either being exceeded rejects the request with HTTP 429 before any outbound request.
+6. `ApiClient` reads the API key server-side and sends the request through the WordPress HTTP API.
+7. The provider response is checked for HTTP failure, malformed JSON, provider-level errors and operation-specific fields.
+8. The AJAX response returns analysis data to the browser; the API key never crosses the PHP/browser boundary.
+9. The UI renders provider data with `textContent`/DOM APIs rather than injecting HTML. Highlight rendering is presentation-only and never modifies `post_content`.
 
 ## Modules
 
@@ -20,6 +22,7 @@ Turgenev 2.0.0 deliberately uses a small layered architecture rather than mirror
 - `src/Support/OptionStore.php` — central API-key option access.
 - `src/Api/ApiClient.php` — external HTTP boundary and response validation.
 - `src/Ajax/ApiController.php` — authenticated browser-to-server bridge.
+- `src/Support/RateLimiter.php` — server-side, per-post and per-user-global rate limiting, independent of the editor's UI.
 - `src/Admin/SettingsPage.php` — secret-safe settings and key rotation.
 - `src/Admin/EditorIntegration.php` — Gutenberg/Classic Editor integration.
 - `src/js/client.js` — AJAX client and safe result rendering.
@@ -32,7 +35,7 @@ A new key is validated with the `balance` operation instead of a `risk` analysis
 
 ## Compatibility
 
-The public `TGEV()` helper and `$GLOBALS['turgenev']` remain available for lightweight backwards compatibility. Internal legacy classes/functions are not treated as a public API.
+The `turgenev()` helper and `$GLOBALS['turgenev']` provide lightweight access to the main plugin instance for other code (e.g. `WP_CLI` scripts or a future integration). Internal legacy classes/functions are not treated as a public API.
 
 ## Optional capability: highlight rendering
 

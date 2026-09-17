@@ -89,10 +89,22 @@ final class ApiController {
 				wp_send_json_error( array( 'message' => __( 'You are not allowed to use Turgenev.', 'turgenev' ) ), 403 );
 				return;
 			}
+			// Free of charge or not, balance is still a real outbound provider request; bound
+			// it so it cannot be hammered from the editor or the settings screen either.
+			if ( $this->rate_limiter->tooManyRequests( $operation, get_current_user_id(), $post_id ) ) {
+				wp_send_json_error( array( 'message' => __( 'Too many Turgenev requests. Wait a moment and try again.', 'turgenev' ) ), 429 );
+				return;
+			}
 		}
 
-		$text  = isset( $_POST['text'] ) && is_string( $_POST['text'] ) ? wp_unslash( $_POST['text'] ) : '';
-		$token = isset( $_POST['report_token'] ) && is_string( $_POST['report_token'] ) ? wp_unslash( $_POST['report_token'] ) : '';
+		// Not sanitized with e.g. sanitize_textarea_field() here on purpose: the analyzed
+		// document text must reach the provider unmodified (stripping tags/whitespace would
+		// corrupt legitimate content and the character-count contract ApiClient enforces).
+		// ApiClient::validateTextPayload() rejects invalid UTF-8, embedded NUL and oversized
+		// input before any outbound request; ResponseValidator::token() constrains $token to
+		// `[A-Za-z0-9_-]{8,128}`. Both are covered by tests/php/run.php.
+		$text  = isset( $_POST['text'] ) && is_string( $_POST['text'] ) ? wp_unslash( $_POST['text'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$token = isset( $_POST['report_token'] ) && is_string( $_POST['report_token'] ) ? wp_unslash( $_POST['report_token'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		try {
 			$data = match ( $operation ) {
 				'balance' => array( 'balance' => $this->client->balance() ),

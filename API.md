@@ -135,14 +135,18 @@ The plugin URL-encodes the token and never treats provider-controlled text as HT
 
 ## WordPress AJAX contract
 
-The browser does **not** call the provider directly. Authenticated users with `edit_posts` call WordPress:
+The browser does **not** call the provider directly. It calls WordPress, which enforces a nonce plus an object-level capability check before ever contacting Turgenev:
 
 ```text
 POST /wp-admin/admin-ajax.php
 action=turgenev_api
 nonce=<wordpress-nonce>
-operation=balance|risk
-text=<content>   # risk only
+operation=balance|risk|highlights
+post_id=<post ID>       # required for risk/highlights; optional for balance
+text=<content>          # risk/highlights: the full current document text
+report_token=<token>    # highlights only: the report reference from a prior risk response
 ```
+
+`risk` and `highlights` require `current_user_can( 'edit_post', $post_id )` for an existing post — a generic `edit_posts` capability is never accepted on its own, and both are rejected before any outbound request without a valid, positive, existing `post_id`. `balance` requires `edit_post` on the post when `post_id` is present, or `manage_options` when it is absent (the Settings screen). All three operations are also subject to server-side rate limiting (`Support\RateLimiter`): a per-user/post burst limit and a per-user limit across every post, either of which returns HTTP 429 before any request reaches Turgenev.
 
 The PHP controller adds the saved provider key server-side.

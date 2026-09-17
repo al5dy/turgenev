@@ -11,6 +11,15 @@
 
 The release archive intentionally excludes development-only directories such as `.github`, `tests`, `tools`, `.playwright-cli`, source assets and package metadata.
 
+## WordPress.org listing assets
+
+Icons, banners and screenshots for the WordPress.org plugin directory listing live in
+`.wordpress-org/` at the repository root, never under `src/` and never in the release ZIP
+(`tools/build-release.php`'s allowlist only ever walks `src` for `.php` files, so listing
+assets are excluded structurally, not just by convention). When updating a screenshot or
+banner, replace the file in `.wordpress-org/` and update the corresponding caption under
+`== Screenshots ==` in `readme.txt`; do not add a new source copy under `src/`.
+
 ## What the tag push actually triggers
 
 `.github/workflows/release.yml` never builds or publishes a GitHub Release on its own. Pushing a `vX.Y.Z` tag runs:

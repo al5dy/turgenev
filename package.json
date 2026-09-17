@@ -28,6 +28,7 @@
   "devDependencies": {
     "@playwright/cli": "0.1.19",
     "@playwright/test": "1.63.0",
+    "@wordpress/env": "11.15.0",
     "@wordpress/scripts": "35.0.0"
   },
   "scripts": {
@@ -37,6 +38,7 @@
     "test:js": "node --test tests/js/*.test.mjs",
     "test:browser": "node tools/browser-smoke.mjs",
     "test:e2e": "playwright test",
+    "wp-env": "wp-env",
     "lint:js": "wp-scripts lint-js src/js",
     "lint:css": "wp-scripts lint-style src/css/*.css",
     "lint:pkg-json": "wp-scripts lint-pkg-json",
