@@ -24,9 +24,18 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: composer:v2
           coverage: none
+          # dom/xmlwriter/simplexml back ReportHighlightParser's normal (DOM-present) path;
+          # mbstring/zip are used by tooling. All are bundled by default on most PHP builds,
+          # but installed explicitly so CI never silently runs a reduced-capability PHP.
+          extensions: dom, mbstring, zip, xmlwriter, simplexml
       - run: php tools/check-php-syntax.php
       - run: php tools/check-version.php
       - run: php tests/php/run.php
+      # Explicit no-DOM scenario (see Support\Requirements::hasDom()): proves the suite
+      # itself degrades correctly (analysis/balance unaffected, highlight parsing rejects
+      # gracefully) rather than only ever exercising the ext-dom-present branch, without
+      # needing a second PHP build that actually lacks the extension.
+      - run: TURGENEV_FORCE_NO_DOM=1 php tests/php/run.php
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: composer lint
 
@@ -44,6 +53,7 @@ jobs:
       - run: npm run check:assets
       - run: npm run check:syntax
       - run: npm run test:js
+      - run: npm run test:browser
       - run: npm run lint:js
       - run: npm run lint:css
       - run: npm run lint:pkg-json
@@ -53,10 +63,53 @@ jobs:
       # correct — any file `build` touches at all fails the job.
       - run: git diff --exit-code -- assets/build languages
 
+  wordpress-e2e:
+    name: WordPress E2E (wp-env)
+    runs-on: ubuntu-latest
+    needs: [ php, javascript ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --no-audit --no-fund
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+      # Disposable WordPress via wp-env (Docker), never a production Turgenev account.
+      # .wp-env.json mounts this checkout as the plugin under test and installs
+      # tests/e2e/mu-plugins/turgenev-e2e-support.php as an mu-plugin, which intercepts
+      # every outbound request to the real Turgenev endpoint via `pre_http_request` and
+      # returns canned fixtures — no real provider credentials or network calls are used.
+      - name: Start disposable WordPress
+        run: npx wp-env start
+      - name: Resolve the wp-env WordPress path for wp-cli
+        id: wp-env-path
+        run: echo "root=$(npx wp-env install-path)/WordPress" >> "$GITHUB_OUTPUT"
+      - name: Run the WordPress E2E suite
+        env:
+          WP_TEST_ROOT: ${{ steps.wp-env-path.outputs.root }}
+          # wp-env's own fixed development-environment credentials; not a real account.
+          WP_ADMIN_USER: admin
+          WP_ADMIN_PASSWORD: password
+          WP_BASE_URL: http://localhost:8888
+        run: npm run test:e2e
+      - name: Stop WordPress
+        if: always()
+        run: npx wp-env stop
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: turgenev-e2e-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
   package:
     name: Build release ZIP
     runs-on: ubuntu-latest
-    needs: [ php, javascript ]
+    needs: [ php, javascript, wordpress-e2e ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

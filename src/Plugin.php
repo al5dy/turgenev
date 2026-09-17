@@ -64,8 +64,10 @@ final class Plugin {
 
 		$this->booted = true;
 
-		load_plugin_textdomain( 'turgenev', false, dirname( plugin_basename( TURGENEV_FILE ) ) . '/languages' );
-
+		// No load_plugin_textdomain() call: WordPress has auto-loaded translations for
+		// WordPress.org-hosted plugins since 4.6 (this plugin requires 6.6+), matching the
+		// `Text Domain`/`Domain Path` headers in turgenev.php. Calling it here would only be
+		// redundant, which is why WP.org's Plugin Check flags the call as discouraged.
 		$options = new OptionStore();
 		$client  = new ApiClient( $options );
 

@@ -43,12 +43,12 @@ final class ReportHighlightParser {
 	 */
 	public function parse( string $report_html, string $expected_text ): array {
 		if ( ! $this->has_dom ) {
-			throw new ApiException( __( 'Highlighting is unavailable on this server (the PHP DOM extension is not installed). Analysis and balance are unaffected.', 'turgenev' ) );
+			throw new ApiException( __( 'Highlighting is unavailable on this server (the PHP DOM extension is not installed). Analysis and balance are unaffected.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		$markup = $this->report_markup( $report_html );
 		if ( '' === $markup ) {
-			throw new ApiException( __( 'Turgenev report did not contain highlight markup.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev report did not contain highlight markup.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		$markup_document = $this->load_html( $markup );
@@ -58,7 +58,7 @@ final class ReportHighlightParser {
 
 		$normalized_text = $this->normalize( $raw_text );
 		if ( '' === $normalized_text || $normalized_text !== $this->normalize( $expected_text ) ) {
-			throw new ApiException( __( 'Turgenev report text does not match the analyzed document.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev report text does not match the analyzed document.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		$marks   = array();
@@ -86,7 +86,7 @@ final class ReportHighlightParser {
 		);
 
 		if ( count( $marks ) > self::MAX_MARKS ) {
-			throw new ApiException( __( 'This report contains too many highlights. Use the full report.', 'turgenev' ) );
+			throw new ApiException( __( 'This report contains too many highlights. Use the full report.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		return array(
@@ -114,7 +114,7 @@ final class ReportHighlightParser {
 		}
 
 		if ( ! $loaded ) {
-			throw new ApiException( __( 'Turgenev report markup could not be parsed.', 'turgenev' ) );
+			throw new ApiException( __( 'Turgenev report markup could not be parsed.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		return $document;

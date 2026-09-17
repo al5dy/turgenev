@@ -121,58 +121,107 @@ test.describe( 'Classic Editor metabox', () => {
 } );
 
 test.describe( 'Post-level authorization', () => {
+	// Distinct from nonce validation (see the Gutenberg document panel's "invalid nonce"
+	// test above): this proves a *valid* nonce is still rejected once it hits
+	// `current_user_can( 'edit_post', $post_id )` for a post this user cannot edit.
 	const contributorUser = 'turgenev-e2e-contributor';
 	const contributorPassword = 'Turgenev-E2E-' + Date.now();
-	let ownerPostId;
+	let contributorId;
+	let contributorPostId;
+	let adminPostId;
 
 	test.beforeAll( () => {
-		ownerPostId = wpCli( [
+		contributorId = wpCli( [
+			'user', 'create', contributorUser, contributorUser + '@example.test',
+			'--role=contributor',
+			'--user_pass=' + contributorPassword,
+			'--porcelain',
+		] );
+		// A post the contributor genuinely owns and can edit, so the editor screen that
+		// supplies the nonce is one this role can legitimately open (turgenev-client is
+		// actually enqueued there), unlike the previous profile.php approach.
+		contributorPostId = contributorId && wpCli( [
 			'post', 'create',
 			'--post_type=post',
-			'--post_title=Turgenev E2E authorization post',
+			'--post_title=Turgenev E2E contributor-owned post',
+			'--post_status=draft',
+			'--post_content=Contributor-owned baseline content.',
+			'--post_author=' + contributorId,
+			'--porcelain',
+		] );
+		adminPostId = wpCli( [
+			'post', 'create',
+			'--post_type=post',
+			'--post_title=Turgenev E2E admin-owned post',
 			'--post_status=draft',
 			'--post_author=1',
 			'--porcelain',
 		] );
-		wpCli( [
-			'user', 'create', contributorUser, contributorUser + '@example.test',
-			'--role=contributor',
-			'--user_pass=' + contributorPassword,
-		] );
+		// Reset the provider-mock request counter so this test's "never reached the
+		// provider" assertion reflects only what happens inside the test itself.
+		wpCli( [ 'option', 'delete', 'turgenev_e2e_mock_request_count' ] );
 	} );
 
 	test.afterAll( () => {
-		if ( ownerPostId ) {
-			wpCli( [ 'post', 'delete', ownerPostId, '--force' ] );
+		if ( contributorPostId ) {
+			wpCli( [ 'post', 'delete', contributorPostId, '--force' ] );
 		}
-		wpCli( [ 'user', 'delete', contributorUser, '--yes' ] );
+		if ( adminPostId ) {
+			wpCli( [ 'post', 'delete', adminPostId, '--force' ] );
+		}
+		if ( contributorId ) {
+			wpCli( [ 'user', 'delete', contributorUser, '--yes' ] );
+		}
 	} );
 
-	test( 'a contributor without edit_post on this post is rejected, not just a generic edit_posts check', async ( { page } ) => {
-		test.skip( ! ownerPostId, 'wp-cli is required (set WP_TEST_ROOT).' );
+	test( 'a contributor with edit_post on their own post is still rejected on another author\'s post, not authorized by a generic edit_posts check', async ( { page } ) => {
+		test.skip(
+			! contributorId || ! contributorPostId || ! adminPostId,
+			'wp-cli is required to create the contributor and both posts (set WP_TEST_ROOT).'
+		);
 		await login( page, contributorUser, contributorPassword );
 
-		// Any admin screen where turgenev-client is enqueued exposes a nonce valid for this
-		// user; profile.php is reachable by every role and does not itself touch Turgenev.
-		await page.goto( '/wp-admin/profile.php' );
-		const status = await page.evaluate( async ( postId ) => {
-			const body = new URLSearchParams( {
-				action: 'turgenev_api',
-				operation: 'risk',
-				text: 'Attempted cross-post analysis.',
-				post_id: String( postId ),
-				nonce: window.TurgenevConfig?.nonce ?? '',
-			} );
-			const response = await fetch( window.TurgenevConfig?.ajaxUrl ?? '/wp-admin/admin-ajax.php', {
-				method: 'POST',
-				credentials: 'same-origin',
-				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				body: body.toString(),
-			} );
-			return response.status;
-		}, ownerPostId );
+		// The contributor's own post-edit screen: a screen this role can legitimately open,
+		// where turgenev-client (and therefore TurgenevConfig.nonce) is really enqueued.
+		await page.goto( `/wp-admin/post.php?post=${ contributorPostId }&action=edit` );
+		const panel = page.locator( '.turgenev-document-panel' );
+		await expect( panel ).toBeVisible( { timeout: 20000 } );
 
-		expect( status ).toBe( 403 );
+		const nonce = await page.evaluate( () => window.TurgenevConfig && window.TurgenevConfig.nonce );
+		expect( typeof nonce ).toBe( 'string' );
+		expect( nonce.length ).toBeGreaterThan( 0 );
+
+		const result = await page.evaluate(
+			async ( { postId, nonce: validNonce } ) => {
+				const body = new URLSearchParams( {
+					action: 'turgenev_api',
+					operation: 'risk',
+					text: 'Attempted cross-post analysis.',
+					post_id: String( postId ),
+					nonce: validNonce,
+				} );
+				const response = await fetch( '/wp-admin/admin-ajax.php', {
+					method: 'POST',
+					credentials: 'same-origin',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body.toString(),
+				} );
+				const data = await response.json().catch( () => null );
+				return { status: response.status, data };
+			},
+			{ postId: adminPostId, nonce }
+		);
+
+		expect( result.status ).toBe( 403 );
+		// A valid nonce that is still rejected, with this specific message (not the generic
+		// "session expired" nonce-failure text), proves the request passed nonce validation
+		// and was turned away by object-level authorization instead.
+		expect( result.data?.data?.message ?? '' ).toMatch( /not allowed to analyze this post/i );
+
+		const requestCount = wpCli( [ 'option', 'get', 'turgenev_e2e_mock_request_count' ] );
+		if ( null !== requestCount ) {
+			expect( requestCount ).toBe( '0' );
+		}
 	} );
 } );
 
@@ -197,7 +246,16 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 		}
 	} );
 
-	test( 'running Highlight leaves the saved post content byte-identical', async ( { page } ) => {
+	function assertNoHighlightMarkup( savedContent ) {
+		expect( savedContent ).not.toBeNull();
+		expect( savedContent ).not.toContain( 'turgenev-highlight' );
+		expect( savedContent ).not.toMatch( /data-turgenev-/i );
+		expect( savedContent ).not.toContain( 'turgenev-source-mark' );
+		expect( savedContent ).not.toContain( 'turgenev-decoration-layer' );
+		expect( savedContent.replace( /<[^>]+>/g, '' ).trim() ).toContain( original.trim() );
+	}
+
+	test( 'Highlight renders a real annotation but never mutates saved content, including after save, autosave and reload', async ( { page } ) => {
 		test.skip( ! postId, 'wp-cli is required (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
 		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
@@ -210,17 +268,34 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 		await panel.getByRole( 'button', { name: /^Highlight$/i } ).first().click();
 		await expect( panel.getByText( /Loading highlights…/i ) ).toBeHidden( { timeout: 20000 } );
 
-		// Assert against what actually persists, not just in-memory editor state.
+		// The provider mock returns one real `xhl` mark; confirm it actually rendered as a
+		// visible annotation in the editor, not just that the request succeeded silently.
+		await expect( page.locator( '.turgenev-source-mark' ).first() ).toBeVisible( { timeout: 20000 } );
+
+		// In-memory: not yet saved, the highlight decoration exists but is not part of the
+		// serialized block content that would be sent to the database.
+		const unsavedContent = wpCli( [ 'post', 'get', String( postId ), '--field=post_content' ] );
+		assertNoHighlightMarkup( unsavedContent );
+
+		// After an explicit save: assert against what actually persists, not in-memory state.
 		const saveButton = page.getByRole( 'button', { name: /^Save draft$/i } );
 		if ( await saveButton.isVisible().catch( () => false ) ) {
 			await saveButton.click();
 			await page.waitForTimeout( 1500 );
 		}
+		assertNoHighlightMarkup( wpCli( [ 'post', 'get', String( postId ), '--field=post_content' ] ) );
 
-		const savedContent = wpCli( [ 'post', 'get', String( postId ), '--field=post_content' ] );
-		expect( savedContent ).not.toBeNull();
-		expect( savedContent ).not.toContain( 'turgenev-highlight' );
-		expect( savedContent.replace( /<[^>]+>/g, '' ).trim() ).toContain( original.trim() );
+		// After autosave: Gutenberg autosaves periodically and on `Ctrl/Cmd+S`; force one
+		// explicitly rather than waiting on the real interval.
+		await page.keyboard.press( process.platform === 'darwin' ? 'Meta+S' : 'Control+S' );
+		await page.waitForTimeout( 1500 );
+		assertNoHighlightMarkup( wpCli( [ 'post', 'get', String( postId ), '--field=post_content' ] ) );
+
+		// After a full editor reload: the highlight decoration must not have been persisted
+		// and re-rendered from stored markup either.
+		await page.reload();
+		await expect( panel ).toBeVisible( { timeout: 20000 } );
+		assertNoHighlightMarkup( wpCli( [ 'post', 'get', String( postId ), '--field=post_content' ] ) );
 	} );
 } );
 

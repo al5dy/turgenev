@@ -40,11 +40,11 @@ spl_autoload_register(
 );
 
 /**
- * Backward-compatible access to the main plugin instance.
+ * Convenience access to the main plugin instance.
  *
  * @return \Al5dy\Turgenev\Plugin
  */
-function TGEV(): \Al5dy\Turgenev\Plugin { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.FunctionNameInvalid
+function turgenev(): \Al5dy\Turgenev\Plugin {
 	return \Al5dy\Turgenev\Plugin::instance();
 }
 

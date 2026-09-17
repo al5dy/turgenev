@@ -12,7 +12,8 @@ Turgenev integrates the official Turgenev content-analysis service into the Word
 ## Technical highlights
 
 - **Server-side API proxy.** The Turgenev API key never appears in browser JavaScript or localized script data.
-- **Nonce + capability enforcement.** Remote API actions require a valid WordPress nonce and `edit_posts`.
+- **Nonce + object-level capability enforcement.** `risk`/`highlights` require a valid WordPress nonce, a scalar positive `post_id` for an existing post, and `current_user_can( 'edit_post', $post_id )` — a generic `edit_posts` grant is never enough. `balance` requires `edit_post` on the post when a post ID is present, or `manage_options` when it is absent (Settings screen).
+- **Server-side rate limiting.** Independent of the editor's JS busy state, requests are bounded per user+post (burst) and per user across all posts (global), so post rotation cannot be used to exceed the effective budget. Exceeding either returns HTTP 429 before any outbound request.
 - **Safe key rotation.** A new key is validated with the balance endpoint; a typo/provider outage cannot overwrite the previously working key.
 - **No paid validation check.** Saving settings no longer performs a `risk` analysis of a dummy string.
 - **Defensive provider parsing.** HTTP failures, invalid JSON, API errors and invalid balance payloads fail closed.
@@ -46,7 +47,7 @@ See [`docs/architecture.md`](docs/architecture.md) for details and [`API.md`](AP
 2. Activate **Turgenev**.
 3. Open **Settings → Turgenev**.
 4. Paste an API key and save. The key is verified through the balance endpoint.
-5. Open a post/page. Use the Turgenev sidebar in the Block Editor or the Turgenev metabox in the Classic Editor.
+5. Open a post/page. In the Block Editor, use the permanent **Turgenev** panel in the document settings sidebar (analyzes the whole current, possibly unsaved, document — not a selected block); in the Classic Editor, use the Turgenev metabox.
 
 ## Development
 

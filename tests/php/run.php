@@ -52,7 +52,49 @@ function get_current_user_id(): int { return $GLOBALS['test_user_id'] ?? 7; }
 function get_transient( string $key ) { return $GLOBALS['turgenev_test_transients'][ $key ] ?? false; }
 function set_transient( string $key, $value, int $expiration = 0 ): bool { $GLOBALS['turgenev_test_transients'][ $key ] = $value; return true; }
 function delete_transient( string $key ): bool { unset( $GLOBALS['turgenev_test_transients'][ $key ] ); return true; }
+
+/**
+ * `add_option()`'s only load-bearing property for RateLimiter's fallback mutex is that it
+ * fails when the row already exists, matching the real function's unique-index behavior.
+ */
+function add_option( string $name, $value = '', string $deprecated = '', $autoload = 'yes' ): bool {
+	if ( array_key_exists( $name, $GLOBALS['turgenev_test_options'] ) ) {
+		return false;
+	}
+	$GLOBALS['turgenev_test_options'][ $name ] = $value;
+	return true;
+}
+function delete_option( string $name ): bool { unset( $GLOBALS['turgenev_test_options'][ $name ] ); return true; }
+
+$GLOBALS['turgenev_test_use_object_cache'] = false;
+$GLOBALS['turgenev_test_cache']            = array();
+function wp_using_ext_object_cache(): bool { return $GLOBALS['turgenev_test_use_object_cache']; }
+function wp_cache_add( string $key, $value, string $group = '', int $expire = 0 ): bool {
+	$cache_key = $group . ':' . $key;
+	if ( array_key_exists( $cache_key, $GLOBALS['turgenev_test_cache'] ) ) {
+		return false;
+	}
+	$GLOBALS['turgenev_test_cache'][ $cache_key ] = $value;
+	return true;
+}
+function wp_cache_incr( string $key, int $offset = 1, string $group = '' ) {
+	$cache_key = $group . ':' . $key;
+	if ( ! array_key_exists( $cache_key, $GLOBALS['turgenev_test_cache'] ) ) {
+		return false;
+	}
+	$GLOBALS['turgenev_test_cache'][ $cache_key ] += $offset;
+	return $GLOBALS['turgenev_test_cache'][ $cache_key ];
+}
 function add_filter( string $tag, callable $callback, int $priority = 10, int $accepted_args = 1 ): void { $GLOBALS['turgenev_test_filters'][ $tag ][] = $callback; }
+/**
+ * Clears only the two rate-limit filters between scenarios, never the whole filter
+ * registry: an unconditional reset would also drop the top-of-file `turgenev_has_dom`
+ * override used by TURGENEV_FORCE_NO_DOM, silently reverting later assertions back to
+ * whatever ext-dom actually is on the machine running the suite.
+ */
+function reset_rate_limit_filters(): void {
+	unset( $GLOBALS['turgenev_test_filters']['turgenev_rate_limit'], $GLOBALS['turgenev_test_filters']['turgenev_rate_limit_global'] );
+}
 function apply_filters( string $tag, $value, ...$args ) {
 	foreach ( $GLOBALS['turgenev_test_filters'][ $tag ] ?? array() as $callback ) {
 		$value = $callback( $value, ...$args );
@@ -70,6 +112,14 @@ require_once dirname( __DIR__, 2 ) . '/src/Api/ApiClient.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/SettingsPage.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/EditorIntegration.php';
 require_once dirname( __DIR__, 2 ) . '/src/Ajax/ApiController.php';
+
+// Explicit no-DOM scenario, independent of whether this machine actually has ext-dom:
+// `php -d ...` cannot uninstall an extension, but the runtime's own capability filter can
+// be forced off the same way EditorIntegration's constructor override does, so CI can run
+// this suite once "as-is" and once forced into the DOM-absent branch on the same host.
+if ( getenv( 'TURGENEV_FORCE_NO_DOM' ) ) {
+	add_filter( 'turgenev_has_dom', static fn(): bool => false );
+}
 
 class JsonExit extends RuntimeException {
 	public function __construct( public array $data, public int $status, public bool $success ) { parent::__construct( 'JSON response' ); }
@@ -198,37 +248,48 @@ try {
 	}
 
 	$report_markup = '<html><body><textarea id="textfield"><p>Text <span class="xhl slop2 xhint xhint-1-1">with style</span> here.</p></textarea></body></html>';
-	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $report_markup );
-	$highlights = $client->reportHighlights( 'abc12345', 'Text with style here.' );
-	expect_true( 'Text with style here.' === $highlights['text'], 'report highlight text matches the analyzed block' );
-	expect_true( 1 === count( $highlights['marks'] ), 'highlighted report span becomes one safe mark' );
-	expect_true( 5 === $highlights['marks'][0]['start'] && 15 === $highlights['marks'][0]['end'], 'highlight offsets use browser-compatible UTF-16 positions' );
-	expect_true( 'style' === $highlights['marks'][0]['category'] && 2 === $highlights['marks'][0]['level'], 'highlight category and level are extracted from classes' );
-	expect_true( 'https://turgenev.ashmanov.com/' === $GLOBALS['turgenev_last_request']['url'], 'report is requested from the fixed provider endpoint' );
-	expect_true( 'abc12345' === $GLOBALS['turgenev_last_request']['args']['body']['t'], 'report reference is sent using the provider POST form' );
-	expect_true( false === isset( $GLOBALS['turgenev_last_request']['args']['body']['key'] ), 'report retrieval never sends the API key' );
-	expect_true( 'Turgenev-WordPress/' . TURGENEV_VERSION === $GLOBALS['turgenev_last_request']['args']['headers']['User-Agent'], 'report retrieval User-Agent never includes the site URL or any other site-identifying data' );
+
+	// Token/payload validation happens before any DOM parsing, so it is exercised
+	// unconditionally regardless of whether this host actually has ext-dom.
 	expect_exception( static fn() => $client->reportHighlights( 'invalid report URL', 'Text with style here.' ), 'reference is invalid' );
-	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $report_markup );
-	expect_exception( static fn() => $client->reportHighlights( 'abc12345', 'Different text.' ), 'does not match' );
 
 	// --- Capability-disabled scenario: highlight rendering degrades without ext-dom. ---
-	// This forces the same code path a missing DOM extension would take, so this suite never
-	// depends on whether ext-dom actually happens to be installed on the machine running it.
-	expect_true( true === Al5dy\Turgenev\Support\Requirements::hasDom(), 'sanity check: this test environment has ext-dom (the default this suite would otherwise depend on)' );
-
+	// Forced false/true never depends on whether ext-dom is actually installed: false never
+	// touches DOMDocument at all, so it is safe to run on every host.
 	$no_dom_parser = new Al5dy\Turgenev\Api\ReportHighlightParser( false );
 	expect_exception( static fn() => $no_dom_parser->parse( $report_markup, 'Text with style here.' ), 'unavailable' );
 
-	$forced_dom_parser = new Al5dy\Turgenev\Api\ReportHighlightParser( true );
-	$still_parses       = $forced_dom_parser->parse( $report_markup, 'Text with style here.' );
-	expect_true( 'Text with style here.' === $still_parses['text'], 'forcing has_dom=true still parses normally (the override is not one-directional)' );
+	if ( Al5dy\Turgenev\Support\Requirements::hasDom() ) {
+		// --- DOM-present: full highlight parsing. ---
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $report_markup );
+		$highlights = $client->reportHighlights( 'abc12345', 'Text with style here.' );
+		expect_true( 'Text with style here.' === $highlights['text'], 'report highlight text matches the analyzed block' );
+		expect_true( 1 === count( $highlights['marks'] ), 'highlighted report span becomes one safe mark' );
+		expect_true( 5 === $highlights['marks'][0]['start'] && 15 === $highlights['marks'][0]['end'], 'highlight offsets use browser-compatible UTF-16 positions' );
+		expect_true( 'style' === $highlights['marks'][0]['category'] && 2 === $highlights['marks'][0]['level'], 'highlight category and level are extracted from classes' );
+		expect_true( 'https://turgenev.ashmanov.com/' === $GLOBALS['turgenev_last_request']['url'], 'report is requested from the fixed provider endpoint' );
+		expect_true( 'abc12345' === $GLOBALS['turgenev_last_request']['args']['body']['t'], 'report reference is sent using the provider POST form' );
+		expect_true( false === isset( $GLOBALS['turgenev_last_request']['args']['body']['key'] ), 'report retrieval never sends the API key' );
+		expect_true( 'Turgenev-WordPress/' . TURGENEV_VERSION === $GLOBALS['turgenev_last_request']['args']['headers']['User-Agent'], 'report retrieval User-Agent never includes the site URL or any other site-identifying data' );
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $report_markup );
+		expect_exception( static fn() => $client->reportHighlights( 'abc12345', 'Different text.' ), 'does not match' );
+
+		// Forcing has_dom=true still parses normally: the override is not one-directional.
+		// This only runs on a host that genuinely has ext-dom, since it exercises real DOMDocument.
+		$forced_dom_parser = new Al5dy\Turgenev\Api\ReportHighlightParser( true );
+		$still_parses      = $forced_dom_parser->parse( $report_markup, 'Text with style here.' );
+		expect_true( 'Text with style here.' === $still_parses['text'], 'forcing has_dom=true still parses normally (the override is not one-directional)' );
+	} else {
+		// --- DOM-absent: the real (not forced) environment gracefully rejects highlight parsing. ---
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $report_markup );
+		expect_exception( static fn() => $client->reportHighlights( 'abc12345', 'Text with style here.' ), 'unavailable' );
+	}
 
 	// The browser must be told, so it can hide the Highlight action instead of offering one
 	// that is guaranteed to fail.
 	$integration = new Al5dy\Turgenev\Admin\EditorIntegration( new OptionStore() );
 	$integration->enqueueBlockEditorAssets();
-	expect_true( true === $GLOBALS['test_localized']['turgenev-client']['highlightsAvailable'], 'browser config reports the real (available) highlight capability by default' );
+	expect_true( Al5dy\Turgenev\Support\Requirements::hasDom() === $GLOBALS['test_localized']['turgenev-client']['highlightsAvailable'], 'browser config reports the real (unforced) highlight capability by default' );
 
 	$GLOBALS['test_scripts'] = array();
 	$no_dom_integration      = new Al5dy\Turgenev\Admin\EditorIntegration( new OptionStore(), false );
@@ -270,12 +331,18 @@ try {
 		expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], "risk: an oversized $label payload never calls wp_remote_post" );
 
 		// highlights: exactly MAX_TEXT_LENGTH characters is accepted and reaches the provider.
+		// (Parsing the response itself needs ext-dom; the length/encoding contract validated
+		// here runs before that and is exercised on every host either way.)
 		$GLOBALS['turgenev_http_handler'] = static fn() => array(
 			'response' => array( 'code' => 200 ),
 			'body'     => $highlight_markup( $at_limit ),
 		);
-		$highlighted = $client->reportHighlights( 'abc12345', $at_limit );
-		expect_true( $at_limit === $highlighted['text'], "highlights: $label payload at the character limit is accepted" );
+		if ( Al5dy\Turgenev\Support\Requirements::hasDom() ) {
+			$highlighted = $client->reportHighlights( 'abc12345', $at_limit );
+			expect_true( $at_limit === $highlighted['text'], "highlights: $label payload at the character limit is accepted" );
+		} else {
+			expect_exception( static fn() => $client->reportHighlights( 'abc12345', $at_limit ), 'unavailable' );
+		}
 
 		// highlights: one character over the limit is rejected before any outbound request
 		// (the bug this replaces used strlen() > MAX_TEXT_LENGTH * 4, a byte budget that let
@@ -442,9 +509,10 @@ try {
 	}
 
 	// --- Server-side rate limiting: JS busy state is not a security control. ---
-	// A deterministic limit via the `turgenev_rate_limit` filter, independent of the
-	// class's own defaults, so this test does not have to track them.
-	$GLOBALS['turgenev_test_filters'] = array();
+	// Deterministic limits via the `turgenev_rate_limit` (per-post burst) and
+	// `turgenev_rate_limit_global` (per-user, all posts combined) filters, independent of
+	// the class's own defaults, so this test does not have to track them.
+	reset_rate_limit_filters();
 	add_filter(
 		'turgenev_rate_limit',
 		static function ( array $limits, string $operation ): array {
@@ -463,10 +531,30 @@ try {
 		10,
 		2
 	);
+	add_filter(
+		'turgenev_rate_limit_global',
+		static function ( array $limits, string $operation ): array {
+			return match ( $operation ) {
+				// 5 lets exactly one post-42 burst (3) plus one more post (post 43) through,
+				// so the very next distinct post proves rotation cannot outrun the global cap.
+				'risk' => array(
+					'limit'  => 5,
+					'window' => 60,
+				),
+				'highlights' => array(
+					'limit'  => 3,
+					'window' => 60,
+				),
+				default => $limits,
+			};
+		},
+		10,
+		2
+	);
 
-	$GLOBALS['test_posts']              = array( 42, 43, 44 );
+	$GLOBALS['test_posts']              = array( 42, 43, 44, 45 );
 	$GLOBALS['test_user_id']            = 7;
-	$GLOBALS['test_caps']               = array( array( 'edit_post', 42 ), array( 'edit_post', 43 ), array( 'edit_post', 44 ) );
+	$GLOBALS['test_caps']               = array( array( 'edit_post', 42 ), array( 'edit_post', 43 ), array( 'edit_post', 44 ), array( 'edit_post', 45 ) );
 	$GLOBALS['turgenev_test_transients'] = array();
 
 	$call = static function ( string $operation, int $post_id ) use ( $controller ): int {
@@ -488,53 +576,142 @@ try {
 
 	respond( fixture_analysis() );
 	for ( $i = 1; $i <= 3; $i++ ) {
-		expect_true( 200 === $call( 'risk', 42 ), "risk request $i of 3 is allowed within the filtered limit" );
+		expect_true( 200 === $call( 'risk', 42 ), "risk request $i of 3 is allowed within the filtered per-post limit" );
 		expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], "risk request $i of 3 reaches the provider" );
 	}
 	// A normal manual pace never hits this; only a fourth request in the same window does.
-	expect_true( 429 === $call( 'risk', 42 ), 'a fourth risk request in the same window is rejected with 429' );
+	expect_true( 429 === $call( 'risk', 42 ), 'a fourth risk request on the same post in the same window is rejected with 429 (post-level burst limit)' );
 	expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], 'a rate-limited risk request never calls wp_remote_post' );
 
-	// A different target post for the same user is a distinct bucket (not blocked by post 42's exhausted limit).
-	expect_true( 200 === $call( 'risk', 43 ), 'risk on a different post is unaffected by another post\'s exhausted limit' );
+	// A different target post for the same user is a distinct per-post bucket (not blocked
+	// by post 42's exhausted limit) and still within the global budget (4th global request).
+	expect_true( 200 === $call( 'risk', 43 ), 'risk on a different post is unaffected by another post\'s exhausted per-post limit' );
 
-	// A different user for the same post is also a distinct bucket.
+	// --- Post rotation cannot bypass the global per-user limit. ---
+	// Post 45 has never been touched before (a fresh per-post bucket), yet this is the 6th
+	// risk request for user 7 overall (3 on post 42 + 1 rejected on post 42 + 1 on post 43 =
+	// 5 counted global attempts already), so the global cap (5) is what rejects it, not the
+	// per-post one. Rotating to a brand-new post ID must not reset the effective budget.
+	expect_true( 429 === $call( 'risk', 45 ), 'switching to a never-used post does not bypass the global per-user limit' );
+	expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], 'a globally rate-limited request on a fresh post never calls wp_remote_post' );
+
+	// A different user for the same post is also a distinct bucket (separate post AND global budget).
 	$GLOBALS['test_user_id'] = 8;
 	expect_true( 200 === $call( 'risk', 42 ), 'risk from a different user is unaffected by another user\'s exhausted limit' );
 	$GLOBALS['test_user_id'] = 7;
 
 	// highlights has its own counter, independent of risk, even though both target post 42.
+	// A rate limit allows the request through to the provider before parsing; whether the
+	// *provider response* then parses into a 200 depends on ext-dom, which is orthogonal to
+	// rate limiting, so only the "reached the provider" outcome is asserted when DOM is absent.
 	respond_html( '<textarea id="textfield"><p>Text</p></textarea>' );
-	expect_true( 200 === $call( 'highlights', 42 ), 'highlights request 1 of 2 is allowed after risk is already exhausted for the same post' );
-	expect_true( 200 === $call( 'highlights', 42 ), 'highlights request 2 of 2 is allowed within the filtered limit' );
-	expect_true( 429 === $call( 'highlights', 42 ), 'a third highlights request in the same window is rejected with 429' );
+	$allowed_status = Al5dy\Turgenev\Support\Requirements::hasDom() ? 200 : 502;
+	expect_true( $allowed_status === $call( 'highlights', 42 ), 'highlights request 1 of 2 is allowed through rate limiting after risk is already exhausted for the same post' );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'highlights request 1 of 2 reaches the provider' );
+	expect_true( $allowed_status === $call( 'highlights', 42 ), 'highlights request 2 of 2 is allowed through rate limiting within the filtered limit' );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'highlights request 2 of 2 reaches the provider' );
+	expect_true( 429 === $call( 'highlights', 42 ), 'a third highlights request in the same window is rejected with 429 regardless of ext-dom' );
 	expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], 'a rate-limited highlights request never calls wp_remote_post' );
 
-	// A window that has already elapsed resets the counter, even if it was previously exhausted.
-	$expired_key = 'turgenev_rl_' . md5( 'risk|7|44' );
-	$GLOBALS['turgenev_test_transients'][ $expired_key ] = array(
-		'count' => 99,
-		'reset' => time() - 5,
-	);
+	reset_rate_limit_filters();
+
+	// --- Window reset: a fixed-window bucket starts over once the window rolls forward. ---
+	// A dedicated user/post/short window so this is independent of the buckets exhausted above.
+	add_filter( 'turgenev_rate_limit', static fn( array $limits, string $operation ): array => 'risk' === $operation ? array( 'limit' => 1, 'window' => 1 ) : $limits, 10, 2 );
+	add_filter( 'turgenev_rate_limit_global', static fn( array $limits, string $operation ): array => 'risk' === $operation ? array( 'limit' => 1, 'window' => 1 ) : $limits, 10, 2 );
+	$GLOBALS['test_user_id'] = 9;
+	$GLOBALS['test_posts'][] = 46;
+	$GLOBALS['test_caps']    = array( array( 'edit_post', 46 ) );
 	respond( fixture_analysis() );
-	expect_true( 200 === $call( 'risk', 44 ), 'a request after the window has elapsed is allowed again' );
+	expect_true( 200 === $call( 'risk', 46 ), 'window reset: the first request in a fresh 1-second window is allowed' );
+	expect_true( 429 === $call( 'risk', 46 ), 'window reset: an immediate second request in the same 1-second window is rejected' );
+	usleep( 1_100_000 );
+	expect_true( 200 === $call( 'risk', 46 ), 'window reset: a request after the window has elapsed is allowed again, even though the bucket was previously exhausted' );
+	$GLOBALS['test_user_id'] = 7;
+	reset_rate_limit_filters();
 
-	$GLOBALS['turgenev_test_filters'] = array();
+	// --- balance has its own small budget so an editor cannot hammer a "free" provider call. ---
+	add_filter( 'turgenev_rate_limit', static fn( array $limits, string $operation ): array => 'balance' === $operation ? array( 'limit' => 2, 'window' => 60 ) : $limits, 10, 2 );
+	add_filter( 'turgenev_rate_limit_global', static fn( array $limits, string $operation ): array => 'balance' === $operation ? array( 'limit' => 5, 'window' => 60 ) : $limits, 10, 2 );
+	$GLOBALS['test_user_id'] = 30;
+	$GLOBALS['test_caps']    = array( 'manage_options' );
+	$balance_call            = static function () use ( $controller ): int {
+		$_POST = array(
+			'nonce'     => 'valid-nonce',
+			'operation' => 'balance',
+		);
+		$GLOBALS['turgenev_remote_post_calls'] = 0;
+		try {
+			$controller->handle();
+			throw new RuntimeException( 'Controller did not return JSON.' );
+		} catch ( JsonExit $response ) {
+			return $response->status;
+		}
+	};
+	respond( array( 'balance' => '10.50' ) );
+	expect_true( 200 === $balance_call(), 'balance request 1 of 2 is allowed within its own limit' );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'balance request 1 of 2 reaches the provider' );
+	expect_true( 200 === $balance_call(), 'balance request 2 of 2 is allowed' );
+	expect_true( 429 === $balance_call(), 'a third balance request in the same window is rejected with 429' );
+	expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], 'a rate-limited balance request never calls wp_remote_post' );
+	reset_rate_limit_filters();
 
-	$parser = new Al5dy\Turgenev\Api\ReportHighlightParser();
-	$unicode = $parser->parse( '<textarea id="textfield"><p>😀 <span class="xhl slop2">слово</span></p><p>далее &lt;текст&gt;</p></textarea>', '😀 слово далее <текст>' );
-	expect_true( 3 === $unicode['marks'][0]['start'] && 8 === $unicode['marks'][0]['end'], 'Unicode offsets and paragraph boundaries are correct' );
-	$blocks = $parser->parse( '<textarea id="textfield"><p>one</p><p><span class="xhl fog1">two</span></p></textarea>', 'one two' );
-	expect_true( 4 === $blocks['marks'][0]['start'], 'adjacent HTML block elements are separated' );
-	$dense = $parser->parse( '<textarea id="textfield"><p>' . str_repeat( '<span class="xhl slop2">текст</span> ', 700 ) . '</p></textarea>', trim( str_repeat( 'текст ', 700 ) ) );
-	expect_true( 700 === count( $dense['marks'] ), 'long valid documents retain every provider highlight beyond the old 500-mark limit' );
-	expect_true( 4194 === $dense['marks'][699]['start'], 'dense report offsets remain exact through the final fragment' );
-	$sections = $parser->parse( '<textarea id="textfield"><section><span class="xhl slop2">one</span></section><section><span class="xhl slop2">two</span></section></textarea>', 'one two' );
-	expect_true( 4 === $sections['marks'][1]['start'], 'HTML section boundaries match the editor whitespace model' );
-	$bom = $parser->parse( "<textarea id=\"textfield\"><p>\u{FEFF}<span class=\"xhl slop2\">😀 слово</span>\u{FEFF}</p></textarea>", '😀 слово' );
-	expect_true( 0 === $bom['marks'][0]['start'] && 8 === $bom['marks'][0]['end'], 'editor zero-width no-break spaces do not shift UTF-16 highlights' );
+	// --- Lock/contention behavior of the no-object-cache fallback path. ---
+	// White-box: mirrors RateLimiter's own key derivation to seed a lock directly.
+	$rate_limiter_direct = new Al5dy\Turgenev\Support\RateLimiter();
+	$bucket_id            = (int) floor( time() / 60 );
+	$lock_for = static fn( int $user_id, int $post_id ): string =>
+		'_turgenev_rl_lock_' . md5( 'turgenev_rl_p_' . md5( 'risk|' . $user_id . '|' . $post_id ) . '_' . $bucket_id );
 
-	echo 'PHP smoke tests passed: ' . $tests . PHP_EOL;
+	// A lock actively (freshly) held by "another process" is not stolen: the request fails
+	// closed (treated as rate-limited) rather than silently skipping the counter.
+	$contended_lock = $lock_for( 100, 200 );
+	add_option( $contended_lock, time(), '', 'no' );
+	expect_true( true === $rate_limiter_direct->tooManyRequests( 'risk', 100, 200 ), 'contention on a fresh, actively-held lock fails closed instead of silently skipping the counter' );
+	delete_option( $contended_lock );
+
+	// A lock left behind by a crashed request (older than the staleness threshold) is
+	// reclaimed, and is not left behind afterward (no permanently growing option).
+	$stale_lock = $lock_for( 101, 201 );
+	add_option( $stale_lock, time() - 10, '', 'no' );
+	expect_true( false === $rate_limiter_direct->tooManyRequests( 'risk', 101, 201 ), 'a stale lock left by a crashed request is reclaimed rather than wedging the bucket shut' );
+	expect_true( ! array_key_exists( $stale_lock, $GLOBALS['turgenev_test_options'] ), 'the reclaimed lock option is deleted again after use, not left behind permanently' );
+
+	// --- Atomic path via a persistent external object cache. ---
+	$GLOBALS['turgenev_test_use_object_cache'] = true;
+	$GLOBALS['turgenev_test_cache']            = array();
+	$object_cache_limiter                      = new Al5dy\Turgenev\Support\RateLimiter();
+	for ( $i = 1; $i <= 12; $i++ ) {
+		expect_true( false === $object_cache_limiter->tooManyRequests( 'risk', 40, 90 ), "object-cache path: request $i of 12 within the default per-post limit is allowed" );
+	}
+	expect_true( true === $object_cache_limiter->tooManyRequests( 'risk', 40, 90 ), 'object-cache path: a 13th request in the same window exceeds the default per-post limit' );
+	$GLOBALS['turgenev_test_use_object_cache'] = false;
+
+	if ( Al5dy\Turgenev\Support\Requirements::hasDom() ) {
+		$parser = new Al5dy\Turgenev\Api\ReportHighlightParser();
+		$unicode = $parser->parse( '<textarea id="textfield"><p>😀 <span class="xhl slop2">слово</span></p><p>далее &lt;текст&gt;</p></textarea>', '😀 слово далее <текст>' );
+		expect_true( 3 === $unicode['marks'][0]['start'] && 8 === $unicode['marks'][0]['end'], 'Unicode offsets and paragraph boundaries are correct' );
+		$blocks = $parser->parse( '<textarea id="textfield"><p>one</p><p><span class="xhl fog1">two</span></p></textarea>', 'one two' );
+		expect_true( 4 === $blocks['marks'][0]['start'], 'adjacent HTML block elements are separated' );
+		$dense = $parser->parse( '<textarea id="textfield"><p>' . str_repeat( '<span class="xhl slop2">текст</span> ', 700 ) . '</p></textarea>', trim( str_repeat( 'текст ', 700 ) ) );
+		expect_true( 700 === count( $dense['marks'] ), 'long valid documents retain every provider highlight beyond the old 500-mark limit' );
+		expect_true( 4194 === $dense['marks'][699]['start'], 'dense report offsets remain exact through the final fragment' );
+		$sections = $parser->parse( '<textarea id="textfield"><section><span class="xhl slop2">one</span></section><section><span class="xhl slop2">two</span></section></textarea>', 'one two' );
+		expect_true( 4 === $sections['marks'][1]['start'], 'HTML section boundaries match the editor whitespace model' );
+		$bom = $parser->parse( "<textarea id=\"textfield\"><p>\u{FEFF}<span class=\"xhl slop2\">😀 слово</span>\u{FEFF}</p></textarea>", '😀 слово' );
+		expect_true( 0 === $bom['marks'][0]['start'] && 8 === $bom['marks'][0]['end'], 'editor zero-width no-break spaces do not shift UTF-16 highlights' );
+	} else {
+		// DOM-absent: direct parser construction with no override still resolves the real
+		// (false) capability and rejects gracefully, rather than fatally erroring on a
+		// missing DOMDocument class.
+		$parser = new Al5dy\Turgenev\Api\ReportHighlightParser();
+		expect_exception(
+			static fn() => $parser->parse( '<textarea id="textfield"><p>one</p></textarea>', 'one' ),
+			'unavailable'
+		);
+	}
+
+	echo 'PHP smoke tests passed: ' . $tests . PHP_EOL . ( Al5dy\Turgenev\Support\Requirements::hasDom() ? '(ext-dom present: full suite ran)' : '(ext-dom absent: DOM-dependent parser assertions were skipped by design)' ) . PHP_EOL;
 } catch ( Throwable $exception ) {
 	fwrite( STDERR, $exception->getMessage() . PHP_EOL );
 	exit( 1 );

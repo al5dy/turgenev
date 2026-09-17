@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { wpCli } from './support/wp-cli.mjs';
 
 const username = process.env.WP_ADMIN_USER;
 const password = process.env.WP_ADMIN_PASSWORD;
+const SETTINGS_URL = '/wp-admin/options-general.php?page=turgenev-settings';
 
 async function login( page ) {
 	test.skip( ! username || ! password, 'WP_ADMIN_USER and WP_ADMIN_PASSWORD are required.' );
@@ -12,9 +14,35 @@ async function login( page ) {
 	await page.waitForURL( /wp-admin/ );
 }
 
+/** Reads the stored `api_key`, or null if wp-cli/the option is unavailable. */
+function getSavedApiKey() {
+	const raw = wpCli( [ 'option', 'get', 'turgenev', '--format=json' ] );
+	if ( null === raw ) {
+		return null;
+	}
+	try {
+		return JSON.parse( raw ).api_key ?? '';
+	} catch {
+		return null;
+	}
+}
+
+async function submitApiKeyForm( page, { newKey = '', clear = false } = {} ) {
+	await page.goto( SETTINGS_URL );
+	if ( newKey ) {
+		await page.locator( '#turgenev-api-key' ).fill( newKey );
+	}
+	const clearCheckbox = page.locator( 'input[name="turgenev[clear_api_key]"]' );
+	if ( clear && ( await clearCheckbox.count() ) > 0 ) {
+		await clearCheckbox.check();
+	}
+	await page.getByRole( 'button', { name: /Save Changes/i } ).click();
+	await page.waitForLoadState( 'networkidle' );
+}
+
 test( 'settings page loads without exposing a configured secret', async ( { page } ) => {
 	await login( page );
-	await page.goto( '/wp-admin/options-general.php?page=turgenev-settings' );
+	await page.goto( SETTINGS_URL );
 	await expect( page.getByRole( 'heading', { name: /Turgenev/i } ) ).toBeVisible();
 	await expect( page.locator( '#turgenev-api-key' ) ).toHaveAttribute( 'type', 'password' );
 
@@ -23,4 +51,84 @@ test( 'settings page loads without exposing a configured secret', async ( { page
 		const html = await page.content();
 		expect( html ).not.toContain( secret );
 	}
+} );
+
+test.describe( 'API key save/rotate/clear', () => {
+	// Every scenario below asserts against the actual stored option via wp-cli, not just
+	// the UI's own state, and asserts the submitted plaintext key is never echoed back into
+	// page HTML (the field is always re-rendered empty; see SettingsPage::renderApiKeyField()).
+	test.beforeEach( () => {
+		wpCli( [ 'option', 'delete', 'turgenev_e2e_force_balance_error' ] );
+		wpCli( [ 'option', 'delete', 'turgenev_e2e_force_outage' ] );
+	} );
+
+	test( 'a fresh valid key is saved', async ( { page } ) => {
+		test.skip( null === getSavedApiKey(), 'wp-cli is required (set WP_TEST_ROOT).' );
+		wpCli( [ 'option', 'delete', 'turgenev' ] );
+		await login( page );
+
+		const candidate = 'e2e-fresh-valid-key-' + Date.now();
+		await submitApiKeyForm( page, { newKey: candidate } );
+
+		expect( getSavedApiKey() ).toBe( candidate );
+		expect( await page.content() ).not.toContain( candidate );
+		await expect( page.locator( 'input[name="turgenev[clear_api_key]"]' ) ).toBeVisible();
+	} );
+
+	test( 'a blank field preserves the currently saved key', async ( { page } ) => {
+		const original = 'e2e-original-key-' + Date.now();
+		wpCli( [ 'option', 'update', 'turgenev', JSON.stringify( { api_key: original } ), '--format=json' ] );
+		test.skip( original !== getSavedApiKey(), 'wp-cli is required (set WP_TEST_ROOT).' );
+		await login( page );
+
+		await submitApiKeyForm( page ); // No key typed, checkbox left unchecked.
+
+		expect( getSavedApiKey() ).toBe( original );
+		expect( await page.content() ).not.toContain( original );
+	} );
+
+	test( 'an invalid replacement key preserves the currently saved key', async ( { page } ) => {
+		const original = 'e2e-still-working-key-' + Date.now();
+		wpCli( [ 'option', 'update', 'turgenev', JSON.stringify( { api_key: original } ), '--format=json' ] );
+		test.skip( original !== getSavedApiKey(), 'wp-cli is required (set WP_TEST_ROOT).' );
+		wpCli( [ 'option', 'update', 'turgenev_e2e_force_balance_error', '1' ] );
+		await login( page );
+
+		const rejectedCandidate = 'e2e-rejected-candidate-' + Date.now();
+		await submitApiKeyForm( page, { newKey: rejectedCandidate } );
+
+		expect( getSavedApiKey() ).toBe( original );
+		const html = await page.content();
+		expect( html ).not.toContain( original );
+		expect( html ).not.toContain( rejectedCandidate );
+	} );
+
+	test( 'a provider outage during validation preserves the currently saved key', async ( { page } ) => {
+		const original = 'e2e-outage-survivor-key-' + Date.now();
+		wpCli( [ 'option', 'update', 'turgenev', JSON.stringify( { api_key: original } ), '--format=json' ] );
+		test.skip( original !== getSavedApiKey(), 'wp-cli is required (set WP_TEST_ROOT).' );
+		wpCli( [ 'option', 'update', 'turgenev_e2e_force_outage', '1' ] );
+		await login( page );
+
+		const candidateDuringOutage = 'e2e-candidate-during-outage-' + Date.now();
+		await submitApiKeyForm( page, { newKey: candidateDuringOutage } );
+
+		expect( getSavedApiKey() ).toBe( original );
+		const html = await page.content();
+		expect( html ).not.toContain( original );
+		expect( html ).not.toContain( candidateDuringOutage );
+	} );
+
+	test( 'explicitly clearing the key removes it', async ( { page } ) => {
+		const original = 'e2e-key-to-clear-' + Date.now();
+		wpCli( [ 'option', 'update', 'turgenev', JSON.stringify( { api_key: original } ), '--format=json' ] );
+		test.skip( original !== getSavedApiKey(), 'wp-cli is required (set WP_TEST_ROOT).' );
+		await login( page );
+
+		await submitApiKeyForm( page, { clear: true } );
+
+		expect( getSavedApiKey() ?? '' ).toBe( '' );
+		expect( await page.content() ).not.toContain( original );
+		await expect( page.locator( 'input[name="turgenev[clear_api_key]"]' ) ).toHaveCount( 0 );
+	} );
 } );

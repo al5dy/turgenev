@@ -11,6 +11,11 @@
  *   provider credit and never depend on network/provider availability. It intercepts by
  *   URL prefix only (`ApiClient::ENDPOINT`), so it never affects any other HTTP request.
  * - `turgenev_has_dom`: lets a test force the "missing ext-dom" code path (see below).
+ * - `turgenev_e2e_force_outage` / `turgenev_e2e_force_balance_error` options: let a settings
+ *   test simulate a transport failure or a rejected candidate key without a real invalid
+ *   key or network outage.
+ * - `turgenev_e2e_mock_request_count` option: counts every outbound request this mock
+ *   intercepts, so a test can prove a rejected AJAX request never reached the provider.
  * - `turgenev_e2e_classic`: a post type with `show_in_rest => false`, so WordPress always
  *   opens it in the Classic Editor. Lets the Classic Editor metabox be exercised without
  *   installing the separate Classic Editor plugin or a global settings flip.
@@ -57,7 +62,36 @@ add_filter(
 			return $preempt;
 		}
 
+		// Lets a test prove a rejected AJAX request never reached the provider transport at
+		// all (not just that the mock returned an error): `wp option get
+		// turgenev_e2e_mock_request_count` after `wp option delete` counts real outbound
+		// attempts intercepted here.
+		update_option( 'turgenev_e2e_mock_request_count', 1 + (int) get_option( 'turgenev_e2e_mock_request_count', 0 ) );
+
+		// Lets a settings-page test simulate a total provider/network outage (`wp option
+		// update turgenev_e2e_force_outage 1`) to prove key rotation preserves the old key
+		// on a transport failure, not only on a well-formed provider error.
+		if ( get_option( 'turgenev_e2e_force_outage' ) ) {
+			return new WP_Error( 'turgenev_e2e_forced_outage', 'Simulated provider outage for E2E.' );
+		}
+
 		$body = is_array( $args['body'] ?? null ) ? $args['body'] : array();
+
+		// Lets a settings-page test simulate the provider rejecting a candidate key (`wp
+		// option update turgenev_e2e_force_balance_error 1`) to prove key rotation preserves
+		// the old key when validation fails, without needing a real invalid key.
+		if ( 'balance' === ( $body['api'] ?? '' ) && get_option( 'turgenev_e2e_force_balance_error' ) ) {
+			return array(
+				'headers'  => array(),
+				'body'     => wp_json_encode( array( 'error' => 'Simulated invalid key for E2E.' ) ),
+				'response' => array(
+					'code'    => 200,
+					'message' => 'OK',
+				),
+				'cookies'  => array(),
+				'filename' => null,
+			);
+		}
 
 		static $mock_response;
 		$mock_response = static function ( string $body ): array {
@@ -75,12 +109,20 @@ add_filter(
 
 		// ApiClient::reportHighlights() posts the provider's report-form token, never an
 		// `api` operation. Echo back whatever text the last `risk` request analyzed, since
-		// ReportHighlightParser requires the report markup's text to match it exactly.
+		// ReportHighlightParser requires the report markup's text to match it exactly. The
+		// first word is wrapped in a real `xhl` highlight span (not left as plain text), so
+		// tests exercise an actual highlight mark end to end, not just an empty-marks response.
 		if ( isset( $body['t'] ) && ! isset( $body['api'] ) ) {
-			$text = get_option( 'turgenev_e2e_mock_last_text', 'Mock analyzed text.' );
+			$text  = get_option( 'turgenev_e2e_mock_last_text', 'Mock analyzed text.' );
+			$inner = '';
+			if ( preg_match( '/^(\S+)(.*)$/su', $text, $matches ) ) {
+				$inner = '<span class="xhl slop2 xhint xhint-1-1">' . esc_html( $matches[1] ) . '</span>' . esc_html( $matches[2] );
+			} else {
+				$inner = esc_html( $text );
+			}
 
 			return $mock_response(
-				'<html><body><textarea id="textfield"><p>' . esc_html( $text ) . '</p></textarea></body></html>'
+				'<html><body><textarea id="textfield"><p>' . $inner . '</p></textarea></body></html>'
 			);
 		}
 
