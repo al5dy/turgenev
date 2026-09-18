@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const scripts = await Promise.all( [ 'client', 'analysis' ].map( name => readFile( new URL( '../../src/js/' + name + '.js', import.meta.url ), 'utf8' ) ) );
+const scripts = await Promise.all( [ 'client', 'analysis' ].map( name => readFile( new URL( '../../assets/build/' + name + '.js', import.meta.url ), 'utf8' ) ) );
 const result = { risk: '3', level: 'low', link: 'risk12345', details: [] };
 function fixture( configured = true ) {
 	const requests = [];

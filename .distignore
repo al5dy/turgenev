@@ -19,5 +19,5 @@
 /package.json
 /phpcs.xml.dist
 /playwright.config.mjs
-/src/js
-/src/css
+/resources
+/tsconfig.json

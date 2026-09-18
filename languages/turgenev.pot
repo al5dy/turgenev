@@ -1,24 +1,23 @@
 # Copyright (C) 2026 al5dy
 # This file is distributed under the GPLv2 or later.
+#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Turgenev 2.0.0\n"
+"Project-Id-Version: Turgenev\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/turgenev\n"
+"POT-Creation-Date: 2026-09-18 23:09+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language-Team: Lokotkov\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-13T18:57:19+02:00\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"X-Generator: WP-CLI 2.12.0\n"
+"X-Generator: Poedit 3.4.2\n"
 "X-Domain: turgenev\n"
 
 #. Plugin Name of the plugin
-#: turgenev.php
-#: src/Admin/EditorIntegration.php:119
-#: src/Admin/SettingsPage.php:33
-#: src/js/editor.js:415
+#: turgenev.php src/Admin/EditorIntegration.php:119
+#: src/Admin/SettingsPage.php:33 src/js/editor.js:415
 msgid "Turgenev"
 msgstr ""
 
@@ -42,25 +41,20 @@ msgstr ""
 msgid "https://ziscod.com"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:133
-#: src/js/editor.js:73
+#: src/Admin/EditorIntegration.php:133 src/js/editor.js:73
 msgid "Turgenev is ready, but an API key has not been configured yet."
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:136
-#: src/js/editor.js:84
+#: src/Admin/EditorIntegration.php:136 src/js/editor.js:84
 msgid "Configure API key"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:142
-#: src/Admin/SettingsPage.php:183
-#: src/index.js:203
-#: src/js/editor.js:317
+#: src/Admin/EditorIntegration.php:142 src/Admin/SettingsPage.php:183
+#: src/index.js:203 src/js/editor.js:317
 msgid "Current balance:"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:149
-#: src/js/editor.js:351
+#: src/Admin/EditorIntegration.php:149 src/js/editor.js:351
 msgid "Analyze plain text only"
 msgstr ""
 
@@ -258,56 +252,39 @@ msgstr ""
 msgid "\"Turgenev\""
 msgstr ""
 
-#: src/index.js:80
-#: src/index_old.js:20
-#: src/js/client.js:75
+#: src/index.js:80 src/index_old.js:20 src/js/client.js:75
 msgid "Frequency"
 msgstr ""
 
-#: src/index.js:83
-#: src/index_old.js:23
-#: src/js/client.js:76
+#: src/index.js:83 src/index_old.js:23 src/js/client.js:76
 msgid "Style"
 msgstr ""
 
-#: src/index.js:86
-#: src/index_old.js:26
-#: src/js/client.js:77
+#: src/index.js:86 src/index_old.js:26 src/js/client.js:77
 msgid "Keywords"
 msgstr ""
 
-#: src/index.js:89
-#: src/index_old.js:29
-#: src/js/client.js:78
+#: src/index.js:89 src/index_old.js:29 src/js/client.js:78
 msgid "Formality"
 msgstr ""
 
-#: src/index.js:92
-#: src/index_old.js:32
-#: src/js/client.js:79
+#: src/index.js:92 src/index_old.js:32 src/js/client.js:79
 msgid "Readability"
 msgstr ""
 
-#: src/index.js:110
-#: src/index_old.js:48
-#: src/js/client.js:141
+#: src/index.js:110 src/index_old.js:48 src/js/client.js:141
 msgid "Overall risk"
 msgstr ""
 
-#: src/index.js:114
-#: src/index_old.js:54
+#: src/index.js:114 src/index_old.js:54
 msgid "Report"
 msgstr ""
 
-#: src/index.js:116
-#: src/index.js:124
-#: src/index_old.js:56
-#: src/index_old.js:69
+#: src/index.js:116 src/index.js:124 src/index_old.js:56 src/index_old.js:69
 msgid "More"
 msgstr ""
 
-#: src/index.js:194
-#: src/index_old.js:187
+#: src/index.js:194 src/index_old.js:187
 msgid "Failed to parse content. Add content to the editor or click in the editable area."
 msgstr ""
 
@@ -327,13 +304,11 @@ msgstr ""
 msgid "Top-up balance"
 msgstr ""
 
-#: src/js/classic.js:46
-#: src/js/editor.js:121
+#: src/js/classic.js:46 src/js/editor.js:121
 msgid "Could not load balance."
 msgstr ""
 
-#: src/js/classic.js:58
-#: src/js/editor.js:242
+#: src/js/classic.js:58 src/js/editor.js:242
 msgid "Configure a Turgenev API key before running an analysis."
 msgstr ""
 
@@ -341,13 +316,11 @@ msgstr ""
 msgid "Add content to the editor before running Turgenev."
 msgstr ""
 
-#: src/js/classic.js:89
-#: src/js/editor.js:274
+#: src/js/classic.js:89 src/js/editor.js:274
 msgid "The content is longer than the maximum size accepted by Turgenev."
 msgstr ""
 
-#: src/js/classic.js:111
-#: src/js/editor.js:300
+#: src/js/classic.js:111 src/js/editor.js:300
 msgid "Content analysis failed."
 msgstr ""
 
@@ -371,9 +344,7 @@ msgstr ""
 msgid "Highlight"
 msgstr ""
 
-#: src/js/client.js:224
-#: src/js/client.js:325
-#: src/js/client.js:348
+#: src/js/client.js:224 src/js/client.js:325 src/js/client.js:348
 msgid "Turgenev returned invalid highlight data."
 msgstr ""
 
@@ -385,9 +356,7 @@ msgstr ""
 msgid "Turgenev highlight"
 msgstr ""
 
-#: src/js/client.js:333
-#: src/js/editor-content.js:101
-#: src/js/editor.js:150
+#: src/js/client.js:333 src/js/editor-content.js:101 src/js/editor.js:150
 #: src/js/editor.js:170
 msgid "The selected block changed since this report was created."
 msgstr ""

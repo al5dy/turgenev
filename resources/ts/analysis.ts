@@ -1,12 +1,18 @@
-( function ( window, document, wp ) {
+( function ( window: Window & typeof globalThis, document: Document, wp: WPGlobal ): void {
 	'use strict';
-	const { __ } = wp.i18n;
-	const client = window.TurgenevClient;
-	const ui = window.TurgenevUI;
+	// turgenev-analysis is always enqueued with turgenev-client and wp-i18n as
+	// dependencies, so both are guaranteed to be present by the time this runs.
+	const { __ } = wp.i18n as WPI18nModule;
+	const client = window.TurgenevClient as TurgenevClientApi;
+	const ui = window.TurgenevUI as TurgenevUIApi;
 
 	// This session outlives sidebar fills. Selection, focus and saves do not invalidate it.
-	function create( getSource, decorations, contentReset = null ) {
-		let state = {
+	function create(
+		getSource: () => SourceSnapshot,
+		decorations: Decorations | null,
+		contentReset: ContentReset | null = null
+	): AnalysisSession {
+		let state: SessionState = {
 			result: null,
 			error: '',
 			notice: '',
@@ -20,26 +26,26 @@
 			loadingBalance: false,
 			htmlMode: false,
 		};
-		let source = null;
-		let pending = null;
-		let balanceRequest = null;
+		let source: SourceSnapshot | null = null;
+		let pending: AbortController | null = null;
+		let balanceRequest: AbortController | null = null;
 		let sequence = 0;
 		let disposed = false;
 		let resetting = false;
-		const listeners = new Set();
-		function update( changes ) {
+		const listeners = new Set< ( state: SessionState ) => void >();
+		function update( changes: Partial< SessionState > ): void {
 			if ( disposed ) {
 				return;
 			}
 			state = { ...state, ...changes };
 			listeners.forEach( ( listener ) => listener( state ) );
 		}
-		function cancel() {
+		function cancel(): void {
 			sequence++;
 			pending?.abort();
 			pending = null;
 		}
-		function clearView() {
+		function clearView(): void {
 			cancel();
 			decorations?.clear();
 			update( {
@@ -52,7 +58,7 @@
 				notice: '',
 			} );
 		}
-		function reset() {
+		function reset(): void {
 			clearView();
 			resetting = true;
 			try {
@@ -81,7 +87,7 @@
 				resetting = false;
 			}
 		}
-		function invalidate() {
+		function invalidate(): void {
 			if ( ! resetting && source && source.key !== getSource().key ) {
 				clearView();
 				source = null;
@@ -94,7 +100,7 @@
 				} );
 			}
 		}
-		async function balance() {
+		async function balance(): Promise< void > {
 			if ( ! client.isConfigured || disposed ) {
 				return;
 			}
@@ -103,7 +109,7 @@
 			balanceRequest = request;
 			update( { loadingBalance: true, balanceError: '' } );
 			try {
-				const data = await client.request(
+				const data = await client.request< { balance: unknown } >(
 					'balance',
 					{ post_id: getSource().postId },
 					request.signal
@@ -113,7 +119,10 @@
 				}
 			} catch ( error ) {
 				if ( ! request.signal.aborted ) {
-					update( { balance: null, balanceError: error.message } );
+					update( {
+						balance: null,
+						balanceError: ( error as Error ).message,
+					} );
 				}
 			} finally {
 				if ( balanceRequest === request ) {
@@ -121,7 +130,7 @@
 				}
 			}
 		}
-		async function analyze() {
+		async function analyze(): Promise< void > {
 			if ( state.busy || disposed ) {
 				return;
 			}
@@ -167,7 +176,7 @@
 			pending = new window.AbortController();
 			update( { busy: true } );
 			try {
-				const data = await client.request(
+				const data = await client.request< { result?: unknown } >(
 					'risk',
 					{ text, post_id: source.postId },
 					pending.signal
@@ -176,11 +185,18 @@
 				if ( current !== sequence ) {
 					return;
 				}
+				const result = data.result as
+					| {
+							details?: unknown;
+							risk?: unknown;
+							level?: unknown;
+					  }
+					| undefined;
 				if (
-					! data.result ||
-					! Array.isArray( data.result.details ) ||
-					! Number.isFinite( Number( data.result.risk ) ) ||
-					typeof data.result.level !== 'string'
+					! result ||
+					! Array.isArray( result.details ) ||
+					! Number.isFinite( Number( result.risk ) ) ||
+					typeof result.level !== 'string'
 				) {
 					throw new Error(
 						__(
@@ -189,10 +205,10 @@
 						)
 					);
 				}
-				update( { result: data.result } );
+				update( { result: result as RiskResult } );
 			} catch ( error ) {
 				if ( current === sequence ) {
-					update( { error: error.message } );
+					update( { error: ( error as Error ).message } );
 				}
 			} finally {
 				if ( current === sequence ) {
@@ -203,7 +219,7 @@
 				balance();
 			}
 		}
-		async function highlight( token ) {
+		async function highlight( token: string ): Promise< void > {
 			invalidate();
 			if ( ! state.result || ! source || ! decorations || state.busy ) {
 				return;
@@ -222,7 +238,9 @@
 			} );
 			try {
 				contentReset?.capture();
-				const response = await client.request(
+				const response = await client.request< {
+					highlights: HighlightsResponseData;
+				} >(
 					'highlights',
 					{
 						text: source.text,
@@ -235,7 +253,10 @@
 				if ( current !== sequence ) {
 					return;
 				}
-				const counts = decorations.apply( source, response.highlights );
+				const counts = decorations.apply(
+					source as SourceSnapshot,
+					response.highlights
+				);
 				let notice = '';
 				if ( ! counts.total ) {
 					notice = __(
@@ -254,7 +275,7 @@
 				} );
 			} catch ( error ) {
 				if ( current === sequence ) {
-					update( { error: error.message } );
+					update( { error: ( error as Error ).message } );
 				}
 			} finally {
 				if ( current === sequence ) {
@@ -269,10 +290,10 @@
 			highlight,
 			reset,
 			invalidate,
-			setHtmlMode( htmlMode ) {
+			setHtmlMode( htmlMode: boolean ) {
 				update( { htmlMode } );
 			},
-			subscribe( listener ) {
+			subscribe( listener: ( state: SessionState ) => void ) {
 				listeners.add( listener );
 				listener( state );
 				return () => listeners.delete( listener );
@@ -289,11 +310,14 @@
 	}
 
 	function mount(
-		container,
-		session,
-		{ highlights = true, settings = false } = {}
-	) {
-		function node( tag, text, className ) {
+		container: HTMLElement,
+		session: AnalysisSession,
+		{
+			highlights = true,
+			settings = false,
+		}: { highlights?: boolean; settings?: boolean } = {}
+	): () => void {
+		function node( tag: string, text?: string, className?: string ): HTMLElement {
 			const element = document.createElement( tag );
 			if ( text ) {
 				element.textContent = text;
@@ -303,15 +327,23 @@
 			}
 			return element;
 		}
-		function button( label, handler, disabled = false ) {
-			const element = node( 'button', label, 'button button-secondary' );
+		function button(
+			label: string,
+			handler: ( event: MouseEvent ) => unknown,
+			disabled = false
+		): HTMLButtonElement {
+			const element = node(
+				'button',
+				label,
+				'button button-secondary'
+			) as HTMLButtonElement;
 			element.type = 'button';
 			element.disabled = disabled;
 			element.addEventListener( 'click', handler );
 			return element;
 		}
-		function link( label, href, external = false ) {
-			const element = node( 'a', label );
+		function link( label: string, href: string, external = false ): HTMLAnchorElement {
+			const element = node( 'a', label ) as HTMLAnchorElement;
 			element.href = href;
 			if ( external ) {
 				element.target = '_blank';
@@ -341,11 +373,11 @@
 					)
 				);
 			}
-			const balance = node(
+			const balanceEl = node(
 				'p',
 				__( 'Current balance:', 'turgenev' ) + ' '
 			);
-			balance.append(
+			balanceEl.append(
 				node(
 					'strong',
 					state.balance === null ? '—' : state.balance + ' ₽'
@@ -359,7 +391,7 @@
 					! client.isConfigured || state.loadingBalance
 				)
 			);
-			container.append( balance );
+			container.append( balanceEl );
 			if ( client.isEmptyBalance( state.balance ) ) {
 				container.append(
 					node(
@@ -382,7 +414,7 @@
 			container.append( message );
 			if ( ! settings ) {
 				const label = node( 'label', '', 'turgenev-analysis-mode' );
-				const toggle = node( 'input' );
+				const toggle = node( 'input' ) as HTMLInputElement;
 				toggle.type = 'checkbox';
 				toggle.checked = state.htmlMode;
 				toggle.disabled = state.busy;
@@ -496,4 +528,4 @@
 		} );
 	}
 	window.TurgenevAnalysis = Object.freeze( { create, mount } );
-} )( window, document, window.wp );
+} )( window, document, window.wp as WPGlobal );

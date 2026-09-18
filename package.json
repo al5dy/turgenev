@@ -25,24 +25,88 @@
     "node": ">=20.19.0",
     "npm": ">=10"
   },
+  "targets": {
+    "adminStyles": {
+      "source": "resources/scss/admin.scss",
+      "distDir": "assets/build",
+      "sourceMap": false
+    },
+    "client": {
+      "source": "resources/ts/client.ts",
+      "distDir": "assets/build",
+      "outputFormat": "global",
+      "isLibrary": false,
+      "sourceMap": false
+    },
+    "contentReset": {
+      "source": "resources/ts/content-reset.ts",
+      "distDir": "assets/build",
+      "outputFormat": "global",
+      "isLibrary": false,
+      "sourceMap": false
+    },
+    "highlights": {
+      "source": "resources/ts/highlights.ts",
+      "distDir": "assets/build",
+      "outputFormat": "global",
+      "isLibrary": false,
+      "sourceMap": false
+    },
+    "analysis": {
+      "source": "resources/ts/analysis.ts",
+      "distDir": "assets/build",
+      "outputFormat": "global",
+      "isLibrary": false,
+      "sourceMap": false
+    },
+    "classic": {
+      "source": "resources/ts/classic.ts",
+      "distDir": "assets/build",
+      "outputFormat": "global",
+      "isLibrary": false,
+      "sourceMap": false
+    },
+    "editorContent": {
+      "source": "resources/ts/editor-content.ts",
+      "distDir": "assets/build",
+      "outputFormat": "global",
+      "isLibrary": false,
+      "sourceMap": false
+    },
+    "editor": {
+      "source": "resources/ts/editor.ts",
+      "distDir": "assets/build",
+      "outputFormat": "global",
+      "isLibrary": false,
+      "sourceMap": false
+    }
+  },
   "devDependencies": {
+    "@parcel/transformer-sass": "^2.16.4",
     "@playwright/cli": "0.1.19",
     "@playwright/test": "1.63.0",
     "@wordpress/env": "11.15.0",
-    "@wordpress/scripts": "35.0.0"
+    "@wordpress/scripts": "35.0.0",
+    "parcel": "^2.16.4",
+    "sass": "^1.104.1",
+    "typescript": "^7.0.2"
   },
   "scripts": {
-    "build": "node tools/build-assets.mjs",
+    "clean": "rm -rf assets/build/*.js assets/build/admin.css assets/images .parcel-cache",
+    "build:assets": "parcel build --target adminStyles --no-content-hash --no-cache && parcel build --target client --target contentReset --target highlights --target analysis --target classic --target editorContent --target editor --no-content-hash --no-cache",
+    "build:images": "node tools/copy-images.mjs",
+    "build": "npm run clean && npm run build:assets && npm run build:images",
+    "watch": "parcel watch",
+    "typecheck": "tsc --noEmit",
     "check:syntax": "node tools/check-js-syntax.mjs",
-    "check:assets": "node tools/check-assets.mjs",
     "test:js": "node --test tests/js/*.test.mjs",
     "test:browser": "node tools/browser-smoke.mjs",
     "test:e2e": "playwright test",
     "wp-env": "wp-env",
-    "lint:js": "wp-scripts lint-js src/js",
-    "lint:css": "wp-scripts lint-style src/css/*.css",
+    "lint:js": "npm run typecheck",
+    "lint:css": "wp-scripts lint-style resources/scss/*.scss",
     "lint:pkg-json": "wp-scripts lint-pkg-json",
     "check:licenses": "wp-scripts check-licenses",
-    "test": "npm run check:assets && npm run check:syntax && npm run test:js"
+    "test": "npm run typecheck && npm run check:syntax && npm run test:js"
   }
 }

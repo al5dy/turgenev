@@ -98,6 +98,13 @@ final class ReportHighlightParser {
 	/**
 	 * Parse inert HTML with network access disabled.
 	 *
+	 * Wrapped in a `<div>` before parsing: libxml2's HTML parser drops whitespace-only
+	 * text nodes that sit between top-level inline siblings (e.g. `<span>a</span>
+	 * <span>b</span>`) until a block element has been opened. Reports whose first
+	 * highlighted word is also the document's first word start with a bare `<span>`,
+	 * so without this wrapper every following inter-word space up to the first block
+	 * boundary is silently lost and the normalized text no longer matches the browser's.
+	 *
 	 * @param string $html Markup fragment.
 	 * @return \DOMDocument
 	 * @throws ApiException On parse failure.
@@ -107,7 +114,7 @@ final class ReportHighlightParser {
 		$previous = libxml_use_internal_errors( true );
 
 		try {
-			$loaded = $document->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET );
+			$loaded = $document->loadHTML( '<?xml encoding="UTF-8"><div>' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET );
 		} finally {
 			libxml_clear_errors();
 			libxml_use_internal_errors( $previous );

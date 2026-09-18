@@ -1,68 +1,85 @@
-( function ( window, wp ) {
-	'use strict';
-	const client = window.TurgenevClient;
+interface AnalysisHTMLResult {
+	html: string;
+	error: string;
+	patterns: ContentResetRecord[];
+}
 
-	function analysisHTML( html, registry ) {
+( function ( window: Window & typeof globalThis, wp: WPGlobal ): void {
+	'use strict';
+	const client = window.TurgenevClient as TurgenevClientApi;
+	const i18n = wp.i18n as WPI18nModule;
+	const data = wp.data as WPDataRegistry;
+	const blocks = wp.blocks as WPBlocksModule;
+
+	function analysisHTML(
+		html: string,
+		registry: WPDataRegistry
+	): AnalysisHTMLResult {
 		let error = '';
 		let expandedSize = 0;
-		const patterns = new Map();
-		function expand( content, ancestors = [] ) {
+		const patterns = new Map< number, ContentResetRecord >();
+		function expand( content: string, ancestors: number[] = [] ): string {
 			return content.replace(
 				/<!--\s+wp:(?:core\/)?block\s+(\{[\s\S]*?\})\s*\/-->/g,
-				( comment, attributes ) => {
+				( comment: string, attributes: string ) => {
 					if ( error ) {
 						return comment;
 					}
-					let ref;
+					let ref: unknown;
 					try {
-						ref = JSON.parse( attributes ).ref;
+						ref = ( JSON.parse( attributes ) as { ref?: unknown } )
+							.ref;
 					} catch {
 						ref = null;
 					}
 					if (
 						! Number.isSafeInteger( ref ) ||
-						ref <= 0 ||
-						ancestors.includes( ref ) ||
+						( ref as number ) <= 0 ||
+						ancestors.includes( ref as number ) ||
 						ancestors.length >= 32
 					) {
-						error = wp.i18n.__(
+						error = i18n.__(
 							'The document contains an invalid or circular synced pattern.',
 							'turgenev'
 						);
 						return comment;
 					}
+					const refId = ref as number;
 					const core = registry.select( 'core' );
-					core.getEntityRecord( 'postType', 'wp_block', ref );
+					core.getEntityRecord( 'postType', 'wp_block', refId );
 					const record = core.getEditedEntityRecord(
 						'postType',
 						'wp_block',
-						ref
+						refId
 					);
+					const content = record?.content;
 					const value = record?.blocks
-						? wp.blocks.serialize( record.blocks )
-						: record?.content?.raw ?? record?.content;
+						? blocks.serialize( record.blocks )
+						: typeof content === 'object'
+						? content?.raw ?? content
+						: content;
 					if ( typeof value !== 'string' ) {
-						error = wp.i18n.__(
+						error = i18n.__(
 							'A synced pattern is not loaded or is unavailable. Load the pattern before analyzing the document.',
 							'turgenev'
 						);
 						return comment;
 					}
-					patterns.set( ref, {
-						key: 'wp_block:' + ref,
+					patterns.set( refId, {
+						key: 'wp_block:' + refId,
 						type: 'wp_block',
-						id: ref,
+						id: refId,
 						html: value,
 					} );
 					expandedSize += value.length;
 					if ( expandedSize > client.maxTextLength * 100 ) {
-						error = wp.i18n.__(
+						error = i18n.__(
 							'The expanded synced patterns exceed the supported document size.',
 							'turgenev'
 						);
 						return comment;
 					}
-					return expand( value, [ ...ancestors, ref ] );
+					return expand( value, [ ...ancestors, refId ] );
 				}
 			);
 		}
@@ -70,7 +87,7 @@
 		return { html: resolved, error, patterns: [ ...patterns.values() ] };
 	}
 
-	function snapshot( registry = wp.data ) {
+	function snapshot( registry: WPDataRegistry = data ): SourceSnapshot {
 		const editor = registry.select( 'core/editor' );
 		const original = editor.getEditedPostContent() || '';
 		const { html, error } = analysisHTML( original, registry );
@@ -89,14 +106,16 @@
 		};
 	}
 
-	function documents() {
-		const result = [ window.document ];
+	function documents(): Document[] {
+		const result: Document[] = [ window.document ];
 		window.document
 			.querySelectorAll( 'iframe[name="editor-canvas"]' )
 			.forEach( ( frame ) => {
 				try {
-					if ( frame.contentDocument ) {
-						result.push( frame.contentDocument );
+					const contentDocument = ( frame as HTMLIFrameElement )
+						.contentDocument;
+					if ( contentDocument ) {
+						result.push( contentDocument );
 					}
 				} catch {
 					/* Cross-origin frames are outside the editor boundary. */
@@ -105,15 +124,18 @@
 		return result;
 	}
 
-	function blockText( blocks, registry ) {
+	function blockText( blocksToSerialize: WPBlock[], registry: WPDataRegistry ): string {
 		return client.toPlainText(
-			analysisHTML( wp.blocks.serialize( blocks ), registry ).html
+			analysisHTML( blocks.serialize( blocksToSerialize ), registry ).html
 		);
 	}
 
 	// A template's block tree and the edited post are different entities. Core
 	// intentionally omits controlled inner blocks from their parent's serialization.
-	function documentRoots( source, registry ) {
+	function documentRoots(
+		source: SourceSnapshot,
+		registry: WPDataRegistry
+	): WPBlock[][] {
 		const store = registry.select( 'core/block-editor' );
 		const roots = store
 			.getBlocksByName( 'core/post-content' )
@@ -123,23 +145,30 @@
 						.getBlockParents( id )
 						.some( ( parent ) =>
 							[ 'core/query', 'core/post-template' ].includes(
-								store.getBlockName( parent )
+								store.getBlockName( parent ) || ''
 							)
 						)
 			)
 			.map( ( id ) => store.getBlocks( id ) )
 			.filter(
-				( blocks ) => blockText( blocks, registry ) === source.text
+				( segments ) =>
+					blockText( segments, registry ) === source.text
 			);
 		if ( roots.length ) {
 			return roots;
 		}
-		const blocks = store.getBlocks();
+		const allBlocks = store.getBlocks();
 		// Never search unrelated template chrome for an isolated matching phrase.
-		return blockText( blocks, registry ) === source.text ? [ blocks ] : [];
+		return blockText( allBlocks, registry ) === source.text
+			? [ allBlocks ]
+			: [];
 	}
 
-	function blockTargets( block, text, offset ) {
+	function blockTargets(
+		block: Element,
+		text: string,
+		offset: number
+	): AnalysisTarget[] {
 		const doc = block.ownerDocument;
 		const whole = client.textModel( block, true );
 		const sourceEditors = [
@@ -164,7 +193,7 @@
 				node,
 				model:
 					node.tagName === 'TEXTAREA'
-						? client.textareaTarget( node )
+						? client.textareaTarget( node as HTMLTextAreaElement )
 						: { ...client.textModel( node, true ), document: doc },
 			} ) )
 			.filter(
@@ -184,21 +213,26 @@
 		return client.alignTargets( text, models, offset );
 	}
 
-	function targets( source, registry = wp.data ) {
+	function targets(
+		source: SourceSnapshot,
+		registry: WPDataRegistry = data
+	): AnalysisTarget[] {
 		const docs = documents();
 		for ( const doc of docs ) {
 			const code = client.textareaTarget(
-				doc.querySelector( '.editor-post-text-editor' )
+				doc.querySelector(
+					'.editor-post-text-editor'
+				) as HTMLTextAreaElement | null
 			);
 			if ( code?.text === source.text ) {
 				return [ { ...code, offset: 0 } ];
 			}
 		}
-		const result = [];
-		for ( const blocks of documentRoots( source, registry ) ) {
+		const result: AnalysisTarget[] = [];
+		for ( const segments of documentRoots( source, registry ) ) {
 			let offset = 0;
-			for ( const segment of blocks ) {
-				const text = blockText( segment, registry );
+			for ( const segment of segments ) {
+				const text = blockText( [ segment ], registry );
 				if ( ! text ) {
 					continue;
 				}
@@ -221,8 +255,8 @@
 		return result;
 	}
 
-	function createReset( registry = wp.data ) {
-		return window.TurgenevContentReset.create(
+	function createReset( registry: WPDataRegistry = data ): ContentReset {
+		return ( window.TurgenevContentReset as TurgenevContentResetApi ).create(
 			() => {
 				const editor = registry.select( 'core/editor' );
 				const type = editor.getCurrentPostType();
@@ -242,8 +276,8 @@
 							.dispatch( 'core' )
 							.editEntityRecord(
 								'postType',
-								record.type,
-								record.id,
+								record.type as string,
+								record.id as number,
 								{
 									content: html,
 									blocks: undefined,
@@ -262,4 +296,4 @@
 		targets,
 		documents,
 	} );
-} )( window, window.wp );
+} )( window, window.wp as WPGlobal );

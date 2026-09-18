@@ -10,8 +10,8 @@ if ( ! zipPath ) {
 }
 
 // Every runtime asset EditorIntegration.php enqueues from assets/build/. Kept in sync by
-// hand with tools/build-assets.mjs's own file list, the same way tools/check-assets.mjs
-// already does; there is no single shared source for this project's three asset tools.
+// hand with package.json's Parcel "targets" and tools/check-js-syntax.mjs file lists;
+// there is no single shared source for this project's asset tooling.
 const runtimeAssets = [
 	'client.js',
 	'content-reset.js',
