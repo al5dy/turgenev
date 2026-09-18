@@ -5,6 +5,7 @@
 # Build / release artifacts
 /dist/
 /build/
+/.parcel-cache/
 
 # Test caches / reports
 /.phpunit.result.cache
