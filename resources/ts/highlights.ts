@@ -1,11 +1,21 @@
-( function ( window ) {
+interface DecorationSurface {
+	doc: Document;
+	observer: MutationObserver;
+	names: Set< string >;
+	layer: HTMLElement | null;
+	style: HTMLStyleElement | null;
+	textareas: Set< HTMLTextAreaElement >;
+	resize: ResizeObserver | null;
+}
+
+( function ( window: Window & typeof globalThis ): void {
 	'use strict';
-	const client = window.TurgenevClient;
+	const client = window.TurgenevClient as TurgenevClientApi;
 	const colors = [ '#b5ead7', '#ffe299', '#f5a9b8' ];
-	function severity( mark ) {
+	function severity( mark: HighlightMark ): number {
 		return client.highlightLevel( mark );
 	}
-	function layerFor( surface ) {
+	function layerFor( surface: DecorationSurface ): HTMLElement {
 		if ( ! surface.layer ) {
 			surface.layer = surface.doc.createElement( 'div' );
 			surface.layer.className = 'turgenev-decoration-layer';
@@ -16,9 +26,14 @@
 		}
 		return surface.layer;
 	}
-	function paintTextarea( target, marks, surface ) {
+	function paintTextarea(
+		target: TextareaAnalysisTarget,
+		marks: HighlightMark[],
+		surface: DecorationSurface
+	): void {
 		const { textarea, document: doc } = target;
-		const style = doc.defaultView.getComputedStyle( textarea );
+		const win = doc.defaultView as Window;
+		const style = win.getComputedStyle( textarea );
 		const rect = textarea.getBoundingClientRect();
 		const left = rect.left + textarea.clientLeft,
 			top = rect.top + textarea.clientTop;
@@ -31,7 +46,7 @@
 			parent;
 			parent = parent.parentElement
 		) {
-			const parentStyle = doc.defaultView.getComputedStyle( parent );
+			const parentStyle = win.getComputedStyle( parent );
 			const bounds = parent.getBoundingClientRect();
 			if ( /auto|scroll|hidden|clip/.test( parentStyle.overflowX ) ) {
 				clipLeft = Math.max(
@@ -85,7 +100,7 @@
 			'paddingLeft',
 			'wordBreak',
 			'overflowWrap',
-		] ) {
+		] as const ) {
 			mirror.style[ property ] = style[ property ];
 		}
 		Object.assign( mirror.style, {
@@ -95,19 +110,21 @@
 			whiteSpace: textarea.wrap === 'off' ? 'pre' : 'pre-wrap',
 			overflowWrap: textarea.wrap === 'off' ? 'normal' : 'break-word',
 		} );
-		const events = new Map();
+		const events = new Map< number, { index: number; adding: boolean }[] >();
 		marks.forEach( ( mark, index ) => {
 			for ( const [ position, adding ] of [
 				[ mark.start, true ],
 				[ mark.end, false ],
-			] ) {
-				if ( ! events.has( position ) ) {
-					events.set( position, [] );
+			] as const ) {
+				let list = events.get( position );
+				if ( ! list ) {
+					list = [];
+					events.set( position, list );
 				}
-				events.get( position ).push( { index, adding } );
+				list.push( { index, adding } );
 			}
 		} );
-		const active = new Map();
+		const active = new Map< number, HighlightMark >();
 		let cursor = 0;
 		for ( const position of [
 			...events.keys(),
@@ -149,20 +166,30 @@
 	}
 
 	// Decorations never touch a block, RichText value, undo history or editable DOM.
-	function create( getTargets, getDocuments ) {
-		let active = null;
+	function create(
+		getTargets: ( source: SourceSnapshot ) => AnalysisTarget[],
+		getDocuments: () => Document[]
+	): Decorations {
+		let active: { source: SourceSnapshot; marks: HighlightMark[] } | null =
+			null;
 		let frame = 0;
-		const surfaces = new Map();
-		function clearSurface( surface ) {
+		const surfaces = new Map< Document, DecorationSurface >();
+		function clearSurface( surface: DecorationSurface ): void {
+			const win = surface.doc.defaultView as
+				| ( Window & {
+						CSS?: { highlights?: Map< string, unknown > };
+				  } )
+				| null;
 			for ( const name of surface.names ) {
-				surface.doc.defaultView.CSS?.highlights?.delete( name );
+				win?.CSS?.highlights?.delete( name );
 			}
 			surface.names.clear();
 			surface.layer?.replaceChildren();
 		}
-		function observe( doc ) {
-			if ( surfaces.has( doc ) ) {
-				return surfaces.get( doc );
+		function observe( doc: Document ): DecorationSurface {
+			const existing = surfaces.get( doc );
+			if ( existing ) {
+				return existing;
 			}
 			const observer = new window.MutationObserver( schedule );
 			observer.observe( doc.body, {
@@ -179,22 +206,22 @@
 				],
 			} );
 			doc.addEventListener( 'scroll', schedule, true );
-			doc.defaultView.addEventListener( 'resize', schedule );
-			const surface = {
+			doc.defaultView?.addEventListener( 'resize', schedule );
+			const surface: DecorationSurface = {
 				doc,
 				observer,
 				names: new Set(),
 				layer: null,
 				style: null,
 				textareas: new Set(),
-				resize: doc.defaultView.ResizeObserver
+				resize: doc.defaultView?.ResizeObserver
 					? new doc.defaultView.ResizeObserver( schedule )
 					: null,
 			};
 			surfaces.set( doc, surface );
 			return surface;
 		}
-		function paint() {
+		function paint(): number {
 			frame = 0;
 			for ( const surface of surfaces.values() ) {
 				clearSurface( surface );
@@ -206,8 +233,19 @@
 			const coverage = new Uint8Array( active.source.text.length );
 			for ( const target of getTargets( active.source ) ) {
 				const surface = observe( target.document );
-				const win = target.document.defaultView;
-				const sourceMarks = [];
+				const win = target.document.defaultView as
+					| ( Window & {
+							CSS?: {
+								highlights?: {
+									has: ( name: string ) => boolean;
+									set: ( name: string, value: unknown ) => void;
+									get: ( name: string ) => { add: ( range: Range ) => void } | undefined;
+								};
+							};
+							Highlight?: new () => unknown;
+					  } )
+					| null;
+				const sourceMarks: HighlightMark[] = [];
 				for ( const mark of active.marks ) {
 					const start = Math.max( 0, mark.start - target.offset );
 					const end = Math.min(
@@ -226,10 +264,10 @@
 								target.offset + end
 							);
 							sourceMarks.push(
-								...ranges.map( ( range ) => ( {
-									...mark,
-									...range,
-								} ) )
+								...ranges.map(
+									( range ) =>
+										( { ...mark, ...range } as HighlightMark )
+								)
 							);
 						}
 						continue;
@@ -247,7 +285,7 @@
 					}
 					const level = severity( mark );
 					const name = 'turgenev-' + mark.category + '-' + level;
-					if ( win.CSS?.highlights && win.Highlight ) {
+					if ( win?.CSS?.highlights && win.Highlight ) {
 						if ( ! surface.style ) {
 							surface.style =
 								target.document.createElement( 'style' );
@@ -277,7 +315,9 @@
 							win.CSS.highlights.set( name, new win.Highlight() );
 							surface.names.add( name );
 						}
-						win.CSS.highlights.get( name ).add( range );
+						( win.CSS.highlights.get( name ) as {
+							add: ( range: Range ) => void;
+						} ).add( range );
 					} else {
 						// Older browsers: viewport rectangles outside body, hence outside TinyMCE too.
 						const layer = layerFor( surface );
@@ -297,7 +337,12 @@
 					}
 				}
 				if ( sourceMarks.length ) {
-					paintTextarea( target, sourceMarks, surface );
+					// Only populated on the textarea branch above; the cast reflects that invariant.
+					paintTextarea(
+						target as TextareaAnalysisTarget,
+						sourceMarks,
+						surface
+					);
 				}
 			}
 			const missing = new Uint32Array( coverage.length + 1 );
@@ -313,12 +358,12 @@
 				( mark ) => missing[ mark.end ] === missing[ mark.start ]
 			).length;
 		}
-		function schedule() {
+		function schedule(): void {
 			if ( active && ! frame ) {
 				frame = window.requestAnimationFrame( paint );
 			}
 		}
-		function clear() {
+		function clear(): void {
 			active = null;
 			window.cancelAnimationFrame( frame );
 			frame = 0;
@@ -327,7 +372,7 @@
 				surface.observer.disconnect();
 				surface.resize?.disconnect();
 				surface.doc.removeEventListener( 'scroll', schedule, true );
-				surface.doc.defaultView.removeEventListener(
+				surface.doc.defaultView?.removeEventListener(
 					'resize',
 					schedule
 				);
@@ -338,7 +383,7 @@
 		}
 		window.document.addEventListener( 'load', schedule, true );
 		return {
-			apply( source, data ) {
+			apply( source: SourceSnapshot, data: HighlightsResponseData ) {
 				if ( data?.text !== source.text ) {
 					throw new Error(
 						'Turgenev report text does not match the document.'

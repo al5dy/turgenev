@@ -1,38 +1,53 @@
-( function ( window, document, wp ) {
+( function ( window: Window & typeof globalThis, document: Document, wp: WPGlobal | undefined ): void {
 	'use strict';
 
-	if ( ! window.TurgenevConfig || ! wp || ! wp.i18n ) {
+	const maybeConfig = window.TurgenevConfig;
+	const i18n = wp?.i18n;
+	if ( ! maybeConfig || ! wp || ! i18n ) {
 		return;
 	}
+	// Rebind with a definite type: nested function declarations below don't
+	// retain the narrowing from the guard above.
+	const config: TurgenevConfigShape = maybeConfig;
 
-	const { __ } = wp.i18n;
-	const config = window.TurgenevConfig;
-	const textareaModels = new WeakMap();
+	const { __ } = i18n;
+	const textareaModels = new WeakMap<
+		HTMLTextAreaElement,
+		{ html: string; model: SourceModel | null }
+	>();
 	const blockBoundary =
 		/^(ADDRESS|ARTICLE|ASIDE|BLOCKQUOTE|BR|DD|DIV|DL|DT|FIGCAPTION|FIGURE|H[1-6]|HR|LI|MAIN|OL|P|PRE|SECTION|TABLE|TD|TH|TR|UL)$/;
 
-	function apiErrorMessage( payload, fallback ) {
-		if (
-			payload &&
-			payload.data &&
-			typeof payload.data.message === 'string' &&
-			payload.data.message.trim()
-		) {
-			return payload.data.message;
+	function apiErrorMessage( payload: unknown, fallback: string ): string {
+		if ( payload && typeof payload === 'object' ) {
+			const data = ( payload as { data?: unknown } ).data;
+			if (
+				data &&
+				typeof data === 'object' &&
+				typeof ( data as { message?: unknown } ).message === 'string' &&
+				( data as { message: string } ).message.trim()
+			) {
+				return ( data as { message: string } ).message;
+			}
 		}
 		return fallback;
 	}
 
-	async function request( operation, parameters = {}, signal ) {
-		const body = new URLSearchParams( {
-			action: 'turgenev_api',
-			...parameters,
-			nonce: config.nonce,
-			operation,
-			post_id: String( parameters.post_id ?? config.postId ?? 0 ),
-		} );
+	async function request< T >(
+		operation: string,
+		parameters: Record< string, unknown > = {},
+		signal?: AbortSignal
+	): Promise< T > {
+		const params: Record< string, string > = { action: 'turgenev_api' };
+		for ( const [ key, value ] of Object.entries( parameters ) ) {
+			params[ key ] = String( value );
+		}
+		params.nonce = config.nonce;
+		params.operation = operation;
+		params.post_id = String( parameters.post_id ?? config.postId ?? 0 );
+		const body = new URLSearchParams( params );
 
-		let response;
+		let response: Response;
 		try {
 			response = await window.fetch( config.ajaxUrl, {
 				method: 'POST',
@@ -56,7 +71,7 @@
 			);
 		}
 
-		let payload;
+		let payload: unknown;
 		try {
 			payload = await response.json();
 		} catch {
@@ -65,7 +80,12 @@
 			);
 		}
 
-		if ( ! response.ok || ! payload || payload.success !== true ) {
+		if (
+			! response.ok ||
+			! payload ||
+			typeof payload !== 'object' ||
+			( payload as { success?: unknown } ).success !== true
+		) {
 			throw new Error(
 				apiErrorMessage(
 					payload,
@@ -74,30 +94,31 @@
 			);
 		}
 
-		if (
-			! payload.data ||
-			typeof payload.data !== 'object' ||
-			Array.isArray( payload.data )
-		) {
+		const data = ( payload as { data?: unknown } ).data;
+		if ( ! data || typeof data !== 'object' || Array.isArray( data ) ) {
 			throw new Error(
 				__( 'WordPress returned an invalid response.', 'turgenev' )
 			);
 		}
-		return payload.data;
+		return data as T;
 	}
 
-	function blockLabel( key ) {
-		const labels = {
+	function blockLabel( key: unknown ): string {
+		const labels: Record< string, string > = {
 			frequency: __( 'Frequency', 'turgenev' ),
 			style: __( 'Style', 'turgenev' ),
 			keywords: __( 'Keywords', 'turgenev' ),
 			formality: __( 'Formality', 'turgenev' ),
 			readability: __( 'Readability', 'turgenev' ),
 		};
-		return labels[ key ] || String( key || '' );
+		return ( typeof key === 'string' && labels[ key ] ) || String( key || '' );
 	}
 
-	function makeCell( tag, text, className = '' ) {
+	function makeCell(
+		tag: 'th' | 'td',
+		text: unknown,
+		className = ''
+	): HTMLTableCellElement {
 		const cell = document.createElement( tag );
 		if ( tag === 'th' ) {
 			cell.scope = 'row';
@@ -109,7 +130,12 @@
 		return cell;
 	}
 
-	function appendReportActions( cell, token, onHighlight, activeToken ) {
+	function appendReportActions(
+		cell: HTMLElement,
+		token: unknown,
+		onHighlight: ( ( token: string ) => unknown ) | undefined,
+		activeToken: string | null | undefined
+	): void {
 		if ( typeof token !== 'string' || ! token ) {
 			return;
 		}
@@ -147,7 +173,14 @@
 		cell.appendChild( actions );
 	}
 
-	function renderResult( container, data, options = {} ) {
+	function renderResult(
+		container: HTMLElement | null,
+		data: RiskResult,
+		options: {
+			onHighlight?: ( token: string ) => unknown;
+			activeToken?: string | null;
+		} = {}
+	): void {
 		if ( ! container ) {
 			return;
 		}
@@ -226,8 +259,8 @@
 		container.appendChild( wrapper );
 	}
 
-	function validHighlights( text, marks ) {
-		const allowedCategories = new Set( [
+	function validHighlights( text: string, marks: unknown ): HighlightMark[] {
+		const allowedCategories = new Set< string >( [
 			'frequency',
 			'formality',
 			'keywords',
@@ -237,36 +270,47 @@
 		if (
 			! Array.isArray( marks ) ||
 			marks.length > 20000 ||
-			marks.some(
-				( mark ) =>
-					! (
-						mark &&
-						typeof mark === 'object' &&
-						Number.isInteger( mark.start ) &&
-						Number.isInteger( mark.end ) &&
-						mark.start >= 0 &&
-						mark.end > mark.start &&
-						mark.end <= text.length &&
-						allowedCategories.has( mark.category ) &&
-						Number.isInteger( mark.level ) &&
-						mark.level >= 1 &&
-						mark.level <= 3
-					)
-			)
+			marks.some( ( mark: unknown ) => {
+				if ( ! mark || typeof mark !== 'object' ) {
+					return true;
+				}
+				const candidate = mark as {
+					start?: unknown;
+					end?: unknown;
+					category?: unknown;
+					level?: unknown;
+				};
+				return ! (
+					Number.isInteger( candidate.start ) &&
+					Number.isInteger( candidate.end ) &&
+					( candidate.start as number ) >= 0 &&
+					( candidate.end as number ) > ( candidate.start as number ) &&
+					( candidate.end as number ) <= text.length &&
+					allowedCategories.has( candidate.category as string ) &&
+					Number.isInteger( candidate.level ) &&
+					( candidate.level as number ) >= 1 &&
+					( candidate.level as number ) <= 3
+				);
+			} )
 		) {
 			throw new Error(
 				__( 'Turgenev returned invalid highlight data.', 'turgenev' )
 			);
 		}
-		return [ ...marks ].sort( ( left, right ) => left.start - right.start );
+		return [ ...( marks as HighlightMark[] ) ].sort(
+			( left, right ) => left.start - right.start
+		);
 	}
 
-	function normalizedTextOffsets( text ) {
+	function normalizedTextOffsets( text: string ): {
+		text: string;
+		offsets: number[];
+	} {
 		let normalized = '';
 		let sourceOffset = 0;
-		let whitespaceStart = null;
-		let whitespaceEnd = null;
-		const offsets = [];
+		let whitespaceStart: number | null = null;
+		let whitespaceEnd: number | null = null;
+		const offsets: number[] = [];
 
 		for ( const character of text ) {
 			const nextOffset = sourceOffset + character.length;
@@ -282,7 +326,7 @@
 			if ( null !== whitespaceStart ) {
 				offsets[ normalized.length ] = whitespaceStart;
 				normalized += ' ';
-				offsets[ normalized.length ] = whitespaceEnd;
+				offsets[ normalized.length ] = whitespaceEnd as number;
 				whitespaceStart = null;
 				whitespaceEnd = null;
 			}
@@ -296,7 +340,11 @@
 		return { text: normalized, offsets };
 	}
 
-	function renderMessage( container, message, type = 'error' ) {
+	function renderMessage(
+		container: HTMLElement | null,
+		message: unknown,
+		type = 'error'
+	): void {
 		if ( ! container ) {
 			return;
 		}
@@ -310,7 +358,7 @@
 		container.appendChild( notice );
 	}
 
-	function renderBalance( container, balance ) {
+	function renderBalance( container: HTMLElement | null, balance: unknown ): void {
 		if ( ! container ) {
 			return;
 		}
@@ -319,7 +367,7 @@
 		container.classList.toggle( 'is-low', empty );
 	}
 
-	function setBusy( panel, busy ) {
+	function setBusy( panel: HTMLElement | null, busy: unknown ): void {
 		if ( ! panel ) {
 			return;
 		}
@@ -331,51 +379,56 @@
 	}
 
 	// One whitespace model for requests and read-only DOM highlight ranges.
-	function textModel( root, editor = false ) {
+	function textModel( root: Element, editor = false ): TextModel {
 		let raw = '';
-		const points = [];
-		function walk( node ) {
+		const points: { node: Text; offset: number }[] = [];
+		function walk( node: Node ): void {
+			// nodeType, not `instanceof Text`/`instanceof Element`: this often walks
+			// nodes owned by another window (the block editor's iframe), and instanceof
+			// checks against this window's constructors silently fail across realms.
 			if ( node.nodeType === 3 ) {
-				for ( let i = 0; i < node.data.length; i++ ) {
-					points[ raw.length ] = { node, offset: i };
-					raw += node.data[ i ];
+				const text = node as Text;
+				for ( let i = 0; i < text.data.length; i++ ) {
+					points[ raw.length ] = { node: text, offset: i };
+					raw += text.data[ i ];
 				}
 				return;
 			}
 			if ( node.nodeType !== 1 ) {
 				return;
 			}
+			const element = node as Element;
 			if (
 				/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|SVG|CANVAS|IFRAME)$/.test(
-					node.tagName
+					element.tagName
 				) ||
-				node.hidden ||
-				node.getAttribute( 'aria-hidden' ) === 'true' ||
+				( element as HTMLElement ).hidden ||
+				element.getAttribute( 'aria-hidden' ) === 'true' ||
 				( editor &&
-					node.matches(
+					element.matches(
 						'button, input, select, textarea, [data-mce-bogus="all"], .block-editor-block-toolbar, .block-editor-block-list__insertion-point'
 					) )
 			) {
 				return;
 			}
-			const separated = blockBoundary.test( node.tagName );
+			const separated = blockBoundary.test( element.tagName );
 			if ( separated ) {
 				raw += ' ';
 			}
-			node.childNodes.forEach( walk );
+			element.childNodes.forEach( walk );
 			if ( separated ) {
 				raw += ' ';
 			}
 		}
 		walk( root );
 		const model = normalizedTextOffsets( raw );
-		let hiddenOffsets = null;
-		function isVisible( start, end ) {
+		let hiddenOffsets: Uint32Array | null = null;
+		function isVisible( start: number, end: number ): boolean {
 			if ( ! hiddenOffsets ) {
-				const visibleNodes = new WeakMap();
-				hiddenOffsets = new Uint32Array( raw.length + 1 );
+				const visibleNodes = new WeakMap< Text, boolean >();
+				const offsets = new Uint32Array( raw.length + 1 );
 				for ( let i = 0; i < raw.length; i++ ) {
-					hiddenOffsets[ i + 1 ] = hiddenOffsets[ i ];
+					offsets[ i + 1 ] = offsets[ i ];
 					const point = points[ i ];
 					if ( ! point || /\s/u.test( raw[ i ] ) ) {
 						continue;
@@ -389,16 +442,17 @@
 						);
 					}
 					if ( ! visibleNodes.get( point.node ) ) {
-						hiddenOffsets[ i + 1 ]++;
+						offsets[ i + 1 ]++;
 					}
 				}
+				hiddenOffsets = offsets;
 			}
 			return (
 				hiddenOffsets[ model.offsets[ start ] ] ===
 				hiddenOffsets[ model.offsets[ end ] ]
 			);
 		}
-		function range( start, end ) {
+		function range( start: number, end: number ): Range | null {
 			let first = model.offsets[ start ];
 			let last = model.offsets[ end ] - 1;
 			if ( ! Number.isInteger( first ) || ! Number.isInteger( last ) ) {
@@ -421,24 +475,28 @@
 		return { text: model.text, range, isVisible };
 	}
 
-	function toPlainText( html ) {
+	function toPlainText( html: unknown ): string {
 		const parsed = new window.DOMParser().parseFromString(
 			String( html || '' ),
 			'text/html'
 		);
-		return textModel( parsed.body ).text;
+		return textModel( parsed.body, false ).text;
 	}
 
 	// Map decoded text back to literal HTML offsets, including entities and split inline tags.
 	// The native parser remains the authority: never apply a guessed source mapping.
-	function sourceModel( html ) {
+	function sourceModel( html: string ): SourceModel | null {
 		const parser = new window.DOMParser();
 		const tokens =
 			/<!--[\s\S]*?(?:-->|$)|<![^>]*>|<\/?[a-zA-Z][\w:-]*(?:[^>"']|"[^"]*"|'[^']*')*>|&(?:#[xX][\da-fA-F]+;?|#\d+;?|[a-zA-Z][a-zA-Z\d]+;?)/g;
-		const points = [];
+		const points: ( { start: number; end: number } | undefined )[] = [];
 		let raw = '',
 			cursor = 0;
-		function append( value, start, end = null ) {
+		function append(
+			value: string,
+			start: number,
+			end: number | null = null
+		): void {
 			for ( let i = 0; i < value.length; i++ ) {
 				points[ raw.length ] = {
 					start: end === null ? start + i : start,
@@ -457,7 +515,7 @@
 			if ( token[ 0 ][ 0 ] === '&' ) {
 				append(
 					parser.parseFromString( token[ 0 ], 'text/html' ).body
-						.textContent,
+						.textContent ?? '',
 					token.index,
 					cursor
 				);
@@ -489,8 +547,8 @@
 		}
 		return {
 			text: model.text,
-			ranges( start, end ) {
-				const ranges = [];
+			ranges( start: number, end: number ) {
+				const ranges: { start: number; end: number }[] = [];
 				for (
 					let i = model.offsets[ start ];
 					i < model.offsets[ end ];
@@ -512,7 +570,9 @@
 		};
 	}
 
-	function textareaTarget( textarea ) {
+	function textareaTarget(
+		textarea: HTMLTextAreaElement | null | undefined
+	): TextareaTarget | null {
 		if ( ! textarea?.getClientRects().length ) {
 			return null;
 		}
@@ -530,8 +590,12 @@
 			: null;
 	}
 
-	function alignTargets( text, models, offset = 0 ) {
-		const targets = [];
+	function alignTargets< T extends { text: string } >(
+		text: string,
+		models: ( T | null | undefined )[],
+		offset = 0
+	): ( T & { offset: number } )[] {
+		const targets: ( T & { offset: number } )[] = [];
 		let cursor = 0;
 		for ( const model of models ) {
 			if ( ! model?.text ) {
@@ -547,7 +611,7 @@
 		// Repeated text must have the same placement from both ends. Otherwise a
 		// missing editor field could shift a later occurrence onto an earlier one.
 		cursor = text.length;
-		const unambiguous = [];
+		const unambiguous: ( T & { offset: number } )[] = [];
 		for ( const target of targets.reverse() ) {
 			const start = text.lastIndexOf(
 				target.text,
@@ -561,33 +625,38 @@
 		return unambiguous.reverse();
 	}
 
-	function isEmptyBalance( balance ) {
+	function isEmptyBalance( balance: unknown ): boolean {
 		return (
 			typeof balance === 'string' &&
 			/^(?:-\d+(?:\.\d+)?|0+(?:\.0+)?)$/.test( balance )
 		);
 	}
 
-	function highlightLevel( mark ) {
+	function highlightLevel( mark: HighlightMark ): number {
 		if ( [ 'keywords', 'readability' ].includes( mark.category ) ) {
 			return 3;
 		}
 		return mark.category === 'formality' ? 2 : mark.level;
 	}
 
-	function renderHighlightText( container, data ) {
+	function renderHighlightText(
+		container: HTMLElement,
+		data: { text: string; marks: unknown }
+	): void {
 		const marks = validHighlights( data.text, data.marks );
-		const events = new Map();
+		const events = new Map< number, { level: number; delta: number }[] >();
 		for ( const mark of marks ) {
 			const level = highlightLevel( mark );
 			for ( const [ position, delta ] of [
 				[ mark.start, 1 ],
 				[ mark.end, -1 ],
 			] ) {
-				if ( ! events.has( position ) ) {
-					events.set( position, [] );
+				let list = events.get( position );
+				if ( ! list ) {
+					list = [];
+					events.set( position, list );
 				}
-				events.get( position ).push( { level, delta } );
+				list.push( { level, delta } );
 			}
 		}
 		const counts = [ 0, 0, 0, 0 ];

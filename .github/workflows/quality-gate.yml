@@ -48,18 +48,17 @@ jobs:
         with:
           node-version: 22
       - run: npm ci --no-audit --no-fund
-      # Generated-state gate: fails on stale/missing committed assets or translation
-      # catalogs *before* `build` can regenerate and silently paper over them.
-      - run: npm run check:assets
+      # Type-checks resources/ts before testing the committed assets/build output below.
+      - run: npm run lint:js
       - run: npm run check:syntax
       - run: npm run test:js
       - run: npm run test:browser
-      - run: npm run lint:js
       - run: npm run lint:css
       - run: npm run lint:pkg-json
       - run: npm run build
-      # Belt-and-suspenders: the working tree must be byte-identical to what was already
-      # committed. This does not depend on check:assets' own logic being complete or
+      # Generated-state gate: the working tree must be byte-identical to what was
+      # already committed. Fails on stale/missing committed assets or translation
+      # catalogs, and does not depend on any earlier step being complete or
       # correct — any file `build` touches at all fails the job.
       - run: git diff --exit-code -- assets/build languages
 
@@ -118,8 +117,9 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
-      # No `npm run build` here on purpose: build-zip.sh's own check-assets.mjs call must
-      # gate on the already-committed state, not on a rebuild that would silently repair it.
+      # build-zip.sh rebuilds resources/ via Parcel and diffs the result against
+      # the already-committed assets/build before packaging, so it fails loudly
+      # instead of silently packaging stale or hand-edited output.
       - run: bash tools/build-zip.sh
       - run: git diff --exit-code -- assets/build languages
       - name: Verify ZIP integrity

@@ -10,14 +10,14 @@ async function source( file ) {
 }
 
 test( 'browser code never references a provider api_key field', async () => {
-	for ( const file of [ 'src/js/client.js', 'src/js/content-reset.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
+	for ( const file of [ 'resources/ts/client.ts', 'resources/ts/content-reset.ts', 'resources/ts/classic.ts', 'resources/ts/editor.ts', 'resources/ts/editor-content.ts', 'resources/ts/analysis.ts', 'resources/ts/highlights.ts' ] ) {
 		const text = await source( file );
 		assert.equal( /api_key|apiKey/.test( text ), false, `${ file } must not contain the provider key` );
 	}
 } );
 
 test( 'provider-controlled results are not assigned through innerHTML', async () => {
-	for ( const file of [ 'src/js/client.js', 'src/js/content-reset.js', 'src/js/classic.js', 'src/js/editor.js', 'src/js/editor-content.js', 'src/js/analysis.js', 'src/js/highlights.js' ] ) {
+	for ( const file of [ 'resources/ts/client.ts', 'resources/ts/content-reset.ts', 'resources/ts/classic.ts', 'resources/ts/editor.ts', 'resources/ts/editor-content.ts', 'resources/ts/analysis.ts', 'resources/ts/highlights.ts' ] ) {
 		const text = await source( file );
 		assert.equal( /\.innerHTML\s*=/.test( text ), false, `${ file } must not assign innerHTML` );
 		assert.equal( /dangerouslySetInnerHTML/.test( text ), false, `${ file } must not use dangerouslySetInnerHTML` );
@@ -27,15 +27,15 @@ test( 'provider-controlled results are not assigned through innerHTML', async ()
 test( 'highlights have no write path to block attributes, editor DOM or rich-text formats', async () => {
 	const parser = await source( 'src/Api/ReportHighlightParser.php' );
 	const controller = await source( 'src/Ajax/ApiController.php' );
-	const client = await source( 'src/js/client.js' );
-	const editor = await source( 'src/js/editor.js' );
-	const content = await source( 'src/js/editor-content.js' );
+	const client = await source( 'resources/ts/client.ts' );
+	const editor = await source( 'resources/ts/editor.ts' );
+	const content = await source( 'resources/ts/editor-content.ts' );
 	assert.match( parser, /DOMDocument/ );
 	assert.match( parser, /report text does not match/i );
 	assert.match( controller, /'highlights'/ );
 	assert.match( controller, /reportHighlights/ );
-	const decorations = await source( 'src/js/highlights.js' );
-	const session = await source( 'src/js/analysis.js' );
+	const decorations = await source( 'resources/ts/highlights.ts' );
+	const session = await source( 'resources/ts/analysis.ts' );
 	for ( const text of [ client, editor, content, decorations, session ] ) {
 		assert.doesNotMatch( text, /updateBlockAttributes|applyFormat|registerFormatType|editPost|insertBlocks|setContent\s*\(/ );
 	}
@@ -85,13 +85,13 @@ test( 'classic editor metabox uses the active screen rather than post-type capab
 } );
 
 test( 'gutenberg uses a permanent document panel independent of block selection', async () => {
-	const js = await source( 'src/js/editor.js' );
-	const content = await source( 'src/js/editor-content.js' );
+	const js = await source( 'resources/ts/editor.ts' );
+	const content = await source( 'resources/ts/editor-content.ts' );
 	assert.match( js, /PluginDocumentSettingPanel/ );
 	assert.match( js, /registerPlugin/ );
 	assert.match( content, /core\/editor/ );
 	assert.doesNotMatch( js, /isSelected|selectedBlock|InspectorControls/ );
-	const session = await source( 'src/js/analysis.js' );
+	const session = await source( 'resources/ts/analysis.ts' );
 	assert.match( session, /Analyze document/ );
 	assert.match( session, /topUpUrl/ );
 } );

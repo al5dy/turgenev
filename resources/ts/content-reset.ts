@@ -1,7 +1,7 @@
-( function ( window ) {
+( function ( window: Window & typeof globalThis ): void {
 	'use strict';
 
-	function cleanValue( value ) {
+	function cleanValue( value: unknown ): unknown {
 		if ( typeof value === 'string' ) {
 			return cleanHTML( value );
 		}
@@ -18,14 +18,14 @@
 			  );
 	}
 
-	function cleanComment( comment ) {
+	function cleanComment( comment: string ): string {
 		const parts = comment.match(
 			/^(<!--\s+wp:[\w/-]+\s+)(\{[\s\S]*\})(\s*\/?-->)$/
 		);
 		if ( ! parts ) {
 			return comment;
 		}
-		let original;
+		let original: unknown;
 		try {
 			original = JSON.parse( parts[ 2 ] );
 		} catch {
@@ -48,15 +48,15 @@
 
 	// Only remove known legacy wrappers. Re-serializing the document through a DOM
 	// parser would also change unrelated attributes, entities and block delimiters.
-	function cleanHTML( html ) {
+	function cleanHTML( html: string ): string {
 		if ( ! /turgenev-highlight/i.test( html ) ) {
 			return html;
 		}
-		const stack = [];
+		const stack: unknown[] = [];
 		const parser = new window.DOMParser();
 		const tokens =
 			/<!--[\s\S]*?(?:-->|$)|<!\[CDATA\[[\s\S]*?(?:\]\]>|$)|<(script|style|textarea|title|xmp|iframe|noembed|noframes)\b(?:[^>"']|"[^"]*"|'[^']*')*>[\s\S]*?(?:<\/\1\s*>|$)|<![^>]*>|<\/?[a-zA-Z][\w:-]*(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
-		return html.replace( tokens, ( tag ) => {
+		return html.replace( tokens, ( tag: string ) => {
 			if ( tag.startsWith( '<!--' ) ) {
 				return cleanComment( tag );
 			}
@@ -76,8 +76,14 @@
 
 	// A checkpoint belongs to the first Highlight, not to subsequent category
 	// switches. Reset must never replace edits made since that checkpoint.
-	function create( read, write ) {
-		let checkpoint = null;
+	function create(
+		read: () => ContentResetRecord[],
+		write: ( changes: ContentResetChange[] ) => void
+	): ContentReset {
+		let checkpoint: Map<
+			string,
+			{ html: string; clean: string }
+		> | null = null;
 		return {
 			capture() {
 				checkpoint ??= new Map(
@@ -88,7 +94,7 @@
 				);
 			},
 			reset() {
-				const changes = [];
+				const changes: ContentResetChange[] = [];
 				for ( const record of read() ) {
 					const before = checkpoint?.get( record.key );
 					const html =

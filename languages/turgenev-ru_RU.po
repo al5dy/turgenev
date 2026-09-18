@@ -1,16 +1,16 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Turgenev 2.0.0\n"
+"Project-Id-Version: Turgenev\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/turgenev\n"
-"Last-Translator: Anton Lokotkov (ziscod) <fakeemail@fakeemail.com>\n"
-"Language-Team: \n"
+"POT-Creation-Date: 2020-07-22T16:42:02+03:00\n"
+"PO-Revision-Date: 2026-09-18 23:09+0300\n"
+"Last-Translator: Anton Lokotkov <ant.lokotkov@gmail.com>\n"
+"Language-Team: Lokotkov\n"
+"Language: ru_RU\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2020-07-22T16:42:02+03:00\n"
-"PO-Revision-Date: 2020-07-22 16:44+0300\n"
-"Language: ru_RU\n"
-"X-Generator: Poedit 2.3.1\n"
+"X-Generator: Poedit 3.4.2\n"
 "X-Domain: turgenev\n"
 
 #: src/index.js:11
@@ -27,10 +27,8 @@ msgstr "al5dy"
 msgid "https://ziscod.com"
 msgstr "https://ziscod.com"
 
-#: src/Admin/EditorIntegration.php:142
-#: src/Admin/SettingsPage.php:183
-#: src/index.js:203
-#: src/js/editor.js:317
+#: src/Admin/EditorIntegration.php:142 src/Admin/SettingsPage.php:183
+#: src/index.js:203 src/js/editor.js:317
 msgid "Current balance:"
 msgstr "Текущий баланс:"
 
@@ -58,64 +56,45 @@ msgstr "Ключ API"
 msgid "Settings"
 msgstr "Настройки"
 
-#: src/index.js:80
-#: src/index_old.js:20
-#: src/js/client.js:75
+#: src/index.js:80 src/index_old.js:20 src/js/client.js:75
 msgid "Frequency"
 msgstr "Повторы"
 
-#: src/index.js:83
-#: src/index_old.js:23
-#: src/js/client.js:76
+#: src/index.js:83 src/index_old.js:23 src/js/client.js:76
 msgid "Style"
 msgstr "Стилистика"
 
-#: src/index.js:86
-#: src/index_old.js:26
-#: src/js/client.js:77
+#: src/index.js:86 src/index_old.js:26 src/js/client.js:77
 msgid "Keywords"
 msgstr "Запросы"
 
-#: src/index.js:89
-#: src/index_old.js:29
-#: src/js/client.js:78
+#: src/index.js:89 src/index_old.js:29 src/js/client.js:78
 msgid "Formality"
 msgstr "Водность"
 
-#: src/index.js:92
-#: src/index_old.js:32
-#: src/js/client.js:79
+#: src/index.js:92 src/index_old.js:32 src/js/client.js:79
 msgid "Readability"
 msgstr "Удобочитаемость"
 
-#: src/index.js:110
-#: src/index_old.js:48
-#: src/js/client.js:141
+#: src/index.js:110 src/index_old.js:48 src/js/client.js:141
 msgid "Overall risk"
 msgstr "Общий риск"
 
-#: src/index.js:114
-#: src/index_old.js:54
+#: src/index.js:114 src/index_old.js:54
 msgid "Report"
 msgstr "Отчет"
 
-#: src/index.js:116
-#: src/index.js:124
-#: src/index_old.js:56
-#: src/index_old.js:69
+#: src/index.js:116 src/index.js:124 src/index_old.js:56 src/index_old.js:69
 msgid "More"
 msgstr "Подробнее"
 
-#: src/index.js:194
-#: src/index_old.js:187
+#: src/index.js:194 src/index_old.js:187
 msgid "Failed to parse content. Add content to the editor or click in the editable area."
 msgstr "Возникли проблемы при анализе контента. Добавьте контент в редактор или щелкните по области редактирования в редакторе."
 
 #. Plugin Name of the plugin
-#: turgenev.php
-#: src/Admin/EditorIntegration.php:119
-#: src/Admin/SettingsPage.php:33
-#: src/js/editor.js:415
+#: turgenev.php src/Admin/EditorIntegration.php:119
+#: src/Admin/SettingsPage.php:33 src/js/editor.js:415
 msgid "Turgenev"
 msgstr "Тургенев"
 
@@ -129,18 +108,15 @@ msgstr ""
 msgid "Analyze WordPress content with the official Turgenev API for SEO over-optimization, readability, style, keyword stuffing and Baden-Baden risk."
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:133
-#: src/js/editor.js:73
+#: src/Admin/EditorIntegration.php:133 src/js/editor.js:73
 msgid "Turgenev is ready, but an API key has not been configured yet."
 msgstr "Тургенев готов к работе, но ключ API ещё не настроен."
 
-#: src/Admin/EditorIntegration.php:136
-#: src/js/editor.js:84
+#: src/Admin/EditorIntegration.php:136 src/js/editor.js:84
 msgid "Configure API key"
 msgstr "Настроить ключ API"
 
-#: src/Admin/EditorIntegration.php:149
-#: src/js/editor.js:351
+#: src/Admin/EditorIntegration.php:149 src/js/editor.js:351
 msgid "Analyze plain text only"
 msgstr "Анализировать только обычный текст"
 
@@ -290,13 +266,11 @@ msgstr ""
 msgid "Turgenev requires WordPress %1$s or newer and PHP %2$s or newer."
 msgstr ""
 
-#: src/js/classic.js:46
-#: src/js/editor.js:121
+#: src/js/classic.js:46 src/js/editor.js:121
 msgid "Could not load balance."
 msgstr "Не удалось загрузить баланс."
 
-#: src/js/classic.js:58
-#: src/js/editor.js:242
+#: src/js/classic.js:58 src/js/editor.js:242
 msgid "Configure a Turgenev API key before running an analysis."
 msgstr "Перед анализом настройте ключ API Тургенева."
 
@@ -304,13 +278,11 @@ msgstr "Перед анализом настройте ключ API Турген
 msgid "Add content to the editor before running Turgenev."
 msgstr ""
 
-#: src/js/classic.js:89
-#: src/js/editor.js:274
+#: src/js/classic.js:89 src/js/editor.js:274
 msgid "The content is longer than the maximum size accepted by Turgenev."
 msgstr "Текст превышает максимальный размер, который принимает Тургенев."
 
-#: src/js/classic.js:111
-#: src/js/editor.js:300
+#: src/js/classic.js:111 src/js/editor.js:300
 msgid "Content analysis failed."
 msgstr "Не удалось выполнить анализ текста."
 
@@ -402,15 +374,11 @@ msgstr "Функции форматирования Gutenberg недоступн
 msgid "Turgenev highlight"
 msgstr "Подсветка Тургенева"
 
-#: src/js/client.js:224
-#: src/js/client.js:325
-#: src/js/client.js:348
+#: src/js/client.js:224 src/js/client.js:325 src/js/client.js:348
 msgid "Turgenev returned invalid highlight data."
 msgstr "Тургенев вернул некорректные данные подсветки."
 
-#: src/js/client.js:333
-#: src/js/editor-content.js:101
-#: src/js/editor.js:150
+#: src/js/client.js:333 src/js/editor-content.js:101 src/js/editor.js:150
 #: src/js/editor.js:170
 msgid "The selected block changed since this report was created."
 msgstr "Выбранный блок был изменён после создания отчёта."
