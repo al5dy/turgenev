@@ -111,11 +111,14 @@ final class ResponseValidator {
 	/**
 	 * Limit presentation strings.
 	 *
+	 * Public so other provider-markup parsers (e.g. {@see ReportSectionParser}) share the
+	 * same sanitization and length contract for display-only provider text.
+	 *
 	 * @throws ApiException On an invalid label.
 	 * @param mixed $value Provider string.
 	 * @return string
 	 */
-	private static function label( $value ): string {
+	public static function label( $value ): string {
 		if ( ! is_string( $value ) || '' === trim( $value ) || strlen( $value ) > 1000 ) {
 			throw new ApiException( __( 'Turgenev returned an invalid analysis label.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}

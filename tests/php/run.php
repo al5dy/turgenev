@@ -108,6 +108,7 @@ require_once dirname( __DIR__, 2 ) . '/src/Support/Requirements.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ApiException.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ResponseValidator.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ReportHighlightParser.php';
+require_once dirname( __DIR__, 2 ) . '/src/Api/ReportSectionParser.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ApiClient.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/SettingsPage.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/EditorIntegration.php';
@@ -267,6 +268,28 @@ try {
 		expect_true( 1 === count( $highlights['marks'] ), 'highlighted report span becomes one safe mark' );
 		expect_true( 5 === $highlights['marks'][0]['start'] && 15 === $highlights['marks'][0]['end'], 'highlight offsets use browser-compatible UTF-16 positions' );
 		expect_true( 'style' === $highlights['marks'][0]['category'] && 2 === $highlights['marks'][0]['level'], 'highlight category and level are extracted from classes' );
+		expect_true( 'slop' === $highlights['marks'][0]['type'], 'highlight type preserves the exact class prefix ("slop"), not just the broader category ("style")' );
+
+		// "bb" and "doubles" both resolve to real categories too ("style" and "frequency"
+		// respectively), but with a different `type`, proving CATEGORIES is consulted per
+		// prefix rather than a single hardcoded one.
+		$GLOBALS['turgenev_http_handler'] = static fn() => array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '<html><body><textarea id="textfield"><p>One <span class="xhl bb3">two</span> and <span class="xhl doubles5">three</span> words.</p></textarea></body></html>',
+		);
+		$multi_type = $client->reportHighlights( 'abc12345', 'One two and three words.' );
+		expect_true( 2 === count( $multi_type['marks'] ), 'two distinct highlight prefixes in one report become two marks' );
+		expect_true( 'style' === $multi_type['marks'][0]['category'] && 'bb' === $multi_type['marks'][0]['type'] && 3 === $multi_type['marks'][0]['level'], '"bb3" is parsed as category=style, type=bb, level=3, uncapped' );
+		expect_true( 'frequency' === $multi_type['marks'][1]['category'] && 'doubles' === $multi_type['marks'][1]['type'] && 5 === $multi_type['marks'][1]['level'], '"doubles5" is parsed as category=frequency, type=doubles, level=5 — never capped to 3 like the old generic severity scale' );
+
+		// An unrecognized xhl class (e.g. a spelling/misprint span) is silently dropped, not
+		// mapped to a made-up category/type.
+		$GLOBALS['turgenev_http_handler'] = static fn() => array(
+			'response' => array( 'code' => 200 ),
+			'body'     => '<html><body><textarea id="textfield"><p>One <span class="xhl misprints1">two</span> words.</p></textarea></body></html>',
+		);
+		$unrecognized = $client->reportHighlights( 'abc12345', 'One two words.' );
+		expect_true( array() === $unrecognized['marks'], 'an unrecognized xhl class (e.g. "misprints1") produces no mark' );
 		expect_true( 'https://turgenev.ashmanov.com/' === $GLOBALS['turgenev_last_request']['url'], 'report is requested from the fixed provider endpoint' );
 		expect_true( 'abc12345' === $GLOBALS['turgenev_last_request']['args']['body']['t'], 'report reference is sent using the provider POST form' );
 		expect_true( false === isset( $GLOBALS['turgenev_last_request']['args']['body']['key'] ), 'report retrieval never sends the API key' );
@@ -303,6 +326,76 @@ try {
 	expect_true( '4' === $analysis_without_highlights['risk'], 'risk analysis has no dependency on ReportHighlightParser or ext-dom' );
 	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '{"balance":"7.00"}' );
 	expect_true( '7.00' === $client->balance(), 'balance has no dependency on ReportHighlightParser or ext-dom' );
+
+	// --- reportSectionDetails(): the accordion's per-section fetch shares reportHighlights' transport. ---
+	expect_exception( static fn() => $client->reportSectionDetails( 'abc12345', 'not-a-real-section' ), 'Unsupported' );
+	expect_exception( static fn() => $client->reportSectionDetails( 'bad token', 'overall' ), 'reference is invalid' );
+
+	$section_markup = static fn( string $extra = '' ): string => '<html><body><div id="infoblock"><table class="xprops">'
+		. '<tr><td class="xphintblock"><span class="xpname">Metric</span></td><td><span class="mark">2</span></td><td align="right"><span class="value">0.42</span></td></tr>'
+		. "<tr class='low tghidden'><td class='xphintblock'><span class='xpname'>Secondary</span></td><td></td><td align='right'><span class='value'>Нет</span></td></tr>"
+		. '</table>' . $extra . '</div></body></html>';
+
+	if ( Al5dy\Turgenev\Support\Requirements::hasDom() ) {
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $section_markup() );
+		$style = $client->reportSectionDetails( 'abc12345', 'style' );
+		expect_true( 'Metric' === $style['params'][0]['name'] && '0.42' === $style['params'][0]['value'] && '2' === $style['params'][0]['score'] && false === $style['params'][0]['low'], 'section params expose name/value/score and a secondary flag' );
+		expect_true( 'Secondary' === $style['params'][1]['name'] && true === $style['params'][1]['low'], 'a "low"/"tghidden" characteristic row is flagged secondary' );
+		expect_true( array() === $style['legend'], 'style legend is empty when the report has no #legend block' );
+		expect_true( 'slop_words' === $GLOBALS['turgenev_last_request']['args']['body']['coverdict'], 'the style section requests the provider\'s slop_words report tab' );
+		expect_true( 'abc12345' === $GLOBALS['turgenev_last_request']['args']['body']['t'], 'section details reuse the overall report token, not a separate per-block one' );
+		expect_true( false === isset( $GLOBALS['turgenev_last_request']['args']['body']['key'] ), 'section detail retrieval never sends the API key' );
+
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $section_markup() );
+		$overall = $client->reportSectionDetails( 'abc12345', 'overall' );
+		expect_true( 'bb-mix' === $GLOBALS['turgenev_last_request']['args']['body']['coverdict'], 'the overall section requests the provider\'s bb-mix report tab' );
+		expect_true( ! array_key_exists( 'legend', $overall ) && ! array_key_exists( 'words', $overall ) && ! array_key_exists( 'breakdown', $overall ), 'the overall section exposes only its characteristic table' );
+
+		$legend_markup = $section_markup( "<div id='legend'><table><tr><td><em class='xhl slop1'>&nbsp;</em></td><td>Potential issue.</td></tr><tr class='legend-active'><td><em class='xhl bb3'>&nbsp;</em></td><td>Never surfaces as a category legend row.</td></tr></table></div>" );
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $legend_markup );
+		$style_with_legend = $client->reportSectionDetails( 'abc12345', 'style' );
+		expect_true( 1 === count( $style_with_legend['legend'] ) && 1 === $style_with_legend['legend'][0]['level'] && 'Potential issue.' === $style_with_legend['legend'][0]['label'], 'legend rows expose severity level and label, excluding overall-risk verdict rows' );
+		expect_true( 'slop' === $style_with_legend['legend'][0]['type'], 'legend rows expose the exact class prefix ("slop"), not just a generic severity number, so the browser can match the provider\'s own swatch color' );
+
+		// A legend row whose <em> carries no recognized xhl class still surfaces (never
+		// dropped), with type='' and level=0 as the "unknown" fallback.
+		$unmatched_legend_markup = $section_markup( "<div id='legend'><table><tr><td><em class='xhl'>&nbsp;</em></td><td>No recognized class.</td></tr></table></div>" );
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $unmatched_legend_markup );
+		$unmatched_legend = $client->reportSectionDetails( 'abc12345', 'style' );
+		expect_true( '' === $unmatched_legend['legend'][0]['type'] && 0 === $unmatched_legend['legend'][0]['level'], 'a legend row with no recognized xhl class falls back to type="", level=0 instead of being dropped' );
+
+		$keywords_markup = '<html><body><div id="infoblock"><table class="xprops">'
+			. '<tr><td class="xphintblock"><span class="xpname">Coverage</span></td><td><span class="mark">4</span></td><td align="right"><span class="value">0.5</span></td></tr>'
+			. "<tr><td><span class='xpname'>&bull;&nbsp;query coverage</span></td><td></td><td align='right'><span class='value'>0.2</span></td></tr>"
+			. '</table></div></body></html>';
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $keywords_markup );
+		$keywords = $client->reportSectionDetails( 'abc12345', 'keywords' );
+		expect_true( 1 === count( $keywords['params'] ), 'the keywords coverage bullet is excluded from the main characteristic list' );
+		expect_true( 1 === count( $keywords['breakdown'] ) && 'query coverage' === $keywords['breakdown'][0]['label'] && '0.2' === $keywords['breakdown'][0]['value'], 'the keywords breakdown strips the provider\'s bullet glyph' );
+
+		$words_markup = '<html><body><div id="infoblock"><table class="xprops"></table>'
+			. "<div id='words_frq_stat'><table class='wstat'>"
+			. "<tr class='stop'><td>and</td><td>&nbsp;</td><td>&nbsp;<span class='value'>3</span></td><td align=right>&nbsp;<span class='value'>10.0%</span></td></tr>"
+			. "<tr class='xhl doubles4 stmhl-btn stm-6-190E7'><td>house</td><td>&nbsp;</td><td>&nbsp;<span class='value'>5</span></td><td align=right>&nbsp;<span class='value'>3.3%</span></td></tr>"
+			. '</table></div>'
+			. "<div id='bgrms_frq_stat'><table class='wstat'><tr><td>fast car</td><td><span class='value'>2</span></td></tr></table></div>"
+			. '</div></body></html>';
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $words_markup );
+		$frequency = $client->reportSectionDetails( 'abc12345', 'frequency' );
+		expect_true( 2 === count( $frequency['words'] ) && 'and' === $frequency['words'][0]['text'] && 3 === $frequency['words'][0]['count'] && '10.0%' === $frequency['words'][0]['percent'] && true === $frequency['words'][0]['stopword'], 'word repetition rows expose text, count, percentage and the stop-word flag' );
+		expect_true( ! array_key_exists( 'type', $frequency['words'][0] ), 'a plain stop-word row (no xhl class) carries no type/level' );
+		expect_true( 'doubles' === $frequency['words'][1]['type'] && 4 === $frequency['words'][1]['level'] && false === $frequency['words'][1]['stopword'], 'a repeated word row ("xhl doubles4") exposes the same type/level its in-text highlight uses, so the table can be colored to match' );
+		expect_true( 1 === count( $frequency['phrases'] ) && 'fast car' === $frequency['phrases'][0]['text'] && 2 === $frequency['phrases'][0]['count'], 'phrase repetition rows expose text and count, with no percentage' );
+
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '<html><body>No report panel here.</body></html>' );
+		expect_exception( static fn() => $client->reportSectionDetails( 'abc12345', 'overall' ), 'did not contain section details' );
+
+		$no_dom_section_parser = new Al5dy\Turgenev\Api\ReportSectionParser( false );
+		expect_exception( static fn() => $no_dom_section_parser->parse( $section_markup(), 'style' ), 'unavailable' );
+	} else {
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $section_markup() );
+		expect_exception( static fn() => $client->reportSectionDetails( 'abc12345', 'style' ), 'unavailable' );
+	}
 
 	// --- Shared text-payload contract for risk and highlights: count Unicode characters, never bytes. ---
 	// Plain text with no HTML markup passes through report_markup() untouched (html_entity_decode only).
@@ -491,6 +584,11 @@ try {
 		array( array( 'nonce' => 'valid-nonce', 'operation' => 'balance', 'post_id' => '42' ), array( array( 'edit_post', 42 ) ), 200, array( 'balance' => '10.50' ) ),
 		array( array( 'nonce' => 'valid-nonce', 'operation' => 'balance', 'post_id' => '999' ), array( array( 'edit_post', 999 ) ), 403, null ),
 		array( array( 'nonce' => 'valid-nonce', 'operation' => 'balance', 'post_id' => '999' ), array( 'manage_options' ), 200, array( 'balance' => '10.50' ) ),
+		// details: a document operation, so it follows risk/highlights' auth path exactly.
+		array( array( 'nonce' => 'valid-nonce', 'operation' => 'details', 'report_token' => 'abc12345', 'section' => 'style' ), array( 'edit_posts', 'manage_options' ), 400, null ),
+		array( array( 'nonce' => 'valid-nonce', 'operation' => 'details', 'report_token' => 'abc12345', 'section' => 'style', 'post_id' => '42' ), array( 'edit_posts' ), 403, null ),
+		// A JSON body is not a valid report page, so an authorized request still fails safely (never a fatal).
+		array( array( 'nonce' => 'valid-nonce', 'operation' => 'details', 'report_token' => 'abc12345', 'section' => 'style', 'post_id' => '42' ), array( array( 'edit_post', 42 ) ), 502, null ),
 	);
 	foreach ( $cases as $case_index => [ $post, $caps, $status, $fixture ] ) {
 		$_POST = $post; $GLOBALS['test_caps'] = $caps; $GLOBALS['turgenev_last_request'] = null; $GLOBALS['turgenev_remote_post_calls'] = 0; $GLOBALS['turgenev_cap_calls'] = array(); $GLOBALS['turgenev_test_transients'] = array();
@@ -525,6 +623,10 @@ try {
 					'limit'  => 2,
 					'window' => 60,
 				),
+				'details' => array(
+					'limit'  => 2,
+					'window' => 60,
+				),
 				default => $limits,
 			};
 		},
@@ -542,6 +644,10 @@ try {
 					'window' => 60,
 				),
 				'highlights' => array(
+					'limit'  => 3,
+					'window' => 60,
+				),
+				'details' => array(
 					'limit'  => 3,
 					'window' => 60,
 				),
@@ -564,6 +670,7 @@ try {
 			'text'         => 'Text',
 			'post_id'      => (string) $post_id,
 			'report_token' => 'risk12345',
+			'section'      => 'style',
 		);
 		$GLOBALS['turgenev_remote_post_calls'] = 0;
 		try {
@@ -612,6 +719,16 @@ try {
 	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'highlights request 2 of 2 reaches the provider' );
 	expect_true( 429 === $call( 'highlights', 42 ), 'a third highlights request in the same window is rejected with 429 regardless of ext-dom' );
 	expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], 'a rate-limited highlights request never calls wp_remote_post' );
+
+	// details has its own counter too, independent of both risk and highlights.
+	respond_html( '<html><body><div id="infoblock"><table class="xprops"></table></div></body></html>' );
+	$details_allowed_status = Al5dy\Turgenev\Support\Requirements::hasDom() ? 200 : 502;
+	expect_true( $details_allowed_status === $call( 'details', 42 ), 'details request 1 of 2 is allowed through rate limiting after risk and highlights are already exhausted for the same post' );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'details request 1 of 2 reaches the provider' );
+	expect_true( $details_allowed_status === $call( 'details', 42 ), 'details request 2 of 2 is allowed through rate limiting within the filtered limit' );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'details request 2 of 2 reaches the provider' );
+	expect_true( 429 === $call( 'details', 42 ), 'a third details request in the same window is rejected with 429 regardless of ext-dom' );
+	expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], 'a rate-limited details request never calls wp_remote_post' );
 
 	reset_rate_limit_filters();
 
