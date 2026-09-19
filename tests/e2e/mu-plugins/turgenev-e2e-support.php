@@ -107,8 +107,18 @@ add_filter(
 			);
 		};
 
-		// ApiClient::reportHighlights() posts the provider's report-form token, never an
-		// `api` operation. Echo back whatever text the last `risk` request analyzed, since
+		// Both ApiClient::reportHighlights() and ApiClient::reportSectionDetails() post the
+		// provider's report-form token, never an `api` operation; only the accordion's
+		// per-section fetch adds a `coverdict` field, so that field alone tells them apart.
+		if ( isset( $body['t'] ) && ! isset( $body['api'] ) && isset( $body['coverdict'] ) ) {
+			return $mock_response(
+				'<html><body><div id="infoblock"><table class="xprops">'
+				. '<tr><td class="xphintblock"><span class="xpname">Mock characteristic</span></td><td><span class="mark">1</span></td><td align="right"><span class="value">0.10</span></td></tr>'
+				. '</table></div></body></html>'
+			);
+		}
+
+		// Echo back whatever text the last `risk` request analyzed, since
 		// ReportHighlightParser requires the report markup's text to match it exactly. The
 		// first word is wrapped in a real `xhl` highlight span (not left as plain text), so
 		// tests exercise an actual highlight mark end to end, not just an empty-marks response.

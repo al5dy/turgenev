@@ -398,3 +398,39 @@ msgstr "Не удалось сбросить подсветку выбранно
 #: src/js/editor.js:379
 msgid "Reset view"
 msgstr "Сбросить вид"
+
+#: resources/ts/client.ts:225
+msgid "Show all characteristics"
+msgstr "Показать все характеристики"
+
+#: resources/ts/client.ts:226
+msgid "Hide characteristics"
+msgstr "Скрыть характеристики"
+
+#: resources/ts/client.ts:293
+msgid "Words"
+msgstr "Слова"
+
+#: resources/ts/client.ts:297
+msgid "Phrases"
+msgstr "Словосочетания"
+
+#: resources/ts/client.ts:354
+msgid "Hints"
+msgstr "Подсказки"
+
+#: resources/ts/client.ts:567
+msgid "Turgenev returned invalid section details."
+msgstr "Тургенев вернул некорректные данные раздела отчёта."
+
+#: src/Api/ApiClient.php:130 src/Api/ReportSectionParser.php:86
+msgid "Unsupported Turgenev report section."
+msgstr "Неподдерживаемый раздел отчёта Тургенева."
+
+#: src/Api/ReportSectionParser.php:57
+msgid "Section details are unavailable on this server (the PHP DOM extension is not installed)."
+msgstr "Подробности раздела недоступны на этом сервере (расширение PHP DOM не установлено)."
+
+#: src/Api/ReportSectionParser.php:64
+msgid "Turgenev report did not contain section details."
+msgstr "Отчёт Тургенева не содержит подробностей раздела."

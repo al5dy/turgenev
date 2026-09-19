@@ -19,6 +19,25 @@ final class ApiClient {
 	public const MAX_REPORT_LENGTH = 1048576;
 
 	/**
+	 * Maps each analysis section to the provider's report tab identifier.
+	 *
+	 * The provider's report page renders one section per request via a `coverdict` form
+	 * field (the same field its own tab navigation submits); this is not a separate,
+	 * documented API operation, just the read-only report form already used by
+	 * {@see reportHighlights()} with one extra field.
+	 *
+	 * @var array<string, string>
+	 */
+	public const SECTION_TABS = array(
+		'overall'     => 'bb-mix',
+		'frequency'   => 'doubles',
+		'style'       => 'slop_words',
+		'keywords'    => 'queries-mix',
+		'formality'   => 'fog-mix',
+		'readability' => 'fre',
+	);
+
+	/**
 	 * Server-side configuration.
 	 *
 	 * @var OptionStore
@@ -93,11 +112,44 @@ final class ApiClient {
 	public function reportHighlights( string $report_token, string $expected_text ): array {
 		$report_token  = ResponseValidator::token( $report_token );
 		$expected_text = $this->validateTextPayload( $expected_text );
+		$markup        = $this->fetchReportMarkup( $report_token );
 
-		/*
-		 * The provider's read-only report form submits its reference with POST.
-		 * A GET request may return a report shell without the annotated textarea.
-		 */
+		return ( new ReportHighlightParser() )->parse( $markup, $expected_text );
+	}
+
+	/**
+	 * Fetch the read-only report page for one section and return presentation-safe details.
+	 *
+	 * @param string $report_token Opaque report identifier (the analysis's overall `link`).
+	 * @param string $section One of {@see SECTION_TABS}'s keys ('overall' or a `ResponseValidator::SECTIONS` block).
+	 * @throws ApiException On an unsupported section or invalid/unavailable report data.
+	 * @return array<string, mixed>
+	 */
+	public function reportSectionDetails( string $report_token, string $section ): array {
+		if ( ! isset( self::SECTION_TABS[ $section ] ) ) {
+			throw new ApiException( __( 'Unsupported Turgenev report section.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
+		}
+
+		$report_token = ResponseValidator::token( $report_token );
+		$markup       = $this->fetchReportMarkup( $report_token, array( 'coverdict' => self::SECTION_TABS[ $section ] ) );
+
+		return ( new ReportSectionParser() )->parse( $markup, $section );
+	}
+
+	/**
+	 * Fetch the provider's read-only report page.
+	 *
+	 * The provider's read-only report form submits its reference with POST. A GET request
+	 * may return a report shell without the annotated textarea. `$extra_body` selects which
+	 * tab renders (see {@see SECTION_TABS}); an empty value matches the default ("Overall
+	 * risk") tab, which is what {@see reportHighlights()} relies on for highlight markup.
+	 *
+	 * @param string               $report_token Already-validated opaque report identifier.
+	 * @param array<string, mixed> $extra_body Additional POST fields merged into the request.
+	 * @throws ApiException On transport failure or an invalid/oversized response.
+	 * @return string
+	 */
+	private function fetchReportMarkup( string $report_token, array $extra_body = array() ): string {
 		$response = wp_remote_post(
 			self::ENDPOINT,
 			array(
@@ -110,11 +162,14 @@ final class ApiClient {
 					'Accept'     => 'text/html',
 					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION,
 				),
-				'body'                => array(
-					't'         => $report_token,
-					'keep_isum' => '',
-					'scroll_x'  => '',
-					'scroll_y'  => '',
+				'body'                => array_merge(
+					array(
+						't'         => $report_token,
+						'keep_isum' => '',
+						'scroll_x'  => '',
+						'scroll_y'  => '',
+					),
+					$extra_body
 				),
 			)
 		);
@@ -139,7 +194,7 @@ final class ApiClient {
 			throw new ApiException( __( 'Turgenev report markup is unavailable.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
-		return ( new ReportHighlightParser() )->parse( $markup, $expected_text );
+		return $markup;
 	}
 
 	/**

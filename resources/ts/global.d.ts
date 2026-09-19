@@ -12,11 +12,75 @@ type HighlightCategory =
 	| 'formality'
 	| 'readability';
 
+/**
+ * The provider's exact highlight class prefix (e.g. `doubles`, `queries_strict`), kept
+ * alongside the broader {@see HighlightCategory} so the browser can look up Turgenev's own
+ * per-subtype color instead of a generic severity scale — `bb`/`slop` (both `style`) share
+ * one 3-step green/olive/red scale, but `doubles` (`frequency`) is its own 5-step purple
+ * gradient and `queries`/`queries_strict` (`keywords`) are two unrelated shades of pink.
+ * Mirrors `ReportHighlightParser::CATEGORIES`' keys on the PHP side.
+ */
+type HighlightType =
+	| 'slop'
+	| 'bb'
+	| 'doubles'
+	| 'top_and'
+	| 'top_notstop'
+	| 'queries'
+	| 'queries_strict'
+	| 'cqueries'
+	| 'fog'
+	| 'stop'
+	| 'fre'
+	| 'ari';
+
 interface HighlightMark {
 	start: number;
 	end: number;
 	category: HighlightCategory;
-	level: 1 | 2 | 3;
+	type: HighlightType;
+	level: number;
+}
+
+/** The result panel's six accordion sections: the overall score plus one per report block. */
+type SectionKey = 'overall' | HighlightCategory;
+
+interface SectionParam {
+	name: string;
+	value: string;
+	score: string;
+	low: boolean;
+}
+
+interface SectionWordStat {
+	text: string;
+	count: number;
+	percent?: string;
+	stopword?: boolean;
+	/** Present when this word/phrase is also highlighted in the document text (see HighlightMark). */
+	type?: HighlightType;
+	level?: number;
+}
+
+interface SectionLegendItem {
+	/** Empty string when the provider's row carried no recognized `xhl` class. */
+	type: string;
+	level: number;
+	label: string;
+}
+
+interface SectionBreakdownItem {
+	label: string;
+	value: string;
+}
+
+/** Validated per-section report details fetched on demand when an accordion section opens. */
+interface SectionDetails {
+	params: SectionParam[];
+	words?: SectionWordStat[];
+	phrases?: SectionWordStat[];
+	legend?: SectionLegendItem[];
+	breakdown?: SectionBreakdownItem[];
 }
 
 interface HighlightsResponseData {
@@ -135,6 +199,12 @@ interface TurgenevConfigShape {
 
 interface TurgenevClientApi {
 	highlightLevel( mark: HighlightMark ): number;
+	/** The provider's own exact color for this mark (see HighlightType), not an approximation. */
+	highlightColor( mark: HighlightMark ): string;
+	/** The provider's own exact swatch color for this legend entry; 'transparent' when unknown. */
+	legendColor( item: SectionLegendItem ): string;
+	/** Every known `<type><level>` → hex color pair, for pre-building a highlight stylesheet. */
+	highlightColorTable: Readonly< Record< string, string > >;
 	normalizedTextOffsets( text: string ): {
 		text: string;
 		offsets: number[];
@@ -151,6 +221,7 @@ interface TurgenevClientApi {
 	): ( T & { offset: number } )[];
 	isEmptyBalance( balance: unknown ): boolean;
 	validHighlights( text: string, marks: unknown ): HighlightMark[];
+	validSectionDetails( data: unknown ): SectionDetails;
 	request< T >(
 		operation: string,
 		parameters?: Record< string, unknown >,
@@ -179,8 +250,11 @@ interface TurgenevUIApi {
 		container: HTMLElement | null,
 		data: RiskResult,
 		options?: {
-			onHighlight?: ( token: string ) => unknown;
-			activeToken?: string | null;
+			onToggleSection?: ( section: SectionKey, token: string ) => unknown;
+			openSection?: SectionKey | null;
+			sectionLoading?: boolean;
+			sectionData?: SectionDetails | null;
+			sectionError?: string;
 		}
 	): void;
 	setBusy( panel: HTMLElement | null, busy: unknown ): void;
@@ -199,12 +273,17 @@ interface SessionState {
 	activeToken: string | null;
 	loadingBalance: boolean;
 	htmlMode: boolean;
+	openSection: SectionKey | null;
+	sectionLoading: boolean;
+	sectionData: SectionDetails | null;
+	sectionError: string;
 }
 
 interface AnalysisSession {
 	analyze(): Promise< void >;
 	balance(): Promise< void >;
 	highlight( token: string ): Promise< void >;
+	toggleSection( section: SectionKey, token: string ): Promise< void >;
 	reset(): void;
 	invalidate(): void;
 	setHtmlMode( htmlMode: boolean ): void;

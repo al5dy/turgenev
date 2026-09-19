@@ -33,6 +33,7 @@
 				<element value="nodeValue" />
 				<element value="tagName" />
 				<element value="childNodes" />
+				<element value="textContent" />
 			</property>
 		</properties>
 	</rule>

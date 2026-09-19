@@ -90,6 +90,18 @@ final class RateLimiter {
 				'window' => 60,
 			),
 		),
+		// One request per accordion section opened; a full pass over all 6 sections is a
+		// handful of clicks, matching the 'highlights' budget it is paired with.
+		'details'    => array(
+			'post'   => array(
+				'limit'  => 20,
+				'window' => 60,
+			),
+			'global' => array(
+				'limit'  => 40,
+				'window' => 60,
+			),
+		),
 		// Free to call, but still a real outbound provider request; an editor should never
 		// be able to hammer it in a tight loop from the settings screen or the editor.
 		'balance'    => array(
@@ -107,7 +119,7 @@ final class RateLimiter {
 	/**
 	 * Record an attempt and report whether it exceeds either bucket for this identity.
 	 *
-	 * @param string $operation Rate-limited operation: 'risk', 'highlights' or 'balance'.
+	 * @param string $operation Rate-limited operation: 'risk', 'highlights', 'details' or 'balance'.
 	 * @param int    $user_id   Current user ID.
 	 * @param int    $post_id   Target post ID, or 0 when the operation has no post context.
 	 * @return bool True when the request must be rejected before contacting the provider.
@@ -132,7 +144,7 @@ final class RateLimiter {
 		 * hooking it continues to control the tight, per-post burst budget.
 		 *
 		 * @param array{limit: int, window: int} $limits    Requests allowed per window (seconds).
-		 * @param string                          $operation Operation being limited ('risk', 'highlights', 'balance').
+		 * @param string                          $operation Operation being limited ('risk', 'highlights', 'details', 'balance').
 		 */
 		$post_limits = apply_filters( 'turgenev_rate_limit', $defaults['post'], $operation );
 
@@ -142,7 +154,7 @@ final class RateLimiter {
 		 * Return a non-positive `limit` to disable this bucket for that operation.
 		 *
 		 * @param array{limit: int, window: int} $limits    Requests allowed per window (seconds).
-		 * @param string                          $operation Operation being limited ('risk', 'highlights', 'balance').
+		 * @param string                          $operation Operation being limited ('risk', 'highlights', 'details', 'balance').
 		 */
 		$global_limits = apply_filters( 'turgenev_rate_limit_global', $defaults['global'], $operation );
 

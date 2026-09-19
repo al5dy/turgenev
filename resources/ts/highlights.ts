@@ -11,7 +11,8 @@ interface DecorationSurface {
 ( function ( window: Window & typeof globalThis ): void {
 	'use strict';
 	const client = window.TurgenevClient as TurgenevClientApi;
-	const colors = [ '#b5ead7', '#ffe299', '#f5a9b8' ];
+	// Used only to pick a winner when highlight ranges overlap; the actual paint color
+	// always comes from client.highlightColor(), never from this number.
 	function severity( mark: HighlightMark ): number {
 		return client.highlightLevel( mark );
 	}
@@ -139,8 +140,9 @@ interface DecorationSurface {
 					const span = doc.createElement( 'span' );
 					span.className = 'turgenev-source-mark';
 					span.dataset.category = mark.category;
+					span.dataset.type = mark.type;
 					span.style.color = 'transparent';
-					span.style.backgroundColor = colors[ severity( mark ) - 1 ];
+					span.style.backgroundColor = client.highlightColor( mark );
 					span.textContent = text;
 					mirror.appendChild( span );
 				} else {
@@ -283,30 +285,21 @@ interface DecorationSurface {
 							target.offset + end
 						);
 					}
-					const level = severity( mark );
-					const name = 'turgenev-' + mark.category + '-' + level;
+					const name = 'turgenev-' + mark.type + mark.level;
 					if ( win?.CSS?.highlights && win.Highlight ) {
 						if ( ! surface.style ) {
 							surface.style =
 								target.document.createElement( 'style' );
-							surface.style.textContent = [
-								'style',
-								'frequency',
-								'keywords',
-								'formality',
-								'readability',
-							]
-								.flatMap( ( category ) =>
-									colors.map(
-										( color, index ) =>
-											'::highlight(turgenev-' +
-											category +
-											'-' +
-											( index + 1 ) +
-											'){background-color:' +
-											color +
-											';color:#1e1e1e;}'
-									)
+							surface.style.textContent = Object.entries(
+								client.highlightColorTable
+							)
+								.map(
+									( [ key, color ] ) =>
+										'::highlight(turgenev-' +
+										key +
+										'){background-color:' +
+										color +
+										';color:#1e1e1e;}'
 								)
 								.join( '\n' );
 							target.document.head.appendChild( surface.style );
@@ -330,7 +323,7 @@ interface DecorationSurface {
 								top: rect.top + 'px',
 								width: rect.width + 'px',
 								height: rect.height + 'px',
-								backgroundColor: colors[ level - 1 ],
+								backgroundColor: client.highlightColor( mark ),
 							} );
 							layer.appendChild( box );
 						}

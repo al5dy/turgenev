@@ -39,7 +39,7 @@ final class ReportHighlightParser {
 	 * @param string $report_html Provider report page.
 	 * @param string $expected_text Current normalized document text.
 	 * @throws ApiException On missing, mismatched or oversized markup.
-	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, level: int}>}
+	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int}>}
 	 */
 	public function parse( string $report_html, string $expected_text ): array {
 		if ( ! $this->has_dom ) {
@@ -76,6 +76,7 @@ final class ReportHighlightParser {
 				'start'    => $start,
 				'end'      => $end,
 				'category' => $raw_mark['category'],
+				'type'     => $raw_mark['type'],
 				'level'    => $raw_mark['level'],
 			);
 		}
@@ -155,9 +156,9 @@ final class ReportHighlightParser {
 	/**
 	 * Collect visible text and byte ranges before UTF-16 conversion.
 	 *
-	 * @param \DOMNode                                                        $node Current inert node.
-	 * @param string                                                          $text Accumulated source text.
-	 * @param list<array{start: int, end: int, category: string, level: int}> $marks Collected annotations.
+	 * @param \DOMNode                                                                      $node Current inert node.
+	 * @param string                                                                        $text Accumulated source text.
+	 * @param list<array{start: int, end: int, category: string, type: string, level: int}> $marks Collected annotations.
 	 */
 	private function collect( \DOMNode $node, string &$text, array &$marks ): void {
 		if ( XML_TEXT_NODE === $node->nodeType || XML_CDATA_SECTION_NODE === $node->nodeType ) {
@@ -190,10 +191,40 @@ final class ReportHighlightParser {
 	}
 
 	/**
+	 * Maps each provider highlight class prefix to one of the browser's five report
+	 * sections. Shared with {@see ReportSectionParser::parseLegend()}, which reads the
+	 * same class prefixes off the report's color legend rather than off text spans.
+	 *
+	 * @var array<string, string>
+	 */
+	public const CATEGORIES = array(
+		'slop'           => 'style',
+		'bb'             => 'style',
+		'doubles'        => 'frequency',
+		'top_and'        => 'frequency',
+		'top_notstop'    => 'frequency',
+		'queries'        => 'keywords',
+		'queries_strict' => 'keywords',
+		'cqueries'       => 'keywords',
+		'fog'            => 'formality',
+		'stop'           => 'formality',
+		'fre'            => 'readability',
+		'ari'            => 'readability',
+	);
+
+	/**
 	 * Accept only recognized category/severity classes.
 	 *
+	 * `type` is the exact class prefix (e.g. `doubles`, `queries_strict`), preserved
+	 * alongside the broader `category` so the browser can look up the provider's own
+	 * per-subtype color instead of a generic severity scale: the provider highlights
+	 * "purple gradient" repeated words (`doubles1`..`doubles5`) very differently from a
+	 * "red" over-concentrated connective (`top_and1`/`top_and2`) even though both are
+	 * `frequency`, and `bb`/`slop` (both `style`) resolve to the same colors only because
+	 * the provider's own stylesheet happens to reuse them across two different tabs.
+	 *
 	 * @param \DOMElement $element Provider element.
-	 * @return array{category: string, level: int}|null
+	 * @return array{category: string, type: string, level: int}|null
 	 */
 	private function mark_for_element( \DOMElement $element ): ?array {
 		$class_names = (array) preg_split( '/\s+/', trim( $element->getAttribute( 'class' ) ) );
@@ -201,29 +232,17 @@ final class ReportHighlightParser {
 			return null;
 		}
 
-		$categories = array(
-			'slop'           => 'style',
-			'bb'             => 'style',
-			'doubles'        => 'frequency',
-			'top_and'        => 'frequency',
-			'top_notstop'    => 'frequency',
-			'queries'        => 'keywords',
-			'queries_strict' => 'keywords',
-			'cqueries'       => 'keywords',
-			'fog'            => 'formality',
-			'stop'           => 'formality',
-			'fre'            => 'readability',
-			'ari'            => 'readability',
-		);
-
 		foreach ( $class_names as $class_name ) {
-			if ( ! preg_match( '/^([a-z_]+)([1-9]\d*)$/', $class_name, $match ) || ! isset( $categories[ $match[1] ] ) ) {
+			if ( ! preg_match( '/^([a-z_]+)([1-9]\d*)$/', $class_name, $match ) || ! isset( self::CATEGORIES[ $match[1] ] ) ) {
 				continue;
 			}
 
 			return array(
-				'category' => $categories[ $match[1] ],
-				'level'    => min( 3, (int) $match[2] ),
+				'category' => self::CATEGORIES[ $match[1] ],
+				'type'     => $match[1],
+				// The provider's own scale goes no higher than 5 (doubles1..doubles5); 9 is
+				// a defensive upper bound, not a real value it is expected to send.
+				'level'    => min( 9, (int) $match[2] ),
 			);
 		}
 

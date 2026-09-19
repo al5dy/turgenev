@@ -130,12 +130,9 @@
 		return cell;
 	}
 
-	function appendReportActions(
-		cell: HTMLElement,
-		token: unknown,
-		onHighlight: ( ( token: string ) => unknown ) | undefined,
-		activeToken: string | null | undefined
-	): void {
+	// The accordion toggle itself now triggers the highlight pipeline (see renderResult()),
+	// so this only ever renders the external "Open report" link.
+	function appendReportActions( cell: HTMLElement, token: unknown ): void {
 		if ( typeof token !== 'string' || ! token ) {
 			return;
 		}
@@ -148,37 +145,321 @@
 		link.rel = 'noopener noreferrer';
 		link.textContent = __( 'Open report', 'turgenev' );
 		actions.appendChild( link );
-
-		if ( typeof onHighlight === 'function' ) {
-			const button = document.createElement( 'button' );
-			button.type = 'button';
-			button.className =
-				'button button-secondary turgenev-highlight-action';
-			button.textContent = __( 'Highlight', 'turgenev' );
-			button.setAttribute(
-				'aria-pressed',
-				String( token === activeToken )
-			);
-			button.addEventListener( 'click', async () => {
-				button.disabled = true;
-				try {
-					await onHighlight( token );
-				} finally {
-					button.disabled = false;
-				}
-			} );
-			actions.appendChild( button );
-		}
-
 		cell.appendChild( actions );
+	}
+
+	// Turgenev's own colors per exact highlight subtype+level (an `xhl <type><level>` class,
+	// e.g. "doubles4"), read directly off https://turgenev.ashmanov.com's own stylesheet
+	// rather than approximated with a generic severity scale: "bb"/"slop" (both `style`)
+	// share one green/olive/red 3-step scale, but "doubles" (`frequency`) is its own 5-step
+	// purple gradient and "queries"/"queries_strict" (`keywords`) are two unrelated pinks.
+	// Shared by renderLegend() (a section's swatches), the in-editor decoration layer
+	// (highlights.ts) and renderHighlightText()'s read-only fallback, so a mark is always
+	// painted the same color everywhere it appears.
+	const HIGHLIGHT_COLORS: Record< string, string > = {
+		bb1: '#02c378',
+		bb2: '#bfbd2c',
+		bb3: '#ed1c24',
+		slop1: '#02c378',
+		slop2: '#bfbd2c',
+		slop3: '#ed1c24',
+		fog1: '#595ca9',
+		stop1: '#7687e2',
+		doubles1: '#592db2',
+		doubles2: '#8767a6',
+		doubles3: '#bf2bbc',
+		doubles4: '#b872f3',
+		doubles5: '#f19ce6',
+		top_and1: '#c4262e',
+		top_notstop1: '#c4262e',
+		top_and2: '#ff0000',
+		top_notstop2: '#ff0000',
+		queries1: '#f768bd',
+		cqueries1: '#f768bd',
+		queries_strict1: '#ec008c',
+		cqueries2: '#ec008c',
+		fre1: '#1cbbb4',
+		ari1: '#1cbbb4',
+		fre2: '#158c87',
+		ari2: '#158c87',
+	};
+	// The provider's own legend swatches use a slightly different color table than the
+	// in-text highlight for one pair ("fre2"/"ari2": #067873 here vs #158c87 above) — kept
+	// as a second table rather than "corrected" into one, to match the provider exactly.
+	const LEGEND_COLORS: Record< string, string > = {
+		...HIGHLIGHT_COLORS,
+		fre2: '#067873',
+		ari2: '#067873',
+	};
+	const FALLBACK_HIGHLIGHT_COLOR = '#f5a9b8';
+
+	// Mirrors ReportHighlightParser::CATEGORIES' keys on the PHP side, which is the only
+	// place a `type` value can originate from.
+	const KNOWN_HIGHLIGHT_TYPES = new Set< string >( [
+		'slop',
+		'bb',
+		'doubles',
+		'top_and',
+		'top_notstop',
+		'queries',
+		'queries_strict',
+		'cqueries',
+		'fog',
+		'stop',
+		'fre',
+		'ari',
+	] );
+
+	function highlightColor( mark: { type: string; level: number } ): string {
+		return (
+			HIGHLIGHT_COLORS[ mark.type + mark.level ] ||
+			FALLBACK_HIGHLIGHT_COLOR
+		);
+	}
+
+	function legendColor( item: { type: string; level: number } ): string {
+		return LEGEND_COLORS[ item.type + item.level ] || 'transparent';
+	}
+
+	function sectionEntries(
+		data: RiskResult
+	): { key: SectionKey; label: string; score: unknown; link?: string }[] {
+		const entries: {
+			key: SectionKey;
+			label: string;
+			score: unknown;
+			link?: string;
+		}[] = [
+			{
+				key: 'overall',
+				label: __( 'Overall risk', 'turgenev' ),
+				score: data.risk,
+				link: data.link,
+			},
+		];
+		const details = Array.isArray( data.details ) ? data.details : [];
+		details.forEach( ( detail ) => {
+			if (
+				! detail ||
+				typeof detail !== 'object' ||
+				typeof detail.block !== 'string'
+			) {
+				return;
+			}
+			entries.push( {
+				key: detail.block as SectionKey,
+				label: blockLabel( detail.block ),
+				score: detail.sum,
+				link: detail.link,
+			} );
+		} );
+		return entries;
+	}
+
+	function renderVerdict( data: RiskResult ): HTMLElement {
+		const verdict = document.createElement( 'p' );
+		verdict.className = 'turgenev-section-verdict';
+		verdict.textContent = `${ String( data.level || '—' ) } (${ String(
+			data.risk ?? '—'
+		) })`;
+		return verdict;
+	}
+
+	function renderSectionParams(
+		section: SectionKey,
+		params: SectionParam[]
+	): HTMLElement {
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'turgenev-section-params';
+		const isOverall = section === 'overall';
+		let lowCount = 0;
+		params.forEach( ( param ) => {
+			const row = document.createElement( 'div' );
+			row.className = 'turgenev-section-param';
+			// The overall section now opens fully expanded (see renderResult()'s
+			// auto-activation), so low-risk rows start visible; the toggle below
+			// still lets a reader collapse them back down.
+			if ( isOverall && param.low ) {
+				row.classList.add( 'turgenev-section-param-low' );
+				lowCount++;
+			}
+			const name = document.createElement( 'span' );
+			name.className = 'turgenev-section-param-name';
+			name.textContent = param.name;
+			const value = document.createElement( 'span' );
+			value.className = 'turgenev-section-param-value';
+			value.textContent = `${ param.value } (${ param.score })`;
+			row.append( name, value );
+			wrap.appendChild( row );
+		} );
+		if ( isOverall && lowCount > 0 ) {
+			const showLabel = __( 'Show all characteristics', 'turgenev' );
+			const hideLabel = __( 'Hide unimportant characteristics', 'turgenev' );
+			const toggle = document.createElement( 'button' );
+			toggle.type = 'button';
+			toggle.className = 'button-link turgenev-section-toggle';
+			toggle.textContent = hideLabel;
+			toggle.addEventListener( 'click', () => {
+				const expanding = toggle.textContent === showLabel;
+				wrap.querySelectorAll( '.turgenev-section-param-low' ).forEach(
+					( row ) => {
+						( row as HTMLElement ).hidden = ! expanding;
+					}
+				);
+				toggle.textContent = expanding ? hideLabel : showLabel;
+			} );
+			wrap.appendChild( toggle );
+		}
+		return wrap;
+	}
+
+	function renderLegend( items: SectionLegendItem[] ): HTMLElement {
+		const list = document.createElement( 'div' );
+		list.className = 'turgenev-section-legend';
+		items.forEach( ( item ) => {
+			const row = document.createElement( 'div' );
+			row.className = 'turgenev-section-legend-item';
+			const swatch = document.createElement( 'span' );
+			swatch.className = 'turgenev-section-legend-swatch';
+			swatch.style.backgroundColor = legendColor( item );
+			const label = document.createElement( 'span' );
+			label.textContent = item.label;
+			row.append( swatch, label );
+			list.appendChild( row );
+		} );
+		return list;
+	}
+
+	function renderWordStats(
+		items: SectionWordStat[],
+		showPercent: boolean
+	): HTMLElement {
+		const table = document.createElement( 'table' );
+		table.className = 'widefat striped turgenev-section-words';
+		const tbody = document.createElement( 'tbody' );
+		items.forEach( ( item ) => {
+			const row = document.createElement( 'tr' );
+			if ( item.stopword ) {
+				row.className = 'turgenev-section-word-stop';
+			}
+			const text = makeCell( 'th', item.text );
+			// A repeated word/phrase also highlighted in the document text (e.g. an
+			// "xhl doubles4" row) gets the same exact color here, matching the provider.
+			if ( item.type && Number.isInteger( item.level ) ) {
+				text.style.color = highlightColor( {
+					type: item.type,
+					level: item.level as number,
+				} );
+			}
+			row.appendChild( text );
+			row.appendChild( makeCell( 'td', String( item.count ) ) );
+			if ( showPercent ) {
+				row.appendChild( makeCell( 'td', item.percent ?? '—' ) );
+			}
+			tbody.appendChild( row );
+		} );
+		table.appendChild( tbody );
+		return table;
+	}
+
+	function renderFrequencyContent( details: SectionDetails ): HTMLElement {
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'turgenev-section-frequency';
+		const tabs = document.createElement( 'div' );
+		tabs.className = 'turgenev-section-tabs';
+		const wordsButton = document.createElement( 'button' );
+		wordsButton.type = 'button';
+		wordsButton.className = 'turgenev-section-tab is-active';
+		wordsButton.textContent = __( 'Words', 'turgenev' );
+		const phrasesButton = document.createElement( 'button' );
+		phrasesButton.type = 'button';
+		phrasesButton.className = 'turgenev-section-tab';
+		phrasesButton.textContent = __( 'Phrases', 'turgenev' );
+		tabs.append( wordsButton, phrasesButton );
+
+		const wordsTable = renderWordStats( details.words ?? [], true );
+		const phrasesTable = renderWordStats( details.phrases ?? [], false );
+		phrasesTable.hidden = true;
+
+		wordsButton.addEventListener( 'click', () => {
+			wordsButton.classList.add( 'is-active' );
+			phrasesButton.classList.remove( 'is-active' );
+			wordsTable.hidden = false;
+			phrasesTable.hidden = true;
+		} );
+		phrasesButton.addEventListener( 'click', () => {
+			phrasesButton.classList.add( 'is-active' );
+			wordsButton.classList.remove( 'is-active' );
+			phrasesTable.hidden = false;
+			wordsTable.hidden = true;
+		} );
+
+		wrap.append( tabs, wordsTable, phrasesTable );
+		return wrap;
+	}
+
+	function renderBreakdown( items: SectionBreakdownItem[] ): HTMLElement {
+		const list = document.createElement( 'div' );
+		list.className = 'turgenev-section-breakdown';
+		items.forEach( ( item ) => {
+			const row = document.createElement( 'div' );
+			row.className = 'turgenev-section-breakdown-item';
+			const label = document.createElement( 'span' );
+			label.textContent = `• ${ item.label }`;
+			const value = document.createElement( 'span' );
+			value.textContent = item.value;
+			row.append( label, value );
+			list.appendChild( row );
+		} );
+		return list;
+	}
+
+	function renderSectionContent(
+		section: SectionKey,
+		details: SectionDetails,
+		result: RiskResult
+	): HTMLElement {
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'turgenev-section-content';
+		if ( section === 'overall' ) {
+			wrap.appendChild( renderVerdict( result ) );
+		}
+		wrap.appendChild( renderSectionParams( section, details.params ) );
+		if ( section === 'frequency' ) {
+			wrap.appendChild( renderFrequencyContent( details ) );
+		}
+		if ( section === 'style' && details.legend?.length ) {
+			const heading = document.createElement( 'h4' );
+			heading.className = 'turgenev-section-heading';
+			heading.textContent = __( 'Hints', 'turgenev' );
+			wrap.append( heading, renderLegend( details.legend ) );
+		}
+		if ( section === 'keywords' ) {
+			if ( details.breakdown?.length ) {
+				wrap.appendChild( renderBreakdown( details.breakdown ) );
+			}
+			if ( details.legend?.length ) {
+				wrap.appendChild( renderLegend( details.legend ) );
+			}
+		}
+		if (
+			( section === 'formality' || section === 'readability' ) &&
+			details.legend?.length
+		) {
+			wrap.appendChild( renderLegend( details.legend ) );
+		}
+		return wrap;
 	}
 
 	function renderResult(
 		container: HTMLElement | null,
 		data: RiskResult,
 		options: {
-			onHighlight?: ( token: string ) => unknown;
-			activeToken?: string | null;
+			onToggleSection?: ( section: SectionKey, token: string ) => unknown;
+			openSection?: SectionKey | null;
+			sectionLoading?: boolean;
+			sectionData?: SectionDetails | null;
+			sectionError?: string;
 		} = {}
 	): void {
 		if ( ! container ) {
@@ -186,77 +467,71 @@
 		}
 
 		container.replaceChildren();
-		const wrapper = document.createElement( 'div' );
-		wrapper.className = 'turgenev-table-wrap';
-		const table = document.createElement( 'table' );
-		table.className = 'widefat striped turgenev-results';
-		const tbody = document.createElement( 'tbody' );
+		const accordion = document.createElement( 'div' );
+		accordion.className = 'turgenev-accordion';
 
-		const summaryRow = document.createElement( 'tr' );
-		summaryRow.appendChild(
-			makeCell( 'th', __( 'Overall risk', 'turgenev' ) )
-		);
-		const summary = makeCell(
-			'td',
-			`${ String( data.level || '—' ) } (${ String( data.risk ?? '—' ) })`
-		);
-		appendReportActions(
-			summary,
-			data.link,
-			options.onHighlight,
-			options.activeToken
-		);
-		summaryRow.appendChild( summary );
-		tbody.appendChild( summaryRow );
+		sectionEntries( data ).forEach( ( entry ) => {
+			const open = options.openSection === entry.key;
+			const item = document.createElement( 'div' );
+			item.className = 'turgenev-accordion-item';
 
-		const details = Array.isArray( data.details ) ? data.details : [];
-		details.forEach( ( detail ) => {
-			if ( ! detail || typeof detail !== 'object' ) {
-				return;
-			}
-
-			const heading = document.createElement( 'tr' );
-			heading.className = 'turgenev-result-section';
-			heading.appendChild(
-				makeCell(
-					'th',
-					`${ blockLabel( detail.block ) } (${ String(
-						detail.sum ?? '—'
-					) })`
-				)
-			);
-			const linkCell = document.createElement( 'td' );
-			appendReportActions(
-				linkCell,
-				detail.link,
-				options.onHighlight,
-				options.activeToken
-			);
-			heading.appendChild( linkCell );
-			tbody.appendChild( heading );
-
-			const params = Array.isArray( detail.params ) ? detail.params : [];
-			params.forEach( ( parameter ) => {
-				if ( ! parameter || typeof parameter !== 'object' ) {
-					return;
+			const toggle = document.createElement( 'button' );
+			toggle.type = 'button';
+			toggle.className = 'turgenev-accordion-toggle';
+			toggle.setAttribute( 'aria-expanded', String( open ) );
+			toggle.disabled = typeof options.onToggleSection !== 'function';
+			const label = document.createElement( 'span' );
+			label.className = 'turgenev-accordion-label';
+			label.textContent = entry.label;
+			const score = document.createElement( 'span' );
+			score.className = 'turgenev-accordion-score';
+			score.textContent = String( entry.score ?? '—' );
+			toggle.append( label, score );
+			toggle.addEventListener( 'click', () => {
+				if (
+					typeof options.onToggleSection === 'function' &&
+					entry.link
+				) {
+					options.onToggleSection( entry.key, entry.link );
 				}
-				const row = document.createElement( 'tr' );
-				row.appendChild( makeCell( 'th', parameter.name || '—' ) );
-				row.appendChild(
-					makeCell(
-						'td',
-						`${ String( parameter.value ?? '—' ) } (${ String(
-							parameter.score ?? '0'
-						) })`
-					)
-				);
-				tbody.appendChild( row );
 			} );
+			item.appendChild( toggle );
+
+			const panel = document.createElement( 'div' );
+			panel.className = 'turgenev-accordion-panel';
+			panel.hidden = ! open;
+			if ( open ) {
+				if ( options.sectionLoading ) {
+					const spinner = document.createElement( 'span' );
+					spinner.className = 'turgenev-spinner';
+					spinner.setAttribute( 'aria-hidden', 'true' );
+					panel.append(
+						spinner,
+						document.createTextNode( __( 'Loading…', 'turgenev' ) )
+					);
+				} else if ( options.sectionError ) {
+					const error = document.createElement( 'p' );
+					error.className = 'turgenev-notice is-error';
+					error.textContent = options.sectionError;
+					panel.appendChild( error );
+				} else if ( options.sectionData ) {
+					panel.appendChild(
+						renderSectionContent(
+							entry.key,
+							options.sectionData,
+							data
+						)
+					);
+				}
+				if ( entry.link ) {
+					appendReportActions( panel, entry.link );
+				}
+			}
+			item.appendChild( panel );
+			accordion.appendChild( item );
 		} );
 
-		table.appendChild( tbody );
-		wrapper.appendChild( table );
-		container.appendChild( wrapper );
+		container.appendChild( accordion );
 	}
 
 	function validHighlights( text: string, marks: unknown ): HighlightMark[] {
@@ -278,6 +553,7 @@
 					start?: unknown;
 					end?: unknown;
 					category?: unknown;
+					type?: unknown;
 					level?: unknown;
 				};
 				return ! (
@@ -287,9 +563,11 @@
 					( candidate.end as number ) > ( candidate.start as number ) &&
 					( candidate.end as number ) <= text.length &&
 					allowedCategories.has( candidate.category as string ) &&
+					typeof candidate.type === 'string' &&
+					KNOWN_HIGHLIGHT_TYPES.has( candidate.type ) &&
 					Number.isInteger( candidate.level ) &&
 					( candidate.level as number ) >= 1 &&
-					( candidate.level as number ) <= 3
+					( candidate.level as number ) <= 9
 				);
 			} )
 		) {
@@ -300,6 +578,121 @@
 		return [ ...( marks as HighlightMark[] ) ].sort(
 			( left, right ) => left.start - right.start
 		);
+	}
+
+	function isArrayOf< T >(
+		value: unknown,
+		guard: ( item: unknown ) => item is T
+	): value is T[] {
+		return (
+			Array.isArray( value ) && value.length <= 200 && value.every( guard )
+		);
+	}
+
+	function isSectionParam( value: unknown ): value is SectionParam {
+		if ( ! value || typeof value !== 'object' ) {
+			return false;
+		}
+		const candidate = value as Record< string, unknown >;
+		return (
+			typeof candidate.name === 'string' &&
+			typeof candidate.value === 'string' &&
+			typeof candidate.score === 'string' &&
+			typeof candidate.low === 'boolean'
+		);
+	}
+
+	function isSectionWordStat( value: unknown ): value is SectionWordStat {
+		if ( ! value || typeof value !== 'object' ) {
+			return false;
+		}
+		const candidate = value as Record< string, unknown >;
+		return (
+			typeof candidate.text === 'string' &&
+			Number.isInteger( candidate.count ) &&
+			( candidate.count as number ) >= 0 &&
+			( candidate.percent === undefined ||
+				typeof candidate.percent === 'string' ) &&
+			( candidate.stopword === undefined ||
+				typeof candidate.stopword === 'boolean' ) &&
+			( candidate.type === undefined ||
+				( typeof candidate.type === 'string' &&
+					KNOWN_HIGHLIGHT_TYPES.has( candidate.type ) ) ) &&
+			( candidate.level === undefined ||
+				( Number.isInteger( candidate.level ) &&
+					( candidate.level as number ) >= 1 &&
+					( candidate.level as number ) <= 9 ) )
+		);
+	}
+
+	function isSectionLegendItem( value: unknown ): value is SectionLegendItem {
+		if ( ! value || typeof value !== 'object' ) {
+			return false;
+		}
+		const candidate = value as Record< string, unknown >;
+		return (
+			typeof candidate.type === 'string' &&
+			( candidate.type === '' ||
+				KNOWN_HIGHLIGHT_TYPES.has( candidate.type ) ) &&
+			Number.isInteger( candidate.level ) &&
+			( candidate.level as number ) >= 0 &&
+			( candidate.level as number ) <= 9 &&
+			typeof candidate.label === 'string'
+		);
+	}
+
+	function isSectionBreakdownItem(
+		value: unknown
+	): value is SectionBreakdownItem {
+		if ( ! value || typeof value !== 'object' ) {
+			return false;
+		}
+		const candidate = value as Record< string, unknown >;
+		return (
+			typeof candidate.label === 'string' &&
+			typeof candidate.value === 'string'
+		);
+	}
+
+	function validSectionDetails( data: unknown ): SectionDetails {
+		const invalid = (): never => {
+			throw new Error(
+				__( 'Turgenev returned invalid section details.', 'turgenev' )
+			);
+		};
+		if ( ! data || typeof data !== 'object' ) {
+			return invalid();
+		}
+		const raw = data as Record< string, unknown >;
+		if ( ! isArrayOf( raw.params, isSectionParam ) ) {
+			return invalid();
+		}
+		const result: SectionDetails = { params: raw.params };
+		if ( raw.words !== undefined ) {
+			if ( ! isArrayOf( raw.words, isSectionWordStat ) ) {
+				return invalid();
+			}
+			result.words = raw.words;
+		}
+		if ( raw.phrases !== undefined ) {
+			if ( ! isArrayOf( raw.phrases, isSectionWordStat ) ) {
+				return invalid();
+			}
+			result.phrases = raw.phrases;
+		}
+		if ( raw.legend !== undefined ) {
+			if ( ! isArrayOf( raw.legend, isSectionLegendItem ) ) {
+				return invalid();
+			}
+			result.legend = raw.legend;
+		}
+		if ( raw.breakdown !== undefined ) {
+			if ( ! isArrayOf( raw.breakdown, isSectionBreakdownItem ) ) {
+				return invalid();
+			}
+			result.breakdown = raw.breakdown;
+		}
+		return result;
 	}
 
 	function normalizedTextOffsets( text: string ): {
@@ -632,11 +1025,11 @@
 		);
 	}
 
+	// A mark's raw, uncapped severity within its own subtype (e.g. 1..5 for "doubles"),
+	// used only to pick a winner when two highlight ranges overlap — never to choose a
+	// display color; use highlightColor() for that.
 	function highlightLevel( mark: HighlightMark ): number {
-		if ( [ 'keywords', 'readability' ].includes( mark.category ) ) {
-			return 3;
-		}
-		return mark.category === 'formality' ? 2 : mark.level;
+		return mark.level;
 	}
 
 	function renderHighlightText(
@@ -644,23 +1037,24 @@
 		data: { text: string; marks: unknown }
 	): void {
 		const marks = validHighlights( data.text, data.marks );
-		const events = new Map< number, { level: number; delta: number }[] >();
+		const events = new Map<
+			number,
+			{ mark: HighlightMark; adding: boolean }[]
+		>();
 		for ( const mark of marks ) {
-			const level = highlightLevel( mark );
-			for ( const [ position, delta ] of [
-				[ mark.start, 1 ],
-				[ mark.end, -1 ],
-			] ) {
+			for ( const [ position, adding ] of [
+				[ mark.start, true ],
+				[ mark.end, false ],
+			] as const ) {
 				let list = events.get( position );
 				if ( ! list ) {
 					list = [];
 					events.set( position, list );
 				}
-				list.push( { level, delta } );
+				list.push( { mark, adding } );
 			}
 		}
-		const counts = [ 0, 0, 0, 0 ];
-		const colors = [ '', '#b5ead7', '#ffe299', '#f5a9b8' ];
+		const active = new Set< HighlightMark >();
 		let cursor = 0;
 		container.replaceChildren();
 		for ( const position of [ ...events.keys(), data.text.length ].sort(
@@ -668,14 +1062,16 @@
 		) ) {
 			if ( position > cursor ) {
 				const value = data.text.slice( cursor, position );
-				const level =
-					[ 3, 2, 1 ].find(
-						( candidate ) => counts[ candidate ] > 0
-					) || 0;
-				if ( level ) {
+				// When multiple marks overlap the same fragment, the most severe one
+				// (within its own subtype's scale) wins the paint, same as the live
+				// in-editor decoration layer (see highlights.ts's paintTextarea()).
+				const winner = [ ...active ].sort(
+					( a, b ) => highlightLevel( b ) - highlightLevel( a )
+				)[ 0 ];
+				if ( winner ) {
 					const mark =
 						container.ownerDocument.createElement( 'mark' );
-					mark.style.backgroundColor = colors[ level ];
+					mark.style.backgroundColor = highlightColor( winner );
 					mark.textContent = value;
 					container.appendChild( mark );
 				} else {
@@ -684,8 +1080,12 @@
 					);
 				}
 			}
-			for ( const { level, delta } of events.get( position ) || [] ) {
-				counts[ level ] += delta;
+			for ( const { mark, adding } of events.get( position ) || [] ) {
+				if ( adding ) {
+					active.add( mark );
+				} else {
+					active.delete( mark );
+				}
 			}
 			cursor = position;
 		}
@@ -693,6 +1093,9 @@
 
 	window.TurgenevClient = Object.freeze( {
 		highlightLevel,
+		highlightColor,
+		legendColor,
+		highlightColorTable: HIGHLIGHT_COLORS,
 		normalizedTextOffsets,
 		textModel,
 		sourceModel,
@@ -700,6 +1103,7 @@
 		alignTargets,
 		isEmptyBalance,
 		validHighlights,
+		validSectionDetails,
 		request,
 		toPlainText,
 		maxTextLength: Number( config.maxTextLength ) || 20000,

@@ -6,6 +6,63 @@
 of the following (originally tracked as separate "Unreleased" work) is folded into this
 single 2.0.0 entry rather than shipped as a later patch release.
 
+- Replaced the result panel's flat table with six full-width accordion sections (Overall
+  risk, Frequency, Style, Keywords, Formality, Readability); opening one runs the same
+  highlight pipeline the old per-row "Highlight" button used to (now folded into the
+  accordion toggle itself, which is removed from `client.ts`'s `appendReportActions()`) and
+  fetches that section's detail on demand. Added `ApiClient::reportSectionDetails()` and
+  `Api\ReportSectionParser`, which read the same anonymous, token-only report page
+  `reportHighlights()` already fetches, plus a `coverdict` field selecting the tab: a
+  word/phrase repetition table for Frequency, a category legend for Style/Formality/
+  Readability, and a coverage breakdown plus legend for Keywords; Overall shows only the
+  combined characteristic table (from the report page's own low/secondary-row markers, not
+  the JSON `risk` params) behind a "Show all characteristics"/"Hide characteristics" toggle,
+  plus a verdict line sourced from the already-available `RiskResult.level`. Two report
+  fields the provider only fills inside its own logged-in browser session — a per-document
+  verdict sentence and a "problems in this sentence" preview — were confirmed empty on every
+  anonymous fetch during development and are deliberately not parsed. Wired a new `details`
+  AJAX operation (`ApiController`) and rate-limit bucket (`Support\RateLimiter`) alongside
+  `risk`/`highlights`/`balance`, following the same `edit_post` authorization path as
+  `highlights`. Added PHP tests for the new parser/client/controller/rate-limit paths and JS
+  tests for `client.validSectionDetails()` and `AnalysisSession.toggleSection()` (opening,
+  closing, switching sections mid-flight, a failed detail fetch not discarding a successful
+  highlight, and `reset()`/`dispose()` teardown).
+- A successful `analyze()` now opens the "Overall risk" accordion section itself, the same
+  way clicking it does (its highlight + `details` fetch), instead of leaving every section
+  collapsed until the reader picks one; and that section's low-risk characteristics start
+  expanded (the "Show all characteristics" toggle now defaults to shown, with a "Hide
+  unimportant characteristics" label to collapse them back down) so the full breakdown,
+  including which characteristics are driving the risk, is visible immediately. Deferred the
+  auto-open until after `analyze()`'s own busy/pending bookkeeping settles in its
+  `finally` block — `toggleSection()` re-enters the same `highlight()` call and shares
+  `analyze()`'s sequence/pending guards, so triggering it from inside the `try` left `busy`
+  stuck at `true` on every successful analysis. Note this spends one extra `highlights` and
+  one extra `details` request (and their rate-limit budget) on every analysis, not only when
+  a reader opens a section by hand. Updated the accordion's JS tests for the new request
+  order.
+- Replaced the generic 3-color severity palette (one green/yellow/red scale reused for every
+  category) with Turgenev's own exact per-subtype colors, read directly off
+  `bb_xhl.css` on turgenev.ashmanov.com: `bb`/`slop` (Style) keep a green/olive/red 3-step
+  scale, but `doubles` (Frequency, repeated words) is its own 5-step purple gradient,
+  `queries`/`queries_strict` (Keywords) are two unrelated pinks with no severity gradient at
+  all, `fog`/`stop` (Formality) are a single-level blue-violet/lavender pair, and
+  `fre`/`ari` (Readability) are two teals — previously all of these collapsed onto the same
+  three pastel hues regardless of subtype, and Keywords/Readability marks were hard-coded to
+  the "critical" color and Formality to "medium" regardless of their real severity.
+  `ReportHighlightParser`/`ReportSectionParser` now preserve each mark and legend row's exact
+  provider class prefix as a new `type` field (`HighlightMark.type`, `SectionLegendItem.type`)
+  alongside the existing `category`/`level`, instead of collapsing straight to a capped
+  1-3 severity; `client.ts` resolves the display color from `type`+`level` via
+  `highlightColor()`/`legendColor()` (`highlights.ts` and `renderHighlightText()`'s read-only
+  fallback both now share this instead of their own local 3-color arrays). The Frequency
+  section's word/phrase table also now carries `type`/`level` for a repeated-word row (e.g.
+  "xhl doubles4") and colors it to match, not just flag stop-words. Out of scope: the
+  provider's `misprints` (spelling) highlight class has no corresponding accordion section in
+  `ApiClient::SECTION_TABS` and continues to be dropped, same as before. Added PHP coverage
+  (multiple `xhl` prefixes in one report, an unrecognized class being dropped, a legend row
+  with no recognized class falling back to `type: ''`/`level: 0` instead of being excluded,
+  and a colored word-repetition row) and JS coverage (`type` validation in
+  `validHighlights()`/`validSectionDetails()`).
 - Rewrote `Support\RateLimiter` around two independent, atomically-counted buckets instead of
   one: a per-user/per-post burst bucket (unchanged defaults: 12/60s `risk`, 20/60s
   `highlights`) and a new per-user *global* bucket across every post combined (defaults:

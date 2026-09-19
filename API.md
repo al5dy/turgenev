@@ -141,12 +141,15 @@ The browser does **not** call the provider directly. It calls WordPress, which e
 POST /wp-admin/admin-ajax.php
 action=turgenev_api
 nonce=<wordpress-nonce>
-operation=balance|risk|highlights
-post_id=<post ID>       # required for risk/highlights; optional for balance
+operation=balance|risk|highlights|details
+post_id=<post ID>       # required for risk/highlights/details; optional for balance
 text=<content>          # risk/highlights: the full current document text
-report_token=<token>    # highlights only: the report reference from a prior risk response
+report_token=<token>    # highlights/details: the report reference from a prior risk response
+section=<section>       # details only: overall|frequency|style|keywords|formality|readability
 ```
 
-`risk` and `highlights` require `current_user_can( 'edit_post', $post_id )` for an existing post — a generic `edit_posts` capability is never accepted on its own, and both are rejected before any outbound request without a valid, positive, existing `post_id`. `balance` requires `edit_post` on the post when `post_id` is present, or `manage_options` when it is absent (the Settings screen). All three operations are also subject to server-side rate limiting (`Support\RateLimiter`): a per-user/post burst limit and a per-user limit across every post, either of which returns HTTP 429 before any request reaches Turgenev.
+`risk`, `highlights` and `details` require `current_user_can( 'edit_post', $post_id )` for an existing post — a generic `edit_posts` capability is never accepted on its own, and all three are rejected before any outbound request without a valid, positive, existing `post_id`. `balance` requires `edit_post` on the post when `post_id` is present, or `manage_options` when it is absent (the Settings screen). All four operations are also subject to server-side rate limiting (`Support\RateLimiter`): a per-user/post burst limit and a per-user limit across every post, either of which returns HTTP 429 before any request reaches Turgenev.
+
+`details` fetches the provider's read-only report page for one section — the same page `highlights` reads, plus a `coverdict` field selecting which tab renders — and returns a validated `{params, ...}` structure (word/phrase repetition tables for `frequency`, a category legend for `style`/`formality`/`readability`, and a coverage breakdown plus legend for `keywords`; `overall` returns only the combined characteristic table). It is not a documented provider `api` operation like the ones above; it reuses the same anonymous, token-only report form `highlights` already relies on.
 
 The PHP controller adds the saved provider key server-side.

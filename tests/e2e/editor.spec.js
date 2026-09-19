@@ -67,7 +67,9 @@ test.describe( 'Gutenberg document panel', () => {
 		await page.keyboard.type( ' Unsaved addition proving analysis does not require a save first.' );
 
 		await panel.getByRole( 'button', { name: /Analyze document/i } ).click();
-		await expect( panel.getByRole( 'heading', { name: /Overall risk/i } ) ).toBeVisible( { timeout: 20000 } );
+		// The result panel is six accordion buttons (Overall risk, Frequency, Style,
+		// Keywords, Formality, Readability), not a heading, so it is found by its button role.
+		await expect( panel.getByRole( 'button', { name: /Overall risk/i } ) ).toBeVisible( { timeout: 20000 } );
 
 		const savedContent = wpCli( [ 'post', 'get', String( postId ), '--field=post_content' ] );
 		expect( savedContent ).not.toContain( 'Unsaved addition' );
@@ -263,9 +265,14 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 		await expect( panel ).toBeVisible( { timeout: 20000 } );
 
 		await panel.getByRole( 'button', { name: /Analyze document/i } ).click();
-		await expect( panel.getByRole( 'heading', { name: /Overall risk/i } ) ).toBeVisible( { timeout: 20000 } );
+		const overallToggle = panel.getByRole( 'button', { name: /Overall risk/i } );
+		await expect( overallToggle ).toBeVisible( { timeout: 20000 } );
 
-		await panel.getByRole( 'button', { name: /^Highlight$/i } ).first().click();
+		// A successful analysis now opens "Overall risk" itself (the accordion button
+		// doubles as the Highlight action, so this also runs the same highlight pipeline
+		// a dedicated "Highlight" button used to) — no click needed, and clicking it now
+		// would only collapse the already-open section.
+		await expect( overallToggle ).toHaveAttribute( 'aria-expanded', 'true', { timeout: 20000 } );
 		await expect( panel.getByText( /Loading highlights…/i ) ).toBeHidden( { timeout: 20000 } );
 
 		// The provider mock returns one real `xhl` mark; confirm it actually rendered as a
@@ -359,7 +366,7 @@ test.describe( 'Missing DOM extension degrades gracefully', () => {
 		wpCli( [ 'option', 'delete', 'turgenev_e2e_force_no_dom' ] );
 	} );
 
-	test( 'Highlight is hidden and a clear notice shown when ext-dom is unavailable', async ( { page } ) => {
+	test( 'accordion sections are disabled and a clear notice is shown when ext-dom is unavailable', async ( { page } ) => {
 		test.skip(
 			! postId,
 			'wp-cli is required, and the e2e support mu-plugin must register the turgenev_has_dom filter (set WP_TEST_ROOT).'
@@ -373,8 +380,9 @@ test.describe( 'Missing DOM extension degrades gracefully', () => {
 			await expect( panel.getByText( /unavailable on this server/i ) ).toBeVisible();
 
 			await panel.getByRole( 'button', { name: /Analyze document/i } ).click();
-			await expect( panel.getByRole( 'heading', { name: /Overall risk/i } ) ).toBeVisible( { timeout: 20000 } );
-			await expect( panel.getByRole( 'button', { name: /^Highlight$/i } ) ).toHaveCount( 0 );
+			// Without ext-dom, neither highlighting nor the per-section detail fetch can
+			// succeed, so every accordion toggle is rendered disabled rather than clickable.
+			await expect( panel.getByRole( 'button', { name: /Overall risk/i } ) ).toBeDisabled( { timeout: 20000 } );
 		} finally {
 			wpCli( [ 'option', 'delete', 'turgenev_e2e_force_no_dom' ] );
 		}

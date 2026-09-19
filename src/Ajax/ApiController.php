@@ -54,7 +54,7 @@ final class ApiController {
 
 		$operation = isset( $_POST['operation'] ) && is_string( $_POST['operation'] ) ? sanitize_key( wp_unslash( $_POST['operation'] ) ) : '';
 
-		if ( ! in_array( $operation, array( 'balance', 'risk', 'highlights' ), true ) ) {
+		if ( ! in_array( $operation, array( 'balance', 'risk', 'highlights', 'details' ), true ) ) {
 			wp_send_json_error( array( 'message' => __( 'Unsupported Turgenev request.', 'turgenev' ) ), 400 );
 			return;
 		}
@@ -66,7 +66,7 @@ final class ApiController {
 		}
 		$post = $post_id ? get_post( $post_id ) : null;
 
-		if ( in_array( $operation, array( 'risk', 'highlights' ), true ) ) {
+		if ( in_array( $operation, array( 'risk', 'highlights', 'details' ), true ) ) {
 			// Document operations always require a real, editable target post.
 			if ( ! $post_id || ! $post ) {
 				wp_send_json_error( array( 'message' => __( 'A valid post is required for this request.', 'turgenev' ) ), 400 );
@@ -103,13 +103,15 @@ final class ApiController {
 		// ApiClient::validateTextPayload() rejects invalid UTF-8, embedded NUL and oversized
 		// input before any outbound request; ResponseValidator::token() constrains $token to
 		// `[A-Za-z0-9_-]{8,128}`. Both are covered by tests/php/run.php.
-		$text  = isset( $_POST['text'] ) && is_string( $_POST['text'] ) ? wp_unslash( $_POST['text'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$token = isset( $_POST['report_token'] ) && is_string( $_POST['report_token'] ) ? wp_unslash( $_POST['report_token'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$text    = isset( $_POST['text'] ) && is_string( $_POST['text'] ) ? wp_unslash( $_POST['text'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$token   = isset( $_POST['report_token'] ) && is_string( $_POST['report_token'] ) ? wp_unslash( $_POST['report_token'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$section = isset( $_POST['section'] ) && is_string( $_POST['section'] ) ? sanitize_key( wp_unslash( $_POST['section'] ) ) : '';
 		try {
 			$data = match ( $operation ) {
 				'balance' => array( 'balance' => $this->client->balance() ),
 				'risk' => array( 'result' => $this->client->analyze( $text ) ),
 				'highlights' => array( 'highlights' => $this->client->reportHighlights( $token, $text ) ),
+				'details' => array( 'details' => $this->client->reportSectionDetails( $token, $section ) ),
 			};
 		} catch ( ApiException $exception ) {
 			wp_send_json_error( array( 'message' => wp_strip_all_tags( $exception->getMessage() ) ), 502 );

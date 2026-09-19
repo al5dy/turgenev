@@ -25,11 +25,17 @@
 			activeToken: null,
 			loadingBalance: false,
 			htmlMode: false,
+			openSection: null,
+			sectionLoading: false,
+			sectionData: null,
+			sectionError: '',
 		};
 		let source: SourceSnapshot | null = null;
 		let pending: AbortController | null = null;
 		let balanceRequest: AbortController | null = null;
+		let sectionRequest: AbortController | null = null;
 		let sequence = 0;
+		let sectionSequence = 0;
 		let disposed = false;
 		let resetting = false;
 		const listeners = new Set< ( state: SessionState ) => void >();
@@ -47,6 +53,9 @@
 		}
 		function clearView(): void {
 			cancel();
+			sectionRequest?.abort();
+			sectionRequest = null;
+			sectionSequence++;
 			decorations?.clear();
 			update( {
 				busy: false,
@@ -56,6 +65,10 @@
 				activeToken: null,
 				error: '',
 				notice: '',
+				openSection: null,
+				sectionLoading: false,
+				sectionData: null,
+				sectionError: '',
 			} );
 		}
 		function reset(): void {
@@ -175,6 +188,7 @@
 			const current = ++sequence;
 			pending = new window.AbortController();
 			update( { busy: true } );
+			let analyzed: RiskResult | null = null;
 			try {
 				const data = await client.request< { result?: unknown } >(
 					'risk',
@@ -206,6 +220,7 @@
 					);
 				}
 				update( { result: result as RiskResult } );
+				analyzed = result as RiskResult;
 			} catch ( error ) {
 				if ( current === sequence ) {
 					update( { error: ( error as Error ).message } );
@@ -217,6 +232,21 @@
 				}
 				// Balance is informational; the provider decides whether a paid check is allowed.
 				balance();
+			}
+			// Land the reader straight on the overall verdict instead of an empty
+			// accordion, mirroring a manual click on "Overall risk". Deferred until
+			// after the try/finally above settles busy/pending: toggleSection()
+			// re-enters highlight(), which shares analyze()'s own sequence/pending
+			// bookkeeping, so running it any earlier would make the finally block's
+			// stale-response guard misfire and leave busy stuck at true.
+			if (
+				analyzed &&
+				current === sequence &&
+				client.highlightsAvailable &&
+				typeof analyzed.link === 'string' &&
+				analyzed.link
+			) {
+				toggleSection( 'overall', analyzed.link );
 			}
 		}
 		async function highlight( token: string ): Promise< void > {
@@ -284,10 +314,68 @@
 				}
 			}
 		}
+		async function toggleSection(
+			section: SectionKey,
+			token: string
+		): Promise< void > {
+			if ( disposed ) {
+				return;
+			}
+			if ( state.openSection === section ) {
+				sectionRequest?.abort();
+				sectionRequest = null;
+				update( { openSection: null, sectionLoading: false } );
+				return;
+			}
+			if ( ! state.result || ! source ) {
+				return;
+			}
+			sectionRequest?.abort();
+			const request = new window.AbortController();
+			sectionRequest = request;
+			const current = ++sectionSequence;
+			update( {
+				openSection: section,
+				sectionLoading: true,
+				sectionData: null,
+				sectionError: '',
+			} );
+			// The accordion button doubles as the Highlight action: opening a section always
+			// re-runs the same highlight pipeline a manual "Highlight" click would trigger.
+			const highlighted = highlight( token );
+			let details: SectionDetails | null = null;
+			let error = '';
+			try {
+				const response = await client.request< { details: unknown } >(
+					'details',
+					{
+						report_token: token,
+						section,
+						post_id: source.postId,
+					},
+					request.signal
+				);
+				details = client.validSectionDetails( response.details );
+			} catch ( caught ) {
+				if ( ! request.signal.aborted ) {
+					error = ( caught as Error ).message;
+				}
+			}
+			await highlighted;
+			if ( current !== sectionSequence || disposed ) {
+				return;
+			}
+			update( {
+				sectionLoading: false,
+				sectionData: details,
+				sectionError: error,
+			} );
+		}
 		return {
 			analyze,
 			balance,
 			highlight,
+			toggleSection,
 			reset,
 			invalidate,
 			setHtmlMode( htmlMode: boolean ) {
@@ -301,6 +389,7 @@
 			dispose() {
 				disposed = true;
 				cancel();
+				sectionRequest?.abort();
 				contentReset?.clear();
 				balanceRequest?.abort();
 				decorations?.dispose();
@@ -475,8 +564,11 @@
 						state.result,
 						highlights
 							? {
-									onHighlight: session.highlight,
-									activeToken: state.activeToken,
+									onToggleSection: session.toggleSection,
+									openSection: state.openSection,
+									sectionLoading: state.sectionLoading,
+									sectionData: state.sectionData,
+									sectionError: state.sectionError,
 							  }
 							: {}
 					);

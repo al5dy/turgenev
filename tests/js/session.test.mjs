@@ -5,11 +5,11 @@ import vm from 'node:vm';
 
 const scripts = await Promise.all( [ 'client', 'analysis' ].map( name => readFile( new URL( '../../assets/build/' + name + '.js', import.meta.url ), 'utf8' ) ) );
 const result = { risk: '3', level: 'low', link: 'risk12345', details: [] };
-function fixture( configured = true ) {
+function fixture( configured = true, highlightsAvailable = true ) {
 	const requests = [];
 	let source = { text: 'Original text', html: '<p>Original text</p>', key: 'original' };
 	let state, cleared = 0, applied = 0, counts = { visible: 1, total: 1 };
-	const sandbox = { URLSearchParams, console, window: { AbortController, TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 42, isConfigured: configured }, fetch: ( url, options ) => new Promise( resolve => requests.push( { body: new URLSearchParams( options.body ), options, resolve } ) ) }, document: {}, wp: { i18n: { __: value => value } } };
+	const sandbox = { URLSearchParams, console, window: { AbortController, TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 42, isConfigured: configured, highlightsAvailable }, fetch: ( url, options ) => new Promise( resolve => requests.push( { body: new URLSearchParams( options.body ), options, resolve } ) ) }, document: {}, wp: { i18n: { __: value => value } } };
 	sandbox.window.wp = sandbox.wp;
 	vm.createContext( sandbox );
 	scripts.forEach( script => vm.runInContext( script, sandbox ) );
@@ -41,6 +41,14 @@ test( 'analyzes unsaved text with nonce and post ID, rejects duplicate clicks', 
 	assert.equal( f.requests.length, 1 ); assert.equal( f.requests[0].body.get( 'text' ), 'Original text' ); assert.equal( f.requests[0].body.get( 'post_id' ), '42' ); assert.equal( f.requests[0].body.get( 'nonce' ), 'nonce' );
 	f.respond( 0, { result } ); await pending; assert.equal( f.state.result.level, 'low' ); assert.equal( f.state.busy, false );
 } );
+test( 'a successful analysis never auto-opens a section when highlighting is unavailable (no ext-dom)', async () => {
+	const f = fixture( true, false );
+	const pending = f.session.analyze();
+	f.respond( 0, { result } );
+	await pending;
+	assert.equal( f.state.openSection, null );
+	assert.equal( f.requests.length, 2, 'only risk and the auto balance refresh, no highlights/details fetch' );
+} );
 test( 'changing content cancels analysis and ignores a server that still replies', async () => {
 	const f = fixture(); const pending = f.session.analyze();
 	f.setSource( { text: 'Changed', html: '<p>Changed</p>', key: 'changed' } ); f.session.invalidate();
@@ -48,38 +56,50 @@ test( 'changing content cancels analysis and ignores a server that still replies
 	f.respond( 0, { result } ); await pending; assert.equal( f.state.result, null ); assert.equal( f.state.busy, false );
 } );
 test( 'reset cancels highlights without discarding report; another highlight works', async () => {
+	// analyze() now auto-opens "overall" (requests 1: balance, 2: its highlight, 3: its
+	// details), so a test-driven highlight() lands at request 4, then 5.
 	const f = fixture(); let pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
 	pending = f.session.highlight( 'style12345' ); f.session.reset();
-	f.respond( 2, { highlights: {} } ); await pending; assert.equal( f.applied, 0 ); assert.ok( f.state.result );
-	pending = f.session.highlight( 'style12345' ); f.respond( 3, { highlights: {} } ); await pending;
+	f.respond( 4, { highlights: {} } ); await pending; assert.equal( f.applied, 0 ); assert.ok( f.state.result );
+	pending = f.session.highlight( 'style12345' ); f.respond( 5, { highlights: {} } ); await pending;
 	assert.equal( f.applied, 1 ); f.session.reset(); assert.ok( f.state.result ); assert.equal( f.state.highlighted, false );
 } );
 test( 'switching category clears old decorations immediately and a failed response cannot retain them', async () => {
 	const f = fixture(); let pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
-	pending = f.session.highlight( 'style12345' ); f.respond( 2, { highlights: {} } ); await pending;
+	pending = f.session.highlight( 'style12345' ); f.respond( 4, { highlights: {} } ); await pending;
 	assert.equal( f.state.activeToken, 'style12345' );
 	const cleared = f.cleared;
 	pending = f.session.highlight( 'keywords12345' );
 	assert.equal( f.cleared, cleared + 1 ); assert.equal( f.state.activeToken, null ); assert.equal( f.state.highlighted, false );
-	f.respond( 3, { message: 'Provider unavailable' }, false ); await pending;
+	f.respond( 5, { message: 'Provider unavailable' }, false ); await pending;
 	assert.equal( f.state.highlighted, false ); assert.equal( f.state.activeToken, null ); assert.ok( f.state.result );
 } );
 test( 'unrendered fragments get a local fallback that resets and is replaced with the selected category', async () => {
 	const f = fixture(); let pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
 	const highlights = { text: 'Original text', marks: [ { start: 0, end: 8, category: 'style', level: 2 } ] };
 	f.setCounts( { visible: 0, total: 1 } );
-	pending = f.session.highlight( 'style12345' ); f.respond( 2, { highlights } ); await pending;
+	pending = f.session.highlight( 'style12345' ); f.respond( 4, { highlights } ); await pending;
 	assert.equal( f.state.error, '' ); assert.equal( f.state.highlighted, true ); assert.equal( f.state.highlightFallback, highlights );
 	f.session.reset(); assert.equal( f.state.highlightFallback, null );
 	f.setCounts( { visible: 1, total: 1 } );
-	pending = f.session.highlight( 'frequency12345' ); f.respond( 3, { highlights } ); await pending;
+	pending = f.session.highlight( 'frequency12345' ); f.respond( 5, { highlights } ); await pending;
 	assert.equal( f.state.highlightFallback, null ); assert.equal( f.state.activeToken, 'frequency12345' );
 } );
 test( 'highlight validation accepts dense reports and rejects malformed ranges and excessive payloads', () => {
 	const { client } = fixture();
-	const mark = { start: 0, end: 1, category: 'style', level: 2 };
+	const mark = { start: 0, end: 1, category: 'style', type: 'slop', level: 2 };
 	assert.equal( client.validHighlights( 'text', Array.from( { length: 700 }, () => ( { ...mark } ) ) ).length, 700 );
-	for ( const invalid of [ null, {}, [ { ...mark, end: 5 } ], [ { ...mark, start: -1 } ], [ { ...mark, category: 'unknown' } ], [ { ...mark, level: 4 } ], Array( 20001 ).fill( mark ) ] ) {
+	for ( const invalid of [
+		null,
+		{},
+		[ { ...mark, end: 5 } ],
+		[ { ...mark, start: -1 } ],
+		[ { ...mark, category: 'unknown' } ],
+		[ { ...mark, type: 'unknown' } ], // not one of ReportHighlightParser::CATEGORIES' keys
+		[ { ...mark, level: 0 } ],
+		[ { ...mark, level: 10 } ],
+		Array( 20001 ).fill( mark ),
+	] ) {
 		assert.throws( () => client.validHighlights( 'text', invalid ), /invalid highlight/ );
 	}
 } );
@@ -111,4 +131,144 @@ test( 'explicit HTML mode removes Gutenberg comments without mutating source', a
 test( 'disposing a session aborts pending work and drops late responses', async () => {
 	const f = fixture(); const pending = f.session.analyze(); f.session.dispose(); assert.equal( f.requests[0].options.signal.aborted, true );
 	f.respond( 0, { result } ); await pending; assert.equal( f.state.result, null ); assert.equal( f.requests.length, 1 );
+} );
+// deepStrictEqual also compares [[Prototype]], and values built by code running inside the
+// vm sandbox belong to a different realm than plain literals in this test file, so a
+// same-shape comparison across that boundary needs a structural check instead.
+function assertSameShape( actual, expected, message ) {
+	assert.equal( JSON.stringify( actual ), JSON.stringify( expected ), message );
+}
+test( 'section details validation accepts the full shape and rejects malformed payloads', () => {
+	const { client } = fixture();
+	const full = {
+		params: [ { name: 'Metric', value: '0.42', score: '2', low: false } ],
+		words: [ { text: 'and', count: 3, percent: '5.0%', stopword: true, type: 'doubles', level: 4 } ],
+		phrases: [ { text: 'fast car', count: 2 } ],
+		legend: [ { type: 'slop', level: 1, label: 'Potential issue.' } ],
+		breakdown: [ { label: 'query coverage', value: '0.2' } ],
+	};
+	assertSameShape( client.validSectionDetails( full ), full );
+	assertSameShape( client.validSectionDetails( { params: [] } ), { params: [] } );
+	// A legend row with no recognized `xhl` class comes through as type: '', level: 0.
+	assertSameShape(
+		client.validSectionDetails( { params: [], legend: [ { type: '', level: 0, label: 'x' } ] } ),
+		{ params: [], legend: [ { type: '', level: 0, label: 'x' } ] }
+	);
+	for ( const invalid of [
+		null,
+		{},
+		{ params: 'nope' },
+		{ params: [ { name: 'Metric', value: '0.42', score: '2' } ] }, // missing "low"
+		{ params: [], words: [ { text: 'and' } ] }, // missing "count"
+		{ params: [], words: [ { text: 'and', count: 1, type: 'unknown', level: 1 } ] }, // unrecognized "type"
+		{ params: [], legend: [ { level: 1, label: 'x' } ] }, // missing "type"
+		{ params: [], legend: [ { type: 'slop', level: 10, label: 'x' } ] }, // level out of range
+		{ params: [], breakdown: [ { label: 'x' } ] }, // missing "value"
+		{ params: Array( 201 ).fill( { name: 'a', value: 'b', score: '0', low: false } ) },
+	] ) {
+		assert.throws( () => client.validSectionDetails( invalid ), /invalid section details/ );
+	}
+} );
+test( 'analyzing a document auto-opens the overall section, running highlight and the details fetch together', async () => {
+	const f = fixture();
+	// analyze() now opens "overall" itself, mirroring a manual click on that accordion
+	// button: 0: risk, 1: auto balance refresh, 2: its own highlight, 3: its own details.
+	const pending = f.session.analyze();
+	f.respond( 0, { result } );
+	await pending;
+
+	assert.equal( f.state.openSection, 'overall' );
+	assert.equal( f.state.sectionLoading, true );
+	assert.equal( f.requests[ 2 ].body.get( 'operation' ), 'highlights' );
+	assert.equal( f.requests[ 3 ].body.get( 'operation' ), 'details' );
+	assert.equal( f.requests[ 3 ].body.get( 'section' ), 'overall' );
+	assert.equal( f.requests[ 3 ].body.get( 'report_token' ), 'risk12345' );
+
+	const sectionResult = { params: [ { name: 'Metric', value: '0.42', score: '2', low: false } ] };
+	f.respond( 2, { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( 3, { details: sectionResult } );
+	// analyze()'s own promise does not await this auto-triggered toggle (a manual click
+	// doesn't block the "Analyze document" button either), so flush the microtask queue
+	// instead of awaiting a captured promise.
+	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+	assert.equal( f.state.sectionLoading, false );
+	assertSameShape( f.state.sectionData, sectionResult );
+	assert.equal( f.state.sectionError, '' );
+	assert.equal( f.state.activeToken, 'risk12345' );
+
+	// Re-clicking the already-open section collapses it without any new request.
+	const closing = f.session.toggleSection( 'overall', 'risk12345' );
+	assert.equal( f.requests.length, 4 );
+	await closing;
+	assert.equal( f.state.openSection, null );
+} );
+test( 'switching accordion sections aborts the previous details request and supersedes it', async () => {
+	const f = fixture();
+	// analyze() auto-opens "overall" first; switching to "style" here still exercises the
+	// same superseding-request behavior as switching between any two sections.
+	let pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
+
+	const first = f.session.toggleSection( 'style', 'style12345' );
+	const firstDetailsRequest = f.requests[ 5 ];
+	f.respond( 4, { highlights: { text: 'Original text', marks: [] } } );
+
+	const second = f.session.toggleSection( 'keywords', 'keywords12345' );
+	assert.equal( firstDetailsRequest.options.signal.aborted, true, 'the superseded section\'s details fetch is aborted' );
+	assert.equal( f.state.openSection, 'keywords' );
+
+	f.respond( 5, { details: { params: [] } } ); // stale response for the abandoned "style" details fetch.
+	await first;
+	assert.equal( f.state.openSection, 'keywords', 'a stale response for a superseded section never overwrites the newer one' );
+
+	f.respond( 6, { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( 7, { details: { params: [] } } );
+	await second;
+	assert.equal( f.state.openSection, 'keywords' );
+	assert.equal( f.state.sectionLoading, false );
+	assertSameShape( f.state.sectionData, { params: [] } );
+} );
+test( 'a failed details fetch surfaces sectionError without discarding a successful highlight', async () => {
+	const f = fixture();
+	let pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
+
+	pending = f.session.toggleSection( 'formality', 'formality12345' );
+	f.respond( 4, { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( 5, { message: 'Turgenev report did not contain section details.' }, false );
+	await pending;
+	assert.equal( f.state.sectionLoading, false );
+	assert.equal( f.state.sectionData, null );
+	assert.match( f.state.sectionError, /section details/ );
+	assert.equal( f.state.activeToken, 'formality12345', 'the highlight itself still succeeded independently of the details fetch' );
+} );
+test( 'reset clears accordion section state, and dispose stops any further section updates', async () => {
+	const f = fixture();
+	let pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
+	// analyze() already auto-opened "overall"; just settle its in-flight fetches.
+	f.respond( 2, { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( 3, { details: { params: [] } } );
+	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+	assert.equal( f.state.openSection, 'overall' );
+
+	f.session.reset();
+	assert.equal( f.state.openSection, null );
+	assert.equal( f.state.sectionData, null );
+	assert.equal( f.state.sectionLoading, false );
+
+	pending = f.session.toggleSection( 'overall', 'risk12345' );
+	const detailsRequest = f.requests.at( -1 );
+	const highlightsRequest = f.requests.at( -2 );
+	f.session.dispose();
+	assert.equal( detailsRequest.options.signal.aborted, true );
+	assert.equal( highlightsRequest.options.signal.aborted, true );
+	// abort() only sets the signal's flag in this mock (it does not itself settle the fetch
+	// promise, matching how the browser's own AbortController is treated elsewhere in this
+	// suite), so both requests still need a response before the outer promise can resolve.
+	f.respond( f.requests.indexOf( highlightsRequest ), { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( f.requests.indexOf( detailsRequest ), { details: { params: [] } } );
+	await pending; // Resolves, but a disposed session's own `disposed` guard suppresses the update.
+
+	// toggleSection is a no-op once disposed, proving the session is fully torn down.
+	const requestsBefore = f.requests.length;
+	await f.session.toggleSection( 'style', 'style12345' );
+	assert.equal( f.requests.length, requestsBefore );
 } );
