@@ -87,8 +87,10 @@ test( 'unrendered fragments get a local fallback that resets and is replaced wit
 } );
 test( 'highlight validation accepts dense reports and rejects malformed ranges and excessive payloads', () => {
 	const { client } = fixture();
-	const mark = { start: 0, end: 1, category: 'style', type: 'slop', level: 2 };
+	const mark = { start: 0, end: 1, category: 'style', type: 'slop', level: 2, sentence: null };
 	assert.equal( client.validHighlights( 'text', Array.from( { length: 700 }, () => ( { ...mark } ) ) ).length, 700 );
+	// Only the "Overall risk" report's own marks ever carry a real sentence id.
+	assert.equal( client.validHighlights( 'text', [ { ...mark, sentence: '107-33' } ] ).length, 1 );
 	for ( const invalid of [
 		null,
 		{},
@@ -98,6 +100,8 @@ test( 'highlight validation accepts dense reports and rejects malformed ranges a
 		[ { ...mark, type: 'unknown' } ], // not one of ReportHighlightParser::CATEGORIES' keys
 		[ { ...mark, level: 0 } ],
 		[ { ...mark, level: 10 } ],
+		[ { ...mark, sentence: 'not-an-id' } ],
+		[ { ...mark, sentence: 107 } ],
 		Array( 20001 ).fill( mark ),
 	] ) {
 		assert.throws( () => client.validHighlights( 'text', invalid ), /invalid highlight/ );
@@ -146,6 +150,7 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		phrases: [ { text: 'fast car', count: 2 } ],
 		legend: [ { type: 'slop', level: 1, label: 'Potential issue.' } ],
 		breakdown: [ { label: 'query coverage', value: '0.2' } ],
+		sentenceProblems: { '107-33': [ 'Стилистические ошибки', 'Запросы' ] },
 	};
 	assertSameShape( client.validSectionDetails( full ), full );
 	assertSameShape( client.validSectionDetails( { params: [] } ), { params: [] } );
@@ -164,6 +169,8 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		{ params: [], legend: [ { level: 1, label: 'x' } ] }, // missing "type"
 		{ params: [], legend: [ { type: 'slop', level: 10, label: 'x' } ] }, // level out of range
 		{ params: [], breakdown: [ { label: 'x' } ] }, // missing "value"
+		{ params: [], sentenceProblems: { 'not-an-id': [ 'x' ] } },
+		{ params: [], sentenceProblems: { '0-5': 'not-an-array' } },
 		{ params: Array( 201 ).fill( { name: 'a', value: 'b', score: '0', low: false } ) },
 	] ) {
 		assert.throws( () => client.validSectionDetails( invalid ), /invalid section details/ );

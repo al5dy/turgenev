@@ -404,8 +404,16 @@ msgid "Show all characteristics"
 msgstr "Показать все характеристики"
 
 #: resources/ts/client.ts:226
-msgid "Hide characteristics"
-msgstr "Скрыть характеристики"
+msgid "Hide unimportant characteristics"
+msgstr "Скрыть неважные характеристики"
+
+#: resources/ts/client.ts:262
+msgid "Risk"
+msgstr "Риск"
+
+#: resources/ts/client.ts:404
+msgid "Problems in this sentence"
+msgstr "Проблемы в этом предложении"
 
 #: resources/ts/client.ts:293
 msgid "Words"

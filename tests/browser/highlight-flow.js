@@ -28,6 +28,7 @@ async page => {
 	const reset = () => page.getByRole( 'button', { name: 'Reset view', exact: true } );
 	const action = index => page.getByRole( 'button', { name: 'Highlight', exact: true } ).nth( index );
 	await page.goto( 'http://127.0.0.1:8897/' );
+	await page.getByRole( 'button', { name: 'Turgenev', exact: true } ).click();
 	await analyze().waitFor();
 	assert( await page.getByText( 'No block selected.', { exact: true } ).count(), 'Must start without selection.' );
 	assert( await page.evaluate( () => ! wp.data.select( 'core' ).getEditedEntityRecord( 'postType', 'post', 42 ).blocks ), 'Opening a saved post must not manufacture block edits: that hid the real initial-load mapping failure.' );

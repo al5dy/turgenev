@@ -42,6 +42,9 @@
 			el( wp.blockEditor.BlockContextProvider, { value: { postId, postType } },
 			el( BlockEditorProvider, { value: blocks, onInput, onChange, useSubRegistry: false, settings: { hasFixedToolbar: false } },
 				el( RegistryProbe ),
+				el( 'header', { className: 'editor-header edit-post-header' },
+					el( 'div', { className: 'editor-header__toolbar' } )
+				),
 				el( 'main', { style: { display: 'grid', gridTemplateColumns: '1fr 360px', gap: '40px', padding: '30px' } },
 					el( 'div', { className: 'editor-styles-wrapper' },
 						el( 'button', { onClick: () => setCodeMode( ! codeMode ) }, codeMode ? 'Switch to visual editor' : 'Switch to code editor' ),
@@ -49,7 +52,7 @@
 							? el( wp.blockEditor.__unstableIframe, { name: 'editor-canvas', style: { height: '600px', width: '100%' } }, el( BlockList ) )
 							: el( WritingFlow, null, el( ObserveTyping, null, el( BlockList ) ) )
 					),
-					el( 'aside', null, el( wp.editor.PluginDocumentSettingPanel.Slot ), el( BlockInspector ) )
+					el( 'aside', { className: 'interface-interface-skeleton__sidebar' }, el( BlockInspector ) )
 				),
 				el( wp.components.Popover.Slot )
 			),

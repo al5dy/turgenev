@@ -94,7 +94,9 @@ final class ReportSectionParser {
 
 		switch ( $section ) {
 			case 'overall':
-				break; // Only the characteristic table applies; see the class docblock.
+				$result['legend']           = $this->parseLegend( $xpath );
+				$result['sentenceProblems'] = $this->parseSentenceProblems( $report_html );
+				break;
 			case 'frequency':
 				$result['words']   = $this->parseWordStats( $xpath, 'words_frq_stat', true );
 				$result['phrases'] = $this->parseWordStats( $xpath, 'bgrms_frq_stat', false );
@@ -222,9 +224,12 @@ final class ReportSectionParser {
 	 * severity number: the browser needs it to paint each swatch in the provider's own
 	 * color, not an approximation.
 	 *
-	 * Excludes the overall-risk verdict rows (`legend-active`/`legend-inactive`): those only
-	 * ever appear inside a logged-in provider session (see the class docblock) and never on
-	 * the 'style', 'keywords', 'formality' or 'readability' tabs this is actually called for.
+	 * Also skips any row carrying `legend-active`/`legend-inactive`, defensively: those
+	 * classes were observed only inside a logged-in provider session during development
+	 * (never on this class's own anonymous, token-only fetch, confirmed live for every
+	 * section this is called for, including 'overall') — if the provider ever does add them
+	 * to an anonymous response, they mark which swatch matches the document's own verdict,
+	 * not a distinct category, so they would duplicate a plain row rather than add one.
 	 *
 	 * @param \DOMXPath $xpath Report document.
 	 * @return list<array{type: string, level: int, label: string}>
@@ -262,6 +267,85 @@ final class ReportSectionParser {
 			);
 		}
 		return $items;
+	}
+
+	/**
+	 * Parse the "Overall risk" report's per-sentence problem breakdown.
+	 *
+	 * The provider embeds a `var XHints = {...}` object in an inline `<script>`, keyed by a
+	 * `"<word offset>-<word count>"` sentence id — the same id each highlighted span in that
+	 * report's own text carries as its `xhint-<id>` class (see
+	 * {@see ReportHighlightParser::mark_for_element()}'s `sentence` field) — mapping to the
+	 * list of category labels responsible for that sentence's risk. Confirmed present on this
+	 * class's own anonymous, token-only fetch (unlike the per-document verdict sentence and
+	 * "problems in this sentence" text the class docblock describes, which stayed empty here:
+	 * this object's own `"t"` field is that same always-empty text, so only `"c"` is read).
+	 * Only meaningful for the 'overall' section: every other section's report embeds an empty
+	 * `{}`.
+	 *
+	 * @param string $report_html Full report page markup (not the parsed DOM; see below).
+	 * @return array<string, list<string>>
+	 */
+	private function parseSentenceProblems( string $report_html ): array {
+		/*
+		 * Read off the raw page, the same way report_markup() reads the report's <textarea>
+		 * rather than a parsed DOM node: this script's own JSON embeds real `<a>...</a>`
+		 * markup as string values, and DOMDocument's HTML parser does not treat <script>
+		 * content as inert text — it tries to parse those tags as real HTML, corrupting the
+		 * JSON (dropping every `</a>` close tag) before this ever sees it.
+		 */
+		if ( 1 !== preg_match( '/var\s+XHints\s*=\s*(\{.*?\});/s', $report_html, $match ) ) {
+			return array();
+		}
+		$decoded = json_decode( $match[1], true );
+		if ( ! is_array( $decoded ) ) {
+			return array();
+		}
+		$result = array();
+		foreach ( $decoded as $sentence_id => $entries ) {
+			if ( count( $result ) >= self::MAX_ITEMS ) {
+				break;
+			}
+			if ( ! is_string( $sentence_id ) || ! preg_match( '/^\d+-\d+$/D', $sentence_id ) || ! is_array( $entries ) ) {
+				continue;
+			}
+			$entry = $entries[0] ?? null;
+			if ( ! is_array( $entry ) || ! isset( $entry['c'] ) || ! is_string( $entry['c'] ) ) {
+				continue;
+			}
+			$labels = self::sentenceProblemLabels( $entry['c'] );
+			if ( array() !== $labels ) {
+				$result[ $sentence_id ] = $labels;
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Extract plain-text category labels out of a sentence's `"c"` field
+	 * (`<a href='#tab' onclick='...'>Label</a>,<br>...`).
+	 *
+	 * @param string $html Untrusted provider markup fragment.
+	 * @return list<string>
+	 */
+	private static function sentenceProblemLabels( string $html ): array {
+		// preg_match_all() returns a match *count* (falsy 0 or false on failure), unlike
+		// preg_match()'s 1/0 — a `1 !==` check here would incorrectly reject any sentence
+		// with more than one problem link, which is the common case, not the exception.
+		if ( ! preg_match_all( '/<a\b[^>]*>(.*?)<\/a>/is', $html, $matches ) ) {
+			return array();
+		}
+		$labels = array();
+		foreach ( $matches[1] as $raw_label ) {
+			if ( count( $labels ) >= 20 ) {
+				break;
+			}
+			$label = trim( html_entity_decode( wp_strip_all_tags( $raw_label ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+			if ( '' !== $label ) {
+				$labels[] = ResponseValidator::label( $label );
+			}
+		}
+		return $labels;
 	}
 
 	/**

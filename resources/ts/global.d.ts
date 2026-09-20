@@ -40,6 +40,12 @@ interface HighlightMark {
 	category: HighlightCategory;
 	type: HighlightType;
 	level: number;
+	/**
+	 * The "Overall risk" report's shared sentence id ("<word offset>-<word count>", e.g.
+	 * "107-33"), present only there — null for every other section's marks. Looks up that
+	 * sentence's entry in SectionDetails.sentenceProblems when the reader clicks it.
+	 */
+	sentence: string | null;
 }
 
 /** The result panel's six accordion sections: the overall score plus one per report block. */
@@ -81,6 +87,11 @@ interface SectionDetails {
 	phrases?: SectionWordStat[];
 	legend?: SectionLegendItem[];
 	breakdown?: SectionBreakdownItem[];
+	/**
+	 * 'overall' only: sentence id (matching HighlightMark.sentence) → the list of category
+	 * labels responsible for that sentence's risk, shown when the reader clicks it.
+	 */
+	sentenceProblems?: Record< string, string[] >;
 }
 
 interface HighlightsResponseData {
@@ -154,7 +165,12 @@ type AnalysisTarget = RangeAnalysisTarget | TextareaAnalysisTarget;
 interface Decorations {
 	apply(
 		source: SourceSnapshot,
-		data: HighlightsResponseData
+		data: HighlightsResponseData,
+		/**
+		 * Invoked when the reader clicks a rendered mark that carries a
+		 * HighlightMark.sentence id (only ever true for the "Overall risk" section).
+		 */
+		onSentenceClick?: ( sentence: string ) => void
 	): { visible: number; total: number };
 	clear(): void;
 	dispose(): void;
@@ -255,6 +271,8 @@ interface TurgenevUIApi {
 			sectionLoading?: boolean;
 			sectionData?: SectionDetails | null;
 			sectionError?: string;
+			/** 'overall' only: labels for the sentence last clicked, from sectionData.sentenceProblems. */
+			sentenceProblem?: string[] | null;
 		}
 	): void;
 	setBusy( panel: HTMLElement | null, busy: unknown ): void;
@@ -277,6 +295,8 @@ interface SessionState {
 	sectionLoading: boolean;
 	sectionData: SectionDetails | null;
 	sectionError: string;
+	/** 'overall' only: labels for the sentence last clicked in the editor, or null until one is. */
+	sentenceProblem: string[] | null;
 }
 
 interface AnalysisSession {
@@ -393,19 +413,12 @@ interface WPDataRegistry {
 
 interface WPElementModule {
 	createElement: ( type: unknown, props?: unknown, ...children: unknown[] ) => unknown;
+	createPortal: ( children: unknown, container: Element ) => unknown;
+	Fragment: unknown;
 	useEffect: ( effect: () => ( void | ( () => void ) ), deps?: unknown[] ) => void;
 	useMemo: < T >( factory: () => T, deps: unknown[] ) => T;
 	useRef: < T >( initial: T | null ) => { current: T | null };
-}
-
-interface WPPluginDocumentSettingPanelProps {
-	name: string;
-	title: string;
-	className?: string;
-}
-
-interface WPEditorModule {
-	PluginDocumentSettingPanel: ( props: WPPluginDocumentSettingPanelProps, ...children: unknown[] ) => unknown;
+	useState: < T >( initial: T | ( () => T ) ) => [ T, ( value: T | ( ( current: T ) => T ) ) => void ];
 }
 
 interface WPPluginsModule {
@@ -427,7 +440,6 @@ interface WPGlobal {
 	i18n?: WPI18nModule;
 	data?: WPDataRegistry;
 	element?: WPElementModule;
-	editor?: WPEditorModule;
 	plugins?: WPPluginsModule;
 	blocks?: WPBlocksModule;
 }

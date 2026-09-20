@@ -349,7 +349,28 @@ try {
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $section_markup() );
 		$overall = $client->reportSectionDetails( 'abc12345', 'overall' );
 		expect_true( 'bb-mix' === $GLOBALS['turgenev_last_request']['args']['body']['coverdict'], 'the overall section requests the provider\'s bb-mix report tab' );
-		expect_true( ! array_key_exists( 'legend', $overall ) && ! array_key_exists( 'words', $overall ) && ! array_key_exists( 'breakdown', $overall ), 'the overall section exposes only its characteristic table' );
+		expect_true( ! array_key_exists( 'words', $overall ) && ! array_key_exists( 'breakdown', $overall ), 'the overall section never exposes the frequency/keywords-only fields' );
+		expect_true( array() === $overall['legend'], 'overall legend is empty when the report has no #legend block' );
+		expect_true( array() === $overall['sentenceProblems'], 'overall sentenceProblems is empty when the report has no XHints script' );
+
+		// The "Overall risk" report's own legend (confirmed live on an anonymous fetch to
+		// carry no legend-active/legend-inactive rows, unlike this dev-only exclusion test's
+		// fixture above) and its per-sentence XHints breakdown.
+		$xhints_markup = $section_markup(
+			"<div id='legend'><table><tr><td><em class='xhl bb1'>&nbsp;</em></td><td>Some problems.</td></tr></table></div>"
+			. '<script>var XHints = {"107-33":[{"c":"<a href=\'#doubles\' onclick=\'tabAClick(this); return false;\'>Word repetition</a>,<br><a href=\'#slop_words\' onclick=\'tabAClick(this); return false;\'>Style errors</a>","t":""}],"not-a-real-id-shape":[{"c":"ignored","t":""}]};</script>'
+		);
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $xhints_markup );
+		$overall_with_xhints = $client->reportSectionDetails( 'abc12345', 'overall' );
+		expect_true( 1 === count( $overall_with_xhints['legend'] ) && 'bb' === $overall_with_xhints['legend'][0]['type'] && 'Some problems.' === $overall_with_xhints['legend'][0]['label'], 'the overall section now exposes its own color legend, previously skipped entirely' );
+		expect_true( 1 === count( $overall_with_xhints['sentenceProblems'] ), 'a malformed sentence id ("not-a-real-id-shape") is dropped, a well-formed one kept' );
+		expect_true(
+			array( 'Word repetition', 'Style errors' ) === $overall_with_xhints['sentenceProblems']['107-33'],
+			'sentenceProblems strips the <a href=...> markup down to plain category labels, in document order'
+		);
+
+		$style_never_gets_sentence_problems = $client->reportSectionDetails( 'abc12345', 'style' );
+		expect_true( ! array_key_exists( 'sentenceProblems', $style_never_gets_sentence_problems ), 'only the overall section parses sentenceProblems' );
 
 		$legend_markup = $section_markup( "<div id='legend'><table><tr><td><em class='xhl slop1'>&nbsp;</em></td><td>Potential issue.</td></tr><tr class='legend-active'><td><em class='xhl bb3'>&nbsp;</em></td><td>Never surfaces as a category legend row.</td></tr></table></div>" );
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $legend_markup );

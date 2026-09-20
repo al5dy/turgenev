@@ -39,7 +39,7 @@ final class ReportHighlightParser {
 	 * @param string $report_html Provider report page.
 	 * @param string $expected_text Current normalized document text.
 	 * @throws ApiException On missing, mismatched or oversized markup.
-	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int}>}
+	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string}>}
 	 */
 	public function parse( string $report_html, string $expected_text ): array {
 		if ( ! $this->has_dom ) {
@@ -78,6 +78,7 @@ final class ReportHighlightParser {
 				'category' => $raw_mark['category'],
 				'type'     => $raw_mark['type'],
 				'level'    => $raw_mark['level'],
+				'sentence' => $raw_mark['sentence'],
 			);
 		}
 
@@ -156,9 +157,9 @@ final class ReportHighlightParser {
 	/**
 	 * Collect visible text and byte ranges before UTF-16 conversion.
 	 *
-	 * @param \DOMNode                                                                      $node Current inert node.
-	 * @param string                                                                        $text Accumulated source text.
-	 * @param list<array{start: int, end: int, category: string, type: string, level: int}> $marks Collected annotations.
+	 * @param \DOMNode                                                                                         $node Current inert node.
+	 * @param string                                                                                           $text Accumulated source text.
+	 * @param list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string}> $marks Collected annotations.
 	 */
 	private function collect( \DOMNode $node, string &$text, array &$marks ): void {
 		if ( XML_TEXT_NODE === $node->nodeType || XML_CDATA_SECTION_NODE === $node->nodeType ) {
@@ -224,7 +225,7 @@ final class ReportHighlightParser {
 	 * the provider's own stylesheet happens to reuse them across two different tabs.
 	 *
 	 * @param \DOMElement $element Provider element.
-	 * @return array{category: string, type: string, level: int}|null
+	 * @return array{category: string, type: string, level: int, sentence: ?string}|null
 	 */
 	private function mark_for_element( \DOMElement $element ): ?array {
 		$class_names = (array) preg_split( '/\s+/', trim( $element->getAttribute( 'class' ) ) );
@@ -232,21 +233,40 @@ final class ReportHighlightParser {
 			return null;
 		}
 
+		$category = null;
+		$type     = null;
+		$level    = null;
+		$sentence = null;
 		foreach ( $class_names as $class_name ) {
-			if ( ! preg_match( '/^([a-z_]+)([1-9]\d*)$/', $class_name, $match ) || ! isset( self::CATEGORIES[ $match[1] ] ) ) {
-				continue;
-			}
-
-			return array(
-				'category' => self::CATEGORIES[ $match[1] ],
-				'type'     => $match[1],
+			if ( null === $category && preg_match( '/^([a-z_]+)([1-9]\d*)$/', $class_name, $match ) && isset( self::CATEGORIES[ $match[1] ] ) ) {
+				$category = self::CATEGORIES[ $match[1] ];
+				$type     = $match[1];
 				// The provider's own scale goes no higher than 5 (doubles1..doubles5); 9 is
 				// a defensive upper bound, not a real value it is expected to send.
-				'level'    => min( 9, (int) $match[2] ),
-			);
+				$level = min( 9, (int) $match[2] );
+				continue;
+			}
+			// The "Overall risk" report groups every span within one sentence under a shared
+			// `xhint-<word offset>-<word count>` class, matching a key in that same report's
+			// `XHints` script variable ({@see ReportSectionParser::parseSentenceProblems()}):
+			// the browser needs this to resolve a click anywhere in a highlighted sentence to
+			// its own "problems in this sentence" breakdown. No other section's report
+			// populates `XHints`, so this is harmless, unused data there.
+			if ( null === $sentence && preg_match( '/^xhint-(\d+-\d+)$/', $class_name, $match ) ) {
+				$sentence = $match[1];
+			}
 		}
 
-		return null;
+		if ( null === $category ) {
+			return null;
+		}
+
+		return array(
+			'category' => $category,
+			'type'     => $type,
+			'level'    => $level,
+			'sentence' => $sentence,
+		);
 	}
 
 	/**

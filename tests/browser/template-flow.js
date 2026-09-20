@@ -60,6 +60,7 @@ async page => {
 			await page.goto( 'http://127.0.0.1:8897/?template=1&postType=' + postType + ( iframe ? '&iframe=1' : '' ) );
 			const editor = iframe ? page.frameLocator( 'iframe[name="editor-canvas"]' ) : page;
 			await editor.locator( '[data-type="core/post-content"] [contenteditable="true"]' ).first().waitFor();
+			await page.getByRole( 'button', { name: 'Turgenev', exact: true } ).click();
 			await verifyCategories();
 			assert( submitted.at( -1 ).text === 'Это тестовый текст с ссылкой и 😀 словами. Первый абзац. Второй абзац.', 'Repeated header/footer text contaminated the submitted body.' );
 			checks.push( postType + ( iframe ? ' iframe' : ' inline' ) + ': controlled Content root, all categories, exact reset, unchanged post/template' );

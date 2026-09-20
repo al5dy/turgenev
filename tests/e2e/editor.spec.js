@@ -25,7 +25,21 @@ async function loginAsAdmin( page ) {
 	await login( page, username, password );
 }
 
-test.describe( 'Gutenberg document panel', () => {
+/**
+ * The Turgenev panel is an independent overlay, hidden until the "Turgenev" button in the
+ * editor's top toolbar is clicked; it is not a Document settings tab any more.
+ */
+async function openTurgenevPanel( page ) {
+	await page
+		.locator( '.editor-header__toolbar' )
+		.getByRole( 'button', { name: /Turgenev/i } )
+		.click();
+	const panel = page.locator( '.turgenev-sidebar' );
+	await expect( panel ).toBeVisible( { timeout: 20000 } );
+	return panel;
+}
+
+test.describe( 'Gutenberg independent Turgenev overlay', () => {
 	let postId;
 
 	test.beforeAll( () => {
@@ -49,8 +63,7 @@ test.describe( 'Gutenberg document panel', () => {
 		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
 		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
-		const panel = page.locator( '.turgenev-document-panel' );
-		await expect( panel ).toBeVisible( { timeout: 20000 } );
+		const panel = await openTurgenevPanel( page );
 		await expect( panel.getByRole( 'heading', { name: /Turgenev/i } ) ).toBeVisible();
 	} );
 
@@ -58,8 +71,7 @@ test.describe( 'Gutenberg document panel', () => {
 		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
 		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
-		const panel = page.locator( '.turgenev-document-panel' );
-		await expect( panel ).toBeVisible( { timeout: 20000 } );
+		const panel = await openTurgenevPanel( page );
 
 		// Type new, unsaved content; the draft in the DB never receives this edit.
 		const block = page.locator( '.wp-block-post-content [data-type="core/paragraph"], [data-type="core/paragraph"]' ).first();
@@ -79,8 +91,7 @@ test.describe( 'Gutenberg document panel', () => {
 		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
 		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
-		const panel = page.locator( '.turgenev-document-panel' );
-		await expect( panel ).toBeVisible( { timeout: 20000 } );
+		const panel = await openTurgenevPanel( page );
 
 		await page.evaluate( () => {
 			window.TurgenevConfig.nonce = 'deliberately-invalid-nonce';
@@ -186,8 +197,7 @@ test.describe( 'Post-level authorization', () => {
 		// The contributor's own post-edit screen: a screen this role can legitimately open,
 		// where turgenev-client (and therefore TurgenevConfig.nonce) is really enqueued.
 		await page.goto( `/wp-admin/post.php?post=${ contributorPostId }&action=edit` );
-		const panel = page.locator( '.turgenev-document-panel' );
-		await expect( panel ).toBeVisible( { timeout: 20000 } );
+		await openTurgenevPanel( page );
 
 		const nonce = await page.evaluate( () => window.TurgenevConfig && window.TurgenevConfig.nonce );
 		expect( typeof nonce ).toBe( 'string' );
@@ -261,8 +271,7 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 		test.skip( ! postId, 'wp-cli is required (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
 		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
-		const panel = page.locator( '.turgenev-document-panel' );
-		await expect( panel ).toBeVisible( { timeout: 20000 } );
+		const panel = await openTurgenevPanel( page );
 
 		await panel.getByRole( 'button', { name: /Analyze document/i } ).click();
 		const overallToggle = panel.getByRole( 'button', { name: /Overall risk/i } );
@@ -301,7 +310,7 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 		// After a full editor reload: the highlight decoration must not have been persisted
 		// and re-rendered from stored markup either.
 		await page.reload();
-		await expect( panel ).toBeVisible( { timeout: 20000 } );
+		await openTurgenevPanel( page );
 		assertNoHighlightMarkup( wpCli( [ 'post', 'get', String( postId ), '--field=post_content' ] ) );
 	} );
 } );
@@ -375,8 +384,7 @@ test.describe( 'Missing DOM extension degrades gracefully', () => {
 		try {
 			await loginAsAdmin( page );
 			await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
-			const panel = page.locator( '.turgenev-document-panel' );
-			await expect( panel ).toBeVisible( { timeout: 20000 } );
+			const panel = await openTurgenevPanel( page );
 			await expect( panel.getByText( /unavailable on this server/i ) ).toBeVisible();
 
 			await panel.getByRole( 'button', { name: /Analyze document/i } ).click();

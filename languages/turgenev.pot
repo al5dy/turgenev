@@ -406,7 +406,15 @@ msgid "Show all characteristics"
 msgstr ""
 
 #: resources/ts/client.ts:226
-msgid "Hide characteristics"
+msgid "Hide unimportant characteristics"
+msgstr ""
+
+#: resources/ts/client.ts:262
+msgid "Risk"
+msgstr ""
+
+#: resources/ts/client.ts:404
+msgid "Problems in this sentence"
 msgstr ""
 
 #: resources/ts/client.ts:293

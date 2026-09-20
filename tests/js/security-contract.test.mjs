@@ -84,11 +84,13 @@ test( 'classic editor metabox uses the active screen rather than post-type capab
 	assert.doesNotMatch( php, /use_block_editor_for_post_type/ );
 } );
 
-test( 'gutenberg uses a permanent document panel independent of block selection', async () => {
+test( 'gutenberg uses an independent toolbar-triggered overlay, not a document settings tab, and stays independent of block selection', async () => {
 	const js = await source( 'resources/ts/editor.ts' );
 	const content = await source( 'resources/ts/editor-content.ts' );
-	assert.match( js, /PluginDocumentSettingPanel/ );
+	assert.doesNotMatch( js, /PluginDocumentSettingPanel/ );
 	assert.match( js, /registerPlugin/ );
+	assert.match( js, /editor-header__toolbar/ );
+	assert.match( js, /interface-interface-skeleton__sidebar/ );
 	assert.match( content, /core\/editor/ );
 	assert.doesNotMatch( js, /isSelected|selectedBlock|InspectorControls/ );
 	const session = await source( 'resources/ts/analysis.ts' );

@@ -15,10 +15,12 @@ async page => {
 		}
 		await route.fulfill( { json: { success: true, data } } );
 	} );
-	await page.goto( 'http://127.0.0.1:8897/' );
 	const analyze = () => page.getByRole( 'button', { name: 'Analyze document', exact: true } );
 	const action = index => page.getByRole( 'button', { name: 'Highlight', exact: true } ).nth( index );
 	const reset = () => page.getByRole( 'button', { name: 'Reset view', exact: true } );
+	const openPanel = () => page.getByRole( 'button', { name: 'Turgenev', exact: true } ).click();
+	await page.goto( 'http://127.0.0.1:8897/' );
+	await openPanel();
 	await analyze().waitFor();
 	const sourceMapping = await page.evaluate( () => {
 		const samples = [
@@ -109,6 +111,7 @@ async page => {
 	checks.push( 'Classic Text mode, all categories, repeated words, source scrolling, no value mutations and complete reset' );
 	await page.goto( 'http://127.0.0.1:8897/?iframe=1' );
 	await page.frameLocator( 'iframe[name="editor-canvas"]' ).locator( '[data-block]' ).first().waitFor();
+	await openPanel();
 	await analyze().click(); await action( 5 ).waitFor();
 	const iframeOriginal = await page.evaluate( () => wp.data.select( 'core/editor' ).getEditedPostContent() );
 	for ( let i = 0; i < 6; i++ ) {

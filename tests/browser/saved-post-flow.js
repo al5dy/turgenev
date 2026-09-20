@@ -39,6 +39,7 @@ async page => {
 				unedited: ! wp.data.select( 'core' ).getEditedEntityRecord( 'postType', 'post', 42 ).blocks,
 			} ) );
 			assert( original.unedited && original.html === fixtures[ index ], 'The fixture must be a saved post, not manufactured unsaved block edits.' );
+			await page.getByRole( 'button', { name: 'Turgenev', exact: true } ).click();
 			await page.getByRole( 'button', { name: 'Analyze document', exact: true } ).click();
 			const actions = page.getByRole( 'button', { name: 'Highlight', exact: true } );
 			await actions.nth( 5 ).waitFor();

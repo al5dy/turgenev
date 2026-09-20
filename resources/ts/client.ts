@@ -209,6 +209,9 @@
 		'fre',
 		'ari',
 	] );
+	// A HighlightMark.sentence id: "<word offset>-<word count>", matching a key in
+	// SectionDetails.sentenceProblems (see ReportSectionParser::parseSentenceProblems()).
+	const SENTENCE_ID_PATTERN = /^\d+-\d+$/;
 
 	function highlightColor( mark: { type: string; level: number } ): string {
 		return (
@@ -259,9 +262,9 @@
 	function renderVerdict( data: RiskResult ): HTMLElement {
 		const verdict = document.createElement( 'p' );
 		verdict.className = 'turgenev-section-verdict';
-		verdict.textContent = `${ String( data.level || '—' ) } (${ String(
-			data.risk ?? '—'
-		) })`;
+		verdict.textContent = `${ __( 'Risk', 'turgenev' ) } ${ String(
+			data.level || '—'
+		) } (${ String( data.risk ?? '—' ) })`;
 		return verdict;
 	}
 
@@ -272,16 +275,16 @@
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-params';
 		const isOverall = section === 'overall';
-		let lowCount = 0;
+		let hiddenCount = 0;
 		params.forEach( ( param ) => {
 			const row = document.createElement( 'div' );
 			row.className = 'turgenev-section-param';
-			// The overall section now opens fully expanded (see renderResult()'s
-			// auto-activation), so low-risk rows start visible; the toggle below
-			// still lets a reader collapse them back down.
+			// The main characteristics show by default; secondary ones stay behind
+			// the toggle below until the reader asks for the full breakdown.
 			if ( isOverall && param.low ) {
+				row.hidden = true;
 				row.classList.add( 'turgenev-section-param-low' );
-				lowCount++;
+				hiddenCount++;
 			}
 			const name = document.createElement( 'span' );
 			name.className = 'turgenev-section-param-name';
@@ -292,13 +295,13 @@
 			row.append( name, value );
 			wrap.appendChild( row );
 		} );
-		if ( isOverall && lowCount > 0 ) {
+		if ( isOverall && hiddenCount > 0 ) {
 			const showLabel = __( 'Show all characteristics', 'turgenev' );
 			const hideLabel = __( 'Hide unimportant characteristics', 'turgenev' );
 			const toggle = document.createElement( 'button' );
 			toggle.type = 'button';
 			toggle.className = 'button-link turgenev-section-toggle';
-			toggle.textContent = hideLabel;
+			toggle.textContent = showLabel;
 			toggle.addEventListener( 'click', () => {
 				const expanding = toggle.textContent === showLabel;
 				wrap.querySelectorAll( '.turgenev-section-param-low' ).forEach(
@@ -398,6 +401,24 @@
 		return wrap;
 	}
 
+	function renderSentenceProblems( labels: string[] ): HTMLElement {
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'turgenev-section-sentence-problems';
+		const heading = document.createElement( 'h4' );
+		heading.className = 'turgenev-section-heading';
+		heading.textContent = __( 'Problems in this sentence', 'turgenev' );
+		const list = document.createElement( 'div' );
+		list.className = 'turgenev-section-breakdown';
+		labels.forEach( ( label ) => {
+			const row = document.createElement( 'div' );
+			row.className = 'turgenev-section-breakdown-item';
+			row.textContent = `• ${ label }`;
+			list.appendChild( row );
+		} );
+		wrap.append( heading, list );
+		return wrap;
+	}
+
 	function renderBreakdown( items: SectionBreakdownItem[] ): HTMLElement {
 		const list = document.createElement( 'div' );
 		list.className = 'turgenev-section-breakdown';
@@ -417,7 +438,8 @@
 	function renderSectionContent(
 		section: SectionKey,
 		details: SectionDetails,
-		result: RiskResult
+		result: RiskResult,
+		sentenceProblem?: string[] | null
 	): HTMLElement {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-content';
@@ -448,6 +470,15 @@
 		) {
 			wrap.appendChild( renderLegend( details.legend ) );
 		}
+		if ( section === 'overall' ) {
+			// Only ever set once the reader clicks a highlighted sentence in the editor.
+			if ( sentenceProblem?.length ) {
+				wrap.appendChild( renderSentenceProblems( sentenceProblem ) );
+			}
+			if ( details.legend?.length ) {
+				wrap.appendChild( renderLegend( details.legend ) );
+			}
+		}
 		return wrap;
 	}
 
@@ -460,6 +491,7 @@
 			sectionLoading?: boolean;
 			sectionData?: SectionDetails | null;
 			sectionError?: string;
+			sentenceProblem?: string[] | null;
 		} = {}
 	): void {
 		if ( ! container ) {
@@ -519,7 +551,8 @@
 						renderSectionContent(
 							entry.key,
 							options.sectionData,
-							data
+							data,
+							options.sentenceProblem
 						)
 					);
 				}
@@ -555,6 +588,7 @@
 					category?: unknown;
 					type?: unknown;
 					level?: unknown;
+					sentence?: unknown;
 				};
 				return ! (
 					Number.isInteger( candidate.start ) &&
@@ -567,7 +601,10 @@
 					KNOWN_HIGHLIGHT_TYPES.has( candidate.type ) &&
 					Number.isInteger( candidate.level ) &&
 					( candidate.level as number ) >= 1 &&
-					( candidate.level as number ) <= 9
+					( candidate.level as number ) <= 9 &&
+					( candidate.sentence === null ||
+						( typeof candidate.sentence === 'string' &&
+							SENTENCE_ID_PATTERN.test( candidate.sentence ) ) )
 				);
 			} )
 		) {
@@ -654,6 +691,25 @@
 		);
 	}
 
+	function isSentenceProblems(
+		value: unknown
+	): value is Record< string, string[] > {
+		if ( ! value || typeof value !== 'object' || Array.isArray( value ) ) {
+			return false;
+		}
+		const entries = Object.entries( value as Record< string, unknown > );
+		return (
+			entries.length <= 200 &&
+			entries.every(
+				( [ key, labels ] ) =>
+					SENTENCE_ID_PATTERN.test( key ) &&
+					Array.isArray( labels ) &&
+					labels.length <= 20 &&
+					labels.every( ( label ) => typeof label === 'string' )
+			)
+		);
+	}
+
 	function validSectionDetails( data: unknown ): SectionDetails {
 		const invalid = (): never => {
 			throw new Error(
@@ -691,6 +747,12 @@
 				return invalid();
 			}
 			result.breakdown = raw.breakdown;
+		}
+		if ( raw.sentenceProblems !== undefined ) {
+			if ( ! isSentenceProblems( raw.sentenceProblems ) ) {
+				return invalid();
+			}
+			result.sentenceProblems = raw.sentenceProblems;
 		}
 		return result;
 	}

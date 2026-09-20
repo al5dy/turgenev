@@ -29,6 +29,7 @@
 			sectionLoading: false,
 			sectionData: null,
 			sectionError: '',
+			sentenceProblem: null,
 		};
 		let source: SourceSnapshot | null = null;
 		let pending: AbortController | null = null;
@@ -69,6 +70,7 @@
 				sectionLoading: false,
 				sectionData: null,
 				sectionError: '',
+				sentenceProblem: null,
 			} );
 		}
 		function reset(): void {
@@ -265,6 +267,7 @@
 				activeToken: null,
 				error: '',
 				notice: '',
+				sentenceProblem: null,
 			} );
 			try {
 				contentReset?.capture();
@@ -285,7 +288,15 @@
 				}
 				const counts = decorations.apply(
 					source as SourceSnapshot,
-					response.highlights
+					response.highlights,
+					( sentence ) => {
+						update( {
+							sentenceProblem:
+								state.sectionData?.sentenceProblems?.[
+									sentence
+								] ?? null,
+						} );
+					}
 				);
 				let notice = '';
 				if ( ! counts.total ) {
@@ -324,7 +335,11 @@
 			if ( state.openSection === section ) {
 				sectionRequest?.abort();
 				sectionRequest = null;
-				update( { openSection: null, sectionLoading: false } );
+				update( {
+					openSection: null,
+					sectionLoading: false,
+					sentenceProblem: null,
+				} );
 				return;
 			}
 			if ( ! state.result || ! source ) {
@@ -569,6 +584,7 @@
 									sectionLoading: state.sectionLoading,
 									sectionData: state.sectionData,
 									sectionError: state.sectionError,
+									sentenceProblem: state.sentenceProblem,
 							  }
 							: {}
 					);

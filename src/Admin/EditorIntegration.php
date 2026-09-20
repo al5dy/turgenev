@@ -67,7 +67,7 @@ final class EditorIntegration {
 		wp_enqueue_script(
 			'turgenev-editor',
 			TURGENEV_URL . 'assets/build/editor.js',
-			array( 'turgenev-editor-content', 'wp-editor', 'wp-plugins', 'wp-data', 'wp-element', 'wp-i18n' ),
+			array( 'turgenev-editor-content', 'wp-plugins', 'wp-data', 'wp-element', 'wp-i18n' ),
 			$this->assetVersion( 'assets/build/editor.js' ),
 			true
 		);

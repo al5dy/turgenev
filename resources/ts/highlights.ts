@@ -6,6 +6,15 @@ interface DecorationSurface {
 	style: HTMLStyleElement | null;
 	textareas: Set< HTMLTextAreaElement >;
 	resize: ResizeObserver | null;
+	/**
+	 * Clickable-sentence hit boxes for the current paint, rebuilt on every repaint. Needed
+	 * only for the CSS Custom Highlight API path (::highlight() pseudo-elements can't
+	 * receive DOM events themselves); the textarea and older-browser paths attach a real
+	 * click listener directly to their own real <span> elements instead.
+	 */
+	sentenceRects: { sentence: string; rects: DOMRect[] }[];
+	/** Bound reference kept so clear() can remove exactly the listener observe() added. */
+	handleClick: ( event: MouseEvent ) => void;
 }
 
 ( function ( window: Window & typeof globalThis ): void {
@@ -30,7 +39,8 @@ interface DecorationSurface {
 	function paintTextarea(
 		target: TextareaAnalysisTarget,
 		marks: HighlightMark[],
-		surface: DecorationSurface
+		surface: DecorationSurface,
+		onSentenceClick: ( ( sentence: string ) => void ) | null
 	): void {
 		const { textarea, document: doc } = target;
 		const win = doc.defaultView as Window;
@@ -144,6 +154,14 @@ interface DecorationSurface {
 					span.style.color = 'transparent';
 					span.style.backgroundColor = client.highlightColor( mark );
 					span.textContent = text;
+					if ( onSentenceClick && mark.sentence ) {
+						const sentence = mark.sentence;
+						span.style.pointerEvents = 'auto';
+						span.style.cursor = 'pointer';
+						span.addEventListener( 'click', () =>
+							onSentenceClick( sentence )
+						);
+					}
 					mirror.appendChild( span );
 				} else {
 					mirror.appendChild( doc.createTextNode( text ) );
@@ -174,8 +192,29 @@ interface DecorationSurface {
 	): Decorations {
 		let active: { source: SourceSnapshot; marks: HighlightMark[] } | null =
 			null;
+		let sentenceClick: ( ( sentence: string ) => void ) | null = null;
 		let frame = 0;
 		const surfaces = new Map< Document, DecorationSurface >();
+		function handleSurfaceClick(
+			surface: DecorationSurface,
+			event: MouseEvent
+		): void {
+			if ( ! sentenceClick ) {
+				return;
+			}
+			const hit = surface.sentenceRects.find( ( entry ) =>
+				entry.rects.some(
+					( rect ) =>
+						event.clientX >= rect.left &&
+						event.clientX <= rect.right &&
+						event.clientY >= rect.top &&
+						event.clientY <= rect.bottom
+				)
+			);
+			if ( hit ) {
+				sentenceClick( hit.sentence );
+			}
+		}
 		function clearSurface( surface: DecorationSurface ): void {
 			const win = surface.doc.defaultView as
 				| ( Window & {
@@ -187,6 +226,7 @@ interface DecorationSurface {
 			}
 			surface.names.clear();
 			surface.layer?.replaceChildren();
+			surface.sentenceRects = [];
 		}
 		function observe( doc: Document ): DecorationSurface {
 			const existing = surfaces.get( doc );
@@ -219,7 +259,10 @@ interface DecorationSurface {
 				resize: doc.defaultView?.ResizeObserver
 					? new doc.defaultView.ResizeObserver( schedule )
 					: null,
+				sentenceRects: [],
+				handleClick: ( event ) => handleSurfaceClick( surface, event ),
 			};
+			doc.addEventListener( 'click', surface.handleClick );
 			surfaces.set( doc, surface );
 			return surface;
 		}
@@ -285,6 +328,12 @@ interface DecorationSurface {
 							target.offset + end
 						);
 					}
+					if ( mark.sentence ) {
+						surface.sentenceRects.push( {
+							sentence: mark.sentence,
+							rects: [ ...range.getClientRects() ],
+						} );
+					}
 					const name = 'turgenev-' + mark.type + mark.level;
 					if ( win?.CSS?.highlights && win.Highlight ) {
 						if ( ! surface.style ) {
@@ -325,6 +374,14 @@ interface DecorationSurface {
 								height: rect.height + 'px',
 								backgroundColor: client.highlightColor( mark ),
 							} );
+							if ( sentenceClick && mark.sentence ) {
+								const sentence = mark.sentence;
+								box.style.pointerEvents = 'auto';
+								box.style.cursor = 'pointer';
+								box.addEventListener( 'click', () =>
+									sentenceClick?.( sentence )
+								);
+							}
 							layer.appendChild( box );
 						}
 					}
@@ -334,7 +391,8 @@ interface DecorationSurface {
 					paintTextarea(
 						target as TextareaAnalysisTarget,
 						sourceMarks,
-						surface
+						surface,
+						sentenceClick
 					);
 				}
 			}
@@ -358,6 +416,7 @@ interface DecorationSurface {
 		}
 		function clear(): void {
 			active = null;
+			sentenceClick = null;
 			window.cancelAnimationFrame( frame );
 			frame = 0;
 			for ( const surface of surfaces.values() ) {
@@ -369,6 +428,7 @@ interface DecorationSurface {
 					'resize',
 					schedule
 				);
+				surface.doc.removeEventListener( 'click', surface.handleClick );
 				surface.layer?.remove();
 				surface.style?.remove();
 			}
@@ -376,7 +436,11 @@ interface DecorationSurface {
 		}
 		window.document.addEventListener( 'load', schedule, true );
 		return {
-			apply( source: SourceSnapshot, data: HighlightsResponseData ) {
+			apply(
+				source: SourceSnapshot,
+				data: HighlightsResponseData,
+				onSentenceClick?: ( sentence: string ) => void
+			) {
 				if ( data?.text !== source.text ) {
 					throw new Error(
 						'Turgenev report text does not match the document.'
@@ -386,6 +450,7 @@ interface DecorationSurface {
 					source,
 					marks: client.validHighlights( data.text, data.marks ),
 				};
+				sentenceClick = onSentenceClick ?? null;
 				const visible = paint();
 				// Non-rendered third-party fields use the session's read-only text view.
 				// Keep every valid in-place decoration; malformed provider data still fails above.
