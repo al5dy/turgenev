@@ -47,6 +47,9 @@ function createElement( tagName ) {
 			el.children.push( node );
 			return node;
 		},
+		replaceChildren( ...nodes ) {
+			el.children = nodes;
+		},
 		querySelectorAll( selector ) {
 			const cls = selector.replace( /^\./, '' );
 			const found = [];
@@ -67,7 +70,7 @@ function ui() {
 		TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 1, isConfigured: true, highlightsAvailable: true },
 		wp: { i18n: { __: ( value ) => value } },
 	};
-	const document = { createElement };
+	const document = { createElement, createTextNode: ( text ) => ( { nodeType: 3, textContent: String( text ), children: [] } ) };
 	vm.runInNewContext( script, { window, document, fetch: () => Promise.reject( new Error( 'not used' ) ), URLSearchParams, AbortController } );
 	return window.TurgenevUI;
 }
@@ -229,4 +232,19 @@ test( 'the word count never appears outside the overall section', () => {
 	const { renderSectionContent } = ui();
 	const wrap = renderSectionContent( 'frequency', { params: [], wordCount: 51 }, riskResult );
 	assert.equal( wrap.children.some( ( c ) => c.className === 'turgenev-section-word-count' ), false );
+} );
+
+test( 'the "Open report" link only appears once the clicked panel\'s own content has finished loading', () => {
+	const { renderResult } = ui();
+	const container = createElement( 'div' );
+	const panelOf = () => container.children[ 0 ].children[ 0 ].children[ 1 ];
+
+	renderResult( container, riskResult, { onToggleSection: () => {}, openSection: 'overall', sectionLoading: true } );
+	assert.equal( panelOf().querySelectorAll( '.turgenev-report-actions' ).length, 0, 'no report link while the panel is still loading' );
+
+	renderResult( container, riskResult, { onToggleSection: () => {}, openSection: 'overall', sectionError: 'Something went wrong.' } );
+	assert.equal( panelOf().querySelectorAll( '.turgenev-report-actions' ).length, 0, 'no report link when the panel failed to load' );
+
+	renderResult( container, riskResult, { onToggleSection: () => {}, openSection: 'overall', sectionData: { params: [] } } );
+	assert.equal( panelOf().querySelectorAll( '.turgenev-report-actions' ).length, 1, 'report link appears once the panel\'s own content has loaded' );
 } );

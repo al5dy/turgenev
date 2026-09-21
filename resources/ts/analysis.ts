@@ -706,13 +706,13 @@
 					}
 				}
 				if ( highlights ) {
-					container.append(
-						button(
-							__( 'Reset view', 'turgenev' ),
-							session.reset,
-							state.analyzing
-						)
+					const reset = button(
+						__( 'Reset view', 'turgenev' ),
+						session.reset,
+						state.analyzing
 					);
+					reset.classList.add( 'turgenev-reset-view' );
+					container.append( reset );
 				}
 			}
 		} );

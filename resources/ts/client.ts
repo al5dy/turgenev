@@ -703,9 +703,12 @@
 							options.sentenceProblem
 						)
 					);
-				}
-				if ( entry.link ) {
-					appendReportActions( panel, entry.link );
+					// Only once this panel's own content has actually finished loading,
+					// not alongside the spinner or an error: appearing earlier reads as
+					// part of what's still loading, not a link to something ready to view.
+					if ( entry.link ) {
+						appendReportActions( panel, entry.link );
+					}
 				}
 			}
 			item.appendChild( panel );
