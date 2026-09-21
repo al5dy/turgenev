@@ -24,8 +24,11 @@ async page => {
 	await page.waitForFunction( () => window.tinymce?.get( 'content' )?.initialized );
 	const original = await page.evaluate( () => tinymce.get( 'content' ).getContent() );
 	await analyze().click(); await action().waitFor();
-	assert( await page.getByText( 'Нет (0)', { exact: true } ).count() === 1, 'Textual parameter value must appear in Classic results.' );
-	assert( await page.getByText( '12.5% (0)', { exact: true } ).count() === 1, 'Formatted measurement must retain its units.' );
+	const superfreqRow = page.locator( '.turgenev-section-param', { hasText: 'Сверхчастые слова' } );
+	assert( await superfreqRow.locator( '.turgenev-section-param-value-text' ).innerText() === 'Нет', 'Textual parameter value must appear in Classic results.' );
+	assert( await superfreqRow.locator( '.turgenev-section-param-score' ).innerText() === '0', 'Score badge shows the plain score, no parentheses.' );
+	const shareRow = page.locator( '.turgenev-section-param', { hasText: 'Доля' } );
+	assert( await shareRow.locator( '.turgenev-section-param-value-text' ).innerText() === '12.5%', 'Formatted measurement must retain its units.' );
 	assert( lastRisk().text === 'Visual test text 😀. Second paragraph.', 'Visual mode must analyze entire unsaved TinyMCE document.' );
 	await action().click();
 	await page.waitForFunction( () => tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.size > 0 );

@@ -425,7 +425,13 @@
 			}
 			const value = document.createElement( 'span' );
 			value.className = 'turgenev-section-param-value';
-			value.textContent = `${ param.value } (${ param.score })`;
+			const scoreBadge = document.createElement( 'span' );
+			scoreBadge.className = 'turgenev-section-param-score';
+			scoreBadge.textContent = param.score;
+			const valueText = document.createElement( 'span' );
+			valueText.className = 'turgenev-section-param-value-text';
+			valueText.textContent = param.value;
+			value.append( scoreBadge, valueText );
 			row.append( name, value );
 			wrap.appendChild( row );
 		} );

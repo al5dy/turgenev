@@ -35,8 +35,11 @@ async page => {
 	const original = await serialized();
 	await analyze().click();
 	await action( 5 ).waitFor();
-	assert( await page.getByText( 'Нет (0)', { exact: true } ).count() === 1, 'Textual parameter value must appear in Gutenberg results.' );
-	assert( await page.getByText( '12.5% (0)', { exact: true } ).count() === 1, 'Formatted measurement must retain its units.' );
+	const superfreqRow = page.locator( '.turgenev-section-param', { hasText: 'Сверхчастые слова' } );
+	assert( await superfreqRow.locator( '.turgenev-section-param-value-text' ).innerText() === 'Нет', 'Textual parameter value must appear in Gutenberg results.' );
+	assert( await superfreqRow.locator( '.turgenev-section-param-score' ).innerText() === '0', 'Score badge shows the plain score, no parentheses.' );
+	const shareRow = page.locator( '.turgenev-section-param', { hasText: 'Доля' } );
+	assert( await shareRow.locator( '.turgenev-section-param-value-text' ).innerText() === '12.5%', 'Formatted measurement must retain its units.' );
 	const riskRequest = requests.find( r => r.operation === 'risk' );
 	assert( riskRequest.text === 'Это тестовый текст с ссылкой и 😀 словами. Первый абзац. Второй абзац.', 'Analyze must submit all unsaved document text without block comments/HTML/image alt.' );
 	checks.push( 'document panel immediately visible, no selection, entire unsaved content' );

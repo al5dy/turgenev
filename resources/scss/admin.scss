@@ -323,8 +323,23 @@
 }
 
 .turgenev-section-param-value {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 	font-weight: 600;
 	white-space: nowrap;
+}
+
+.turgenev-section-param-score {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	min-width: 20px;
+	height: 20px;
+	border: 1px solid #dcdcde;
+	border-radius: 50%;
+	font-size: 11px;
 }
 
 .turgenev-section-toggle {
@@ -438,10 +453,11 @@
 .turgenev-panel .turgenev-report-actions {
 	flex-wrap: wrap;
 	margin-left: 0;
-  margin-top: 12pxturgenev-accordion-score;
+  margin-top: 12px;
 }
-
-.turgenev-top-up {
+.turgenev-top-up,
+.turgenev-panel .turgenev-top-up,
+.turgenev-panel .turgenev-section-toggle {
 	margin-top: 12px;
 }
 

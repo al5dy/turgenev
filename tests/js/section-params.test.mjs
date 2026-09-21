@@ -83,6 +83,19 @@ function param( name, low = false ) {
 	return { name, value: '1', score: '0', low };
 }
 
+test( 'the value cell shows the plain score in its own badge before the value text, no parentheses', () => {
+	const renderSectionParams = fixture();
+	const wrap = renderSectionParams( 'overall', [ { name: 'a', value: '27.27', score: '5', low: false } ] );
+	const row = wrap.children[ 0 ];
+	const value = row.children[ 1 ];
+	assert.equal( value.className, 'turgenev-section-param-value' );
+	const [ scoreBadge, valueText ] = value.children;
+	assert.equal( scoreBadge.className, 'turgenev-section-param-score' );
+	assert.equal( scoreBadge.textContent, '5' );
+	assert.equal( valueText.className, 'turgenev-section-param-value-text' );
+	assert.equal( valueText.textContent, '27.27' );
+} );
+
 test( 'six or fewer overall characteristics all show with no toggle', () => {
 	const renderSectionParams = fixture();
 	const wrap = renderSectionParams( 'overall', [ param( 'a' ), param( 'b' ), param( 'c' ), param( 'd' ), param( 'e' ), param( 'f' ) ] );
