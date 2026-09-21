@@ -37,7 +37,9 @@ test( 'unresolved document dependencies prevent partial paid analysis', async ()
 	assert.equal( f.state.error, 'A synced pattern is unavailable.' );
 } );
 test( 'analyzes unsaved text with nonce and post ID, rejects duplicate clicks', async () => {
-	const f = fixture(); const pending = f.session.analyze(); await f.session.analyze();
+	const f = fixture(); const pending = f.session.analyze();
+	assert.equal( f.state.analyzing, true, 'the loader starts as soon as the click fires' );
+	await f.session.analyze();
 	assert.equal( f.requests.length, 1 ); assert.equal( f.requests[0].body.get( 'text' ), 'Original text' ); assert.equal( f.requests[0].body.get( 'post_id' ), '42' ); assert.equal( f.requests[0].body.get( 'nonce' ), 'nonce' );
 	f.respond( 0, { result } ); await pending; assert.equal( f.state.result.level, 'low' ); assert.equal( f.state.busy, false );
 } );
@@ -48,6 +50,7 @@ test( 'a successful analysis never auto-opens a section when highlighting is una
 	await pending;
 	assert.equal( f.state.openSection, null );
 	assert.equal( f.requests.length, 2, 'only risk and the auto balance refresh, no highlights/details fetch' );
+	assert.equal( f.state.analyzing, false, 'nothing further will auto-load, so the loader must not stay up' );
 } );
 test( 'changing content cancels analysis and ignores a server that still replies', async () => {
 	const f = fixture(); const pending = f.session.analyze();
@@ -118,9 +121,11 @@ test( 'failure and malformed success restore buttons and never report success', 
 	for ( const data of [ {}, { result: {} }, { result: { ...result, risk: 'broken' } } ] ) {
 		const f = fixture(); const pending = f.session.analyze(); f.respond( 0, data ); await pending;
 		assert.equal( f.state.result, null ); assert.equal( f.state.busy, false ); assert.match( f.state.error, /incomplete/ );
+		assert.equal( f.state.analyzing, false, 'a malformed result never auto-loads a section, so the loader must not stay up' );
 	}
 	const f = fixture(); const pending = f.session.analyze(); f.respond( 0, { message: 'Insufficient balance' }, false ); await pending;
 	assert.equal( f.state.error, 'Insufficient balance' ); assert.equal( f.state.busy, false );
+	assert.equal( f.state.analyzing, false );
 } );
 test( 'document identity, not selection, controls invalidation', async () => {
 	const f = fixture(); const pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
@@ -186,6 +191,8 @@ test( 'analyzing a document auto-opens the overall section, running highlight an
 
 	assert.equal( f.state.openSection, 'overall' );
 	assert.equal( f.state.sectionLoading, true );
+	assert.equal( f.state.busy, false, 'the initial request has settled, but the loader must not hand off yet' );
+	assert.equal( f.state.analyzing, true, 'still loading: the auto-opened "overall" section has not settled' );
 	assert.equal( f.requests[ 2 ].body.get( 'operation' ), 'highlights' );
 	assert.equal( f.requests[ 3 ].body.get( 'operation' ), 'details' );
 	assert.equal( f.requests[ 3 ].body.get( 'section' ), 'overall' );
@@ -202,12 +209,26 @@ test( 'analyzing a document auto-opens the overall section, running highlight an
 	assertSameShape( f.state.sectionData, sectionResult );
 	assert.equal( f.state.sectionError, '' );
 	assert.equal( f.state.activeToken, 'risk12345' );
+	assert.equal( f.state.analyzing, false, 'the loader hands off only once "overall" is fully open and populated' );
 
 	// Re-clicking the already-open section collapses it without any new request.
 	const closing = f.session.toggleSection( 'overall', 'risk12345' );
 	assert.equal( f.requests.length, 4 );
 	await closing;
 	assert.equal( f.state.openSection, null );
+} );
+test( 'the loader hands off even when the auto-opened section\'s own details fetch fails', async () => {
+	const f = fixture();
+	const pending = f.session.analyze();
+	f.respond( 0, { result } );
+	await pending;
+	assert.equal( f.state.analyzing, true );
+
+	f.respond( 2, { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( 3, { message: 'Turgenev report did not contain section details.' }, false );
+	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+	assert.match( f.state.sectionError, /section details/ );
+	assert.equal( f.state.analyzing, false, 'a failed auto-load must still release the loader, not leave it spinning' );
 } );
 test( 'switching accordion sections aborts the previous details request and supersedes it', async () => {
 	const f = fixture();

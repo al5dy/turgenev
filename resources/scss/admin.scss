@@ -160,6 +160,34 @@
 	}
 }
 
+// Stands in for the whole "Analyze document" -> "overall" section flow, so
+// the reader sees one continuous loading state, not the button re-enabling
+// mid-flow.
+.turgenev-loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	margin-top: 16px;
+	padding: 32px 16px;
+	border: 1px solid #dcdcde;
+	background: #f6f7f7;
+	text-align: center;
+}
+
+.turgenev-spinner--large {
+	width: 32px;
+	height: 32px;
+	margin-right: 0;
+	border-width: 3px;
+}
+
+.turgenev-loading-text {
+	margin: 0;
+	color: #50575e;
+	font-size: 13px;
+}
+
 .turgenev-section-content {
 	display: flex;
 	flex-direction: column;

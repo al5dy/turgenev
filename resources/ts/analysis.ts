@@ -19,6 +19,7 @@
 			balance: null,
 			balanceError: '',
 			busy: false,
+			analyzing: false,
 			highlighting: false,
 			highlighted: false,
 			highlightFallback: null,
@@ -60,6 +61,7 @@
 			decorations?.clear();
 			update( {
 				busy: false,
+				analyzing: false,
 				highlighting: false,
 				highlighted: false,
 				highlightFallback: null,
@@ -189,7 +191,9 @@
 			}
 			const current = ++sequence;
 			pending = new window.AbortController();
-			update( { busy: true } );
+			// `analyzing` stays true through the auto-opened "overall" section below, so the
+			// UI can show one continuous loader instead of a gap between the two requests.
+			update( { busy: true, analyzing: true } );
 			let analyzed: RiskResult | null = null;
 			try {
 				const data = await client.request< { result?: unknown } >(
@@ -225,7 +229,7 @@
 				analyzed = result as RiskResult;
 			} catch ( error ) {
 				if ( current === sequence ) {
-					update( { error: ( error as Error ).message } );
+					update( { error: ( error as Error ).message, analyzing: false } );
 				}
 			} finally {
 				if ( current === sequence ) {
@@ -248,7 +252,12 @@
 				typeof analyzed.link === 'string' &&
 				analyzed.link
 			) {
-				toggleSection( 'overall', analyzed.link );
+				// `analyzing` is only cleared once this auto-triggered section finishes
+				// (see toggleSection's `auto` handling), keeping the loader up until the
+				// "overall" verdict itself is ready to show, not just the risk score.
+				toggleSection( 'overall', analyzed.link, true );
+			} else {
+				update( { analyzing: false } );
 			}
 		}
 		async function highlight( token: string ): Promise< void > {
@@ -327,7 +336,11 @@
 		}
 		async function toggleSection(
 			section: SectionKey,
-			token: string
+			token: string,
+			// Set only by analyze()'s own auto-open of "overall": keeps `analyzing` (and so
+			// the unified loader) up until this section's data has actually settled, on every
+			// exit path, instead of just the initial risk request.
+			auto = false
 		): Promise< void > {
 			if ( disposed ) {
 				return;
@@ -339,10 +352,14 @@
 					openSection: null,
 					sectionLoading: false,
 					sentenceProblem: null,
+					...( auto ? { analyzing: false } : {} ),
 				} );
 				return;
 			}
 			if ( ! state.result || ! source ) {
+				if ( auto ) {
+					update( { analyzing: false } );
+				}
 				return;
 			}
 			sectionRequest?.abort();
@@ -378,12 +395,16 @@
 			}
 			await highlighted;
 			if ( current !== sectionSequence || disposed ) {
+				if ( auto ) {
+					update( { analyzing: false } );
+				}
 				return;
 			}
 			update( {
 				sectionLoading: false,
 				sectionData: details,
 				sectionError: error,
+				...( auto ? { analyzing: false } : {} ),
 			} );
 		}
 		return {
@@ -460,7 +481,7 @@
 			container.className = 'turgenev-panel';
 			container.setAttribute(
 				'aria-busy',
-				String( state.busy || state.highlighting )
+				String( state.analyzing || state.highlighting )
 			);
 			if ( ! client.isConfigured ) {
 				container.append(
@@ -521,7 +542,7 @@
 				const toggle = node( 'input' ) as HTMLInputElement;
 				toggle.type = 'checkbox';
 				toggle.checked = state.htmlMode;
-				toggle.disabled = state.busy;
+				toggle.disabled = state.analyzing;
 				toggle.addEventListener( 'change', () =>
 					session.setHtmlMode( toggle.checked )
 				);
@@ -555,70 +576,99 @@
 					);
 				}
 				const analyze = button(
-					state.busy
+					state.analyzing
 						? __( 'Analyzing document…', 'turgenev' )
 						: __( 'Analyze document', 'turgenev' ),
 					session.analyze,
-					state.busy || ! client.isConfigured
+					state.analyzing || ! client.isConfigured
 				);
 				analyze.className = 'button button-primary';
 				container.append( analyze );
-				if ( state.highlighting ) {
-					container.append(
+				// While `analyzing`, the initial risk request and the auto-opened "overall"
+				// section (its highlight + details fetches) read as one continuous action: a
+				// single loader stands in for both, and the accordion (with its own per-section
+				// "Loading…" spinner) only appears once "overall" is fully open and populated.
+				if ( state.analyzing ) {
+					const loading = node( 'div', '', 'turgenev-loading' );
+					loading.setAttribute( 'role', 'status' );
+					loading.setAttribute( 'aria-live', 'polite' );
+					const spinner = node(
+						'span',
+						'',
+						'turgenev-spinner turgenev-spinner--large'
+					);
+					spinner.setAttribute( 'aria-hidden', 'true' );
+					loading.append(
+						spinner,
 						node(
 							'p',
-							__( 'Loading highlights…', 'turgenev' ),
-							'turgenev-highlight-status'
+							__( 'Analyzing document…', 'turgenev' ),
+							'turgenev-loading-text'
 						)
 					);
-				}
-				const result = node( 'div', '', 'turgenev-result-host' );
-				if ( state.result ) {
-					ui.renderResult(
-						result,
-						state.result,
-						highlights
-							? {
-									onToggleSection: session.toggleSection,
-									openSection: state.openSection,
-									sectionLoading: state.sectionLoading,
-									sectionData: state.sectionData,
-									sectionError: state.sectionError,
-									sentenceProblem: state.sentenceProblem,
-							  }
-							: {}
-					);
-				}
-				container.append( result );
-				if ( state.highlightFallback ) {
-					const fallback = node(
-						'section',
-						'',
-						'turgenev-highlight-text'
-					);
-					fallback.setAttribute(
-						'aria-label',
-						__( 'Analyzed text (read-only)', 'turgenev' )
-					);
-					fallback.append(
-						node(
-							'h3',
+					container.append( loading );
+				} else {
+					if ( state.highlighting ) {
+						container.append(
+							node(
+								'p',
+								__( 'Loading highlights…', 'turgenev' ),
+								'turgenev-highlight-status'
+							)
+						);
+					}
+					const result = node( 'div', '', 'turgenev-result-host' );
+					if ( state.result ) {
+						ui.renderResult(
+							result,
+							state.result,
+							highlights
+								? {
+										onToggleSection: session.toggleSection,
+										openSection: state.openSection,
+										sectionLoading: state.sectionLoading,
+										sectionData: state.sectionData,
+										sectionError: state.sectionError,
+										sentenceProblem: state.sentenceProblem,
+								  }
+								: {}
+						);
+					}
+					container.append( result );
+					if ( state.highlightFallback ) {
+						const fallback = node(
+							'section',
+							'',
+							'turgenev-highlight-text'
+						);
+						fallback.setAttribute(
+							'aria-label',
 							__( 'Analyzed text (read-only)', 'turgenev' )
-						)
-					);
-					const text = node(
-						'div',
-						'',
-						'turgenev-highlight-text-content'
-					);
-					text.tabIndex = 0;
-					ui.renderHighlightText( text, state.highlightFallback );
-					fallback.append( text );
-					container.append( fallback );
+						);
+						fallback.append(
+							node(
+								'h3',
+								__( 'Analyzed text (read-only)', 'turgenev' )
+							)
+						);
+						const text = node(
+							'div',
+							'',
+							'turgenev-highlight-text-content'
+						);
+						text.tabIndex = 0;
+						ui.renderHighlightText( text, state.highlightFallback );
+						fallback.append( text );
+						container.append( fallback );
+					}
 				}
 				if ( highlights ) {
 					container.append(
-						button( __( 'Reset view', 'turgenev' ), session.reset )
+						button(
+							__( 'Reset view', 'turgenev' ),
+							session.reset,
+							state.analyzing
+						)
 					);
 				}
 			}

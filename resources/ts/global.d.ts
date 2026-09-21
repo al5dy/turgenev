@@ -285,6 +285,12 @@ interface SessionState {
 	balance: unknown;
 	balanceError: string;
 	busy: boolean;
+	/**
+	 * True from the "Analyze document" click until the auto-opened "overall" section has
+	 * fully settled (data, or an error). Spans `busy` and the auto highlight/details fetch
+	 * that follows it, so the UI can show one continuous loader instead of a gap between them.
+	 */
+	analyzing: boolean;
 	highlighting: boolean;
 	highlighted: boolean;
 	highlightFallback: HighlightsResponseData | null;
