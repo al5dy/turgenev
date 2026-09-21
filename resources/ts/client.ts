@@ -360,25 +360,147 @@
 		},
 	};
 
-	function renderParamTooltip( help: {
-		text: string;
-		url?: string;
-	} ): HTMLElement {
-		const tooltip = document.createElement( 'span' );
+	// A single tooltip shared by every characteristic row, portaled straight onto
+	// <body> rather than nested under whichever row triggered it. The accordion
+	// lives inside `.turgenev-sidebar__body`, which scrolls (`overflow-y: auto`)
+	// and therefore also clips the x-axis per spec, so a tooltip trying to sit
+	// strictly to the *left* of a row near that container's edge would get cut
+	// off if it stayed nested; escaping to <body> with `position: fixed` and a
+	// very high z-index makes "always above everything else" simply true,
+	// instead of dependent on where in the panel the row happens to be.
+	const TOOLTIP_ID = 'turgenev-param-tooltip';
+	let tooltipEl: HTMLElement | null = null;
+	let tooltipTrigger: HTMLElement | null = null;
+	let tooltipHideTimer: ReturnType< typeof setTimeout > | null = null;
+
+	function cancelTooltipHide(): void {
+		if ( tooltipHideTimer !== null ) {
+			window.clearTimeout( tooltipHideTimer );
+			tooltipHideTimer = null;
+		}
+	}
+
+	function hideTooltip(): void {
+		cancelTooltipHide();
+		if ( tooltipEl ) {
+			tooltipEl.hidden = true;
+		}
+		tooltipTrigger = null;
+	}
+
+	function scheduleTooltipHide(): void {
+		cancelTooltipHide();
+		// A short grace period rather than an instant close: lets the pointer (or
+		// focus, when tabbing) travel from the trigger text onto the tooltip
+		// itself to reach the "Подробнее" link without it disappearing first.
+		tooltipHideTimer = window.setTimeout( hideTooltip, 200 );
+	}
+
+	function positionTooltip( trigger: HTMLElement ): void {
+		if ( ! tooltipEl ) {
+			return;
+		}
+		const triggerRect = trigger.getBoundingClientRect();
+		const tipRect = tooltipEl.getBoundingClientRect();
+		// Strictly to the left of the trigger (never right/above/below), vertically
+		// centered on it; only ever clamped enough to stay on screen, never moved
+		// to another side.
+		const left = triggerRect.left - tipRect.width - 8;
+		const top = triggerRect.top + triggerRect.height / 2 - tipRect.height / 2;
+		tooltipEl.style.left = `${ Math.max( 4, left ) }px`;
+		tooltipEl.style.top = `${ Math.max( 4, Math.min( top, window.innerHeight - tipRect.height - 4 ) ) }px`;
+	}
+
+	// Self-terminating: only runs while a tooltip is actually shown, and stops
+	// the moment it hides or its trigger leaves the document (e.g. a re-render
+	// replaced the accordion mid-hover), instead of a stale tooltip lingering
+	// with no live element behind it.
+	function watchTooltipTrigger(): void {
+		if ( ! tooltipEl || tooltipEl.hidden ) {
+			return;
+		}
+		if ( ! tooltipTrigger || ! tooltipTrigger.isConnected ) {
+			hideTooltip();
+			return;
+		}
+		window.requestAnimationFrame( watchTooltipTrigger );
+	}
+
+	function ensureTooltipEl(): HTMLElement {
+		if ( tooltipEl ) {
+			return tooltipEl;
+		}
+		const tooltip = document.createElement( 'div' );
+		tooltip.id = TOOLTIP_ID;
 		tooltip.className = 'turgenev-param-tooltip';
 		tooltip.setAttribute( 'role', 'tooltip' );
+		tooltip.hidden = true;
+		// Hovering or focusing the tooltip itself (e.g. to click "Подробнее")
+		// keeps it open exactly like hovering/focusing its trigger does.
+		tooltip.addEventListener( 'mouseenter', cancelTooltipHide );
+		tooltip.addEventListener( 'mouseleave', scheduleTooltipHide );
+		tooltip.addEventListener( 'focusin', cancelTooltipHide );
+		tooltip.addEventListener( 'focusout', ( event ) => {
+			const next = ( event as FocusEvent ).relatedTarget as Node | null;
+			if ( ! next || ( next !== tooltipTrigger && ! tooltip.contains( next ) ) ) {
+				scheduleTooltipHide();
+			}
+		} );
+		tooltip.addEventListener( 'keydown', ( event ) => {
+			if ( ( event as KeyboardEvent ).key === 'Escape' ) {
+				const trigger = tooltipTrigger;
+				hideTooltip();
+				trigger?.focus();
+			}
+		} );
+		document.body.appendChild( tooltip );
+		// Repositioning during scroll is more complexity than a tooltip needs;
+		// closing (as native title tooltips effectively do) is simpler and never
+		// leaves it floating over the wrong spot.
+		window.addEventListener(
+			'scroll',
+			() => {
+				if ( tooltipEl && ! tooltipEl.hidden ) {
+					hideTooltip();
+				}
+			},
+			true
+		);
+		window.addEventListener( 'resize', () => {
+			if ( tooltipTrigger && tooltipEl && ! tooltipEl.hidden ) {
+				positionTooltip( tooltipTrigger );
+			}
+		} );
+		tooltipEl = tooltip;
+		return tooltip;
+	}
+
+	function showTooltip(
+		trigger: HTMLElement,
+		help: { text: string; url?: string }
+	): void {
+		cancelTooltipHide();
+		const tooltip = ensureTooltipEl();
+		tooltip.replaceChildren();
 		const description = document.createElement( 'span' );
 		description.textContent = help.text;
 		tooltip.appendChild( description );
 		if ( help.url ) {
+			const linkWrap = document.createElement( 'div' );
+			linkWrap.className = 'turgenev-param-tooltip-link';
 			const link = document.createElement( 'a' );
 			link.href = help.url;
 			link.target = '_blank';
 			link.rel = 'noopener noreferrer';
 			link.textContent = __( 'Подробнее', 'turgenev' );
-			tooltip.appendChild( link );
+			linkWrap.appendChild( link );
+			tooltip.appendChild( linkWrap );
 		}
-		return tooltip;
+		tooltipTrigger = trigger;
+		tooltip.hidden = false;
+		// Only measurable once visible: a `hidden` element reports a 0×0 rect.
+		positionTooltip( trigger );
+		window.requestAnimationFrame( watchTooltipTrigger );
 	}
 
 	function renderSectionParams(
@@ -419,7 +541,29 @@
 				name.classList.add( 'has-tooltip' );
 				name.tabIndex = 0;
 				name.textContent = param.name;
-				name.appendChild( renderParamTooltip( help ) );
+				name.setAttribute( 'aria-describedby', TOOLTIP_ID );
+				name.addEventListener( 'mouseenter', () =>
+					showTooltip( name, help )
+				);
+				name.addEventListener( 'mouseleave', scheduleTooltipHide );
+				name.addEventListener( 'focus', () =>
+					showTooltip( name, help )
+				);
+				name.addEventListener( 'blur', ( event ) => {
+					const next = ( event as FocusEvent )
+						.relatedTarget as Node | null;
+					if (
+						! next ||
+						( ! tooltipEl?.contains( next ) && next !== tooltipEl )
+					) {
+						scheduleTooltipHide();
+					}
+				} );
+				name.addEventListener( 'keydown', ( event ) => {
+					if ( ( event as KeyboardEvent ).key === 'Escape' ) {
+						hideTooltip();
+					}
+				} );
 			} else {
 				name.textContent = param.name;
 			}
@@ -652,6 +796,10 @@
 			return;
 		}
 
+		// Rebuilding the accordion is about to detach whatever row is currently
+		// showing the shared tooltip (if any); drop it now rather than leave it
+		// floating over a trigger that's about to stop existing.
+		hideTooltip();
 		container.replaceChildren();
 		const accordion = document.createElement( 'div' );
 		accordion.className = 'turgenev-accordion';

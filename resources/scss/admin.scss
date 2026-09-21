@@ -282,7 +282,6 @@
 }
 
 .turgenev-section-param-name {
-	position: relative;
 	color: #50575e;
 }
 
@@ -291,15 +290,16 @@
 	cursor: help;
 }
 
+// Portaled onto <body> by client.ts, not nested under its trigger: the
+// accordion sits inside `.turgenev-sidebar__body`, which scrolls and so also
+// clips its x-axis, so a tooltip positioned strictly to the left would get
+// cut off if it stayed nested. `position: fixed` (coordinates set in JS) plus
+// a very high z-index keeps it unclipped and above everything else, always.
 .turgenev-param-tooltip {
-	position: absolute;
-	z-index: 10;
-	top: 100%;
-	left: 0;
-	display: none;
+	position: fixed;
+	z-index: 999999;
 	width: max-content;
 	max-width: 220px;
-	margin-top: 6px;
 	padding: 10px 12px;
 	border-radius: 4px;
 	background: #1e1e1e;
@@ -311,14 +311,16 @@
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
-.turgenev-section-param-name.has-tooltip:hover .turgenev-param-tooltip,
-.turgenev-section-param-name.has-tooltip:focus-within .turgenev-param-tooltip {
-	display: block;
+.turgenev-param-tooltip[hidden] {
+	display: none;
+}
+
+.turgenev-param-tooltip-link {
+	margin-top: 6px;
 }
 
 .turgenev-param-tooltip a {
 	display: inline-block;
-	margin-top: 6px;
 	color: #8ab4f8;
 }
 
@@ -453,8 +455,9 @@
 .turgenev-panel .turgenev-report-actions {
 	flex-wrap: wrap;
 	margin-left: 0;
-  margin-top: 12px;
+	margin-top: 12px;
 }
+
 .turgenev-top-up,
 .turgenev-panel .turgenev-top-up,
 .turgenev-panel .turgenev-section-toggle {
