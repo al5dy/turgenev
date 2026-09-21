@@ -88,6 +88,55 @@
 	color: #b32d2e;
 }
 
+.turgenev-balance-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+.turgenev-balance-value {
+	transition: opacity 0.15s ease;
+}
+
+.turgenev-balance-value.is-loading {
+	opacity: 0.5;
+}
+
+.turgenev-icon-button {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border: 1px solid #dcdcde;
+	border-radius: 50%;
+	background: #fff;
+	color: #2271b1;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.turgenev-icon-button:hover:not(:disabled) {
+	border-color: #2271b1;
+	background: #f0f6fc;
+}
+
+.turgenev-icon-button:disabled {
+	cursor: not-allowed;
+	opacity: 0.5;
+}
+
+.turgenev-icon-button .dashicons {
+	color: inherit;
+}
+
+.turgenev-icon-spin {
+	animation: turgenev-spin 1.2s linear infinite;
+}
+
 .turgenev-result-host {
 	margin-top: 12px;
 }

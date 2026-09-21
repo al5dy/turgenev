@@ -194,7 +194,7 @@ final class EditorIntegration {
 		wp_register_style(
 			'turgenev-admin',
 			TURGENEV_URL . 'assets/build/admin.css',
-			array(),
+			array( 'dashicons' ),
 			$this->assetVersion( 'assets/build/admin.css' )
 		);
 

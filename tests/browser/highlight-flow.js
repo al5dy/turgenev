@@ -13,7 +13,7 @@ async page => {
 		if ( mode === 'error' && body.operation === operationMode ) { await route.fulfill( { status: 502, json: { success: false, data: { message: 'Provider unavailable' } } } ); return; }
 		if ( mode === 'json' && body.operation === operationMode ) { await route.fulfill( { body: '{broken', contentType: 'application/json' } ); return; }
 		let data;
-		if ( body.operation === 'balance' ) data = { balance: '0.00' };
+		if ( body.operation === 'balance' ) data = { balance: '100' };
 		if ( body.operation === 'risk' ) data = { result: { link: 'risk12345', risk: '3', level: 'low', details: categories.map( block => ( { block, sum: '1', link: block + '12345', params: block === 'frequency' ? [ { name: 'Сверхчастые слова', value: 'Нет', score: '0' }, { name: 'Доля', value: '12.5%', score: '0' } ] : [] } ) ) } };
 		if ( body.operation === 'highlights' ) {
 			const category = body.report_token.replace( '12345', '' );
@@ -39,7 +39,7 @@ async page => {
 	assert( await page.getByText( '12.5% (0)', { exact: true } ).count() === 1, 'Formatted measurement must retain its units.' );
 	const riskRequest = requests.find( r => r.operation === 'risk' );
 	assert( riskRequest.text === 'Это тестовый текст с ссылкой и 😀 словами. Первый абзац. Второй абзац.', 'Analyze must submit all unsaved document text without block comments/HTML/image alt.' );
-	checks.push( 'document panel immediately visible, no selection, entire unsaved content, zero balance remains informational' );
+	checks.push( 'document panel immediately visible, no selection, entire unsaved content' );
 	for ( let i = 0; i < 6; i++ ) {
 		await action( i ).click();
 		await page.waitForFunction( () => [ ...CSS.highlights.keys() ].some( key => key.startsWith( 'turgenev-' ) ) );

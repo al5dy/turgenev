@@ -1,7 +1,7 @@
 async page => {
 	const assert = ( value, message ) => { if ( ! value ) throw new Error( message ); };
 	const requests = [];
-	let failure = '', malicious = false;
+	let failure = '', malicious = false, balance = '100';
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
 	await page.unroute( '**/analysis' );
 	await page.route( '**/analysis', async route => {
@@ -11,7 +11,7 @@ async page => {
 			await route.fulfill( { status: 502, json: { success: false, data: { message: failure } } } ); return;
 		}
 		let data;
-		if ( body.operation === 'balance' ) data = { balance: '0' };
+		if ( body.operation === 'balance' ) data = { balance };
 		if ( body.operation === 'risk' ) data = { result: { risk: 0, level: malicious ? '<img src=x onerror="window.leaked=true">' : 'low', link: 'risk12345', details: categories.map( block => ( { block, sum: 0, link: block + '12345', params: block === 'frequency' ? [ { name: 'Сверхчастые слова', value: malicious ? '<img src=x onerror="window.leaked=true">' : 'Нет', score: '0' }, { name: 'Доля', value: '12.5%', score: '0' } ] : [] } ) ) } };
 		if ( body.operation === 'highlights' ) data = { highlights: { text: body.text, marks: [ { start: 7, end: 11, category: 'style', level: 2 } ] } };
 		await route.fulfill( { json: { success: true, data } } );
@@ -70,8 +70,19 @@ async page => {
 	}
 	failure = ''; malicious = true; await analyze().click(); await action().waitFor();
 	assert( ! await page.evaluate( () => window.leaked ) && ! await page.locator( '#turgenev-panel img' ).count(), 'Provider strings executed as HTML.' );
-	assert( await page.getByRole( 'link', { name: 'Top up Turgenev balance' } ).count(), 'Top-up link missing at zero balance.' );
-	checks.push( 'invalid-key/insufficient-balance/provider-error recovery, safe provider string rendering, top-up link' );
+	checks.push( 'invalid-key/insufficient-balance/provider-error recovery, safe provider string rendering' );
+
+	const beforeZeroBalance = requests.filter( request => request.operation === 'risk' ).length;
+	balance = '0';
+	await page.getByRole( 'button', { name: 'Refresh balance', exact: true } ).click();
+	await page.getByText( 'Your Turgenev balance is empty. Top it up before running an analysis.', { exact: true } ).waitFor();
+	assert( await analyze().isDisabled(), 'A zero balance must disable "Analyze document".' );
+	assert( await page.getByRole( 'link', { name: 'Top up Turgenev balance', exact: true } ).count(), 'Top-up link missing at zero balance.' );
+	balance = '100';
+	await page.getByRole( 'button', { name: 'Refresh balance', exact: true } ).click();
+	await page.getByRole( 'button', { name: 'Analyze document', exact: true, disabled: false } ).waitFor();
+	assert( requests.filter( request => request.operation === 'risk' ).length === beforeZeroBalance, 'A zero balance must never reach a paid request.' );
+	checks.push( 'refresh-balance icon updates the shown balance; a zero balance disables analysis and surfaces the top-up icon/message' );
 
 	for ( const url of [ '/?unconfigured=1', '/classic?unconfigured=1&fallback=1' ] ) {
 		const before = requests.length;

@@ -29,6 +29,26 @@ test( 'missing key and empty/oversize text never issue a paid request', async ()
 	const empty = fixture(); empty.setSource( { text: '', html: '', key: '' } ); await empty.session.analyze(); assert.equal( empty.requests.length, 0 );
 	empty.setSource( { text: 'a'.repeat( 20001 ), html: '', key: 'large' } ); await empty.session.analyze(); assert.equal( empty.requests.length, 0 ); assert.match( empty.state.error, /longer/ );
 } );
+test( 'a known-empty balance blocks analysis with a top-up message, without spending a paid request', async () => {
+	const f = fixture();
+	const balancePending = f.session.balance();
+	f.respond( 0, { balance: '0' } );
+	await balancePending;
+	assert.equal( f.state.balance, '0' );
+
+	await f.session.analyze();
+	assert.equal( f.requests.length, 1, 'no risk request is issued once the balance is known to be empty' );
+	assert.match( f.state.error, /balance is empty/i );
+
+	// A balance that has not been fetched yet (still null) must never block analysis:
+	// only a balance confirmed to be zero/negative does.
+	const unknown = fixture();
+	const pending = unknown.session.analyze();
+	assert.equal( unknown.state.balance, null );
+	unknown.respond( 0, { result } );
+	await pending;
+	assert.equal( unknown.state.result.level, 'low' );
+} );
 test( 'unresolved document dependencies prevent partial paid analysis', async () => {
 	const f = fixture();
 	f.setSource( { text: 'Only a partial body', html: '<p>Only a partial body</p>', key: 'incomplete', error: 'A synced pattern is unavailable.' } );

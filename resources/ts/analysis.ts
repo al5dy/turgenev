@@ -171,6 +171,15 @@
 				} );
 				return;
 			}
+			if ( client.isEmptyBalance( state.balance ) ) {
+				update( {
+					error: __(
+						'Your Turgenev balance is empty. Top it up before running an analysis.',
+						'turgenev'
+					),
+				} );
+				return;
+			}
 			if ( ! source.text ) {
 				update( {
 					error: __(
@@ -498,24 +507,56 @@
 					)
 				);
 			}
-			const balanceEl = node(
-				'p',
-				__( 'Current balance:', 'turgenev' ) + ' '
-			);
+			const balanceEl = node( 'p', '', 'turgenev-balance-row' );
 			balanceEl.append(
+				document.createTextNode(
+					__( 'Current balance:', 'turgenev' ) + ' '
+				),
 				node(
 					'strong',
-					state.balance === null ? '—' : state.balance + ' ₽'
-				),
-				document.createTextNode( ' ' ),
-				button(
-					state.loadingBalance
-						? __( 'Loading…', 'turgenev' )
-						: __( 'Refresh balance', 'turgenev' ),
-					session.balance,
-					! client.isConfigured || state.loadingBalance
+					state.balance === null ? '—' : state.balance + ' ₽',
+					'turgenev-balance-value' +
+						( state.loadingBalance ? ' is-loading' : '' )
 				)
 			);
+			const refreshBalance = node(
+				'button',
+				'',
+				'turgenev-icon-button'
+			) as HTMLButtonElement;
+			refreshBalance.type = 'button';
+			refreshBalance.disabled =
+				! client.isConfigured || state.loadingBalance;
+			refreshBalance.setAttribute(
+				'aria-label',
+				__( 'Refresh balance', 'turgenev' )
+			);
+			refreshBalance.addEventListener( 'click', session.balance );
+			const refreshIcon = node(
+				'span',
+				'',
+				'dashicons dashicons-update' +
+					( state.loadingBalance ? ' turgenev-icon-spin' : '' )
+			);
+			refreshIcon.setAttribute( 'aria-hidden', 'true' );
+			refreshBalance.append( refreshIcon );
+			balanceEl.append( refreshBalance );
+			if ( client.topUpUrl ) {
+				const topUp = link( '', client.topUpUrl, true );
+				topUp.className = 'turgenev-icon-button';
+				topUp.setAttribute(
+					'aria-label',
+					__( 'Top up Turgenev balance', 'turgenev' )
+				);
+				const topUpIcon = node(
+					'span',
+					'',
+					'dashicons dashicons-plus-alt2'
+				);
+				topUpIcon.setAttribute( 'aria-hidden', 'true' );
+				topUp.append( topUpIcon );
+				balanceEl.append( topUp );
+			}
 			container.append( balanceEl );
 			if ( client.isEmptyBalance( state.balance ) ) {
 				container.append(
@@ -580,7 +621,9 @@
 						? __( 'Analyzing document…', 'turgenev' )
 						: __( 'Analyze document', 'turgenev' ),
 					session.analyze,
-					state.analyzing || ! client.isConfigured
+					state.analyzing ||
+						! client.isConfigured ||
+						client.isEmptyBalance( state.balance )
 				);
 				analyze.className = 'button button-primary';
 				container.append( analyze );
@@ -671,17 +714,6 @@
 						)
 					);
 				}
-			}
-			if ( client.topUpUrl ) {
-				const topUp = node( 'p' );
-				topUp.append(
-					link(
-						__( 'Top up Turgenev balance', 'turgenev' ),
-						client.topUpUrl,
-						true
-					)
-				);
-				container.append( topUp );
 			}
 		} );
 	}
