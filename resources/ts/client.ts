@@ -268,6 +268,10 @@
 		return verdict;
 	}
 
+	// Overall risk lists every provider characteristic; only this many show by
+	// default so the panel stays scannable regardless of how many the report has.
+	const OVERALL_VISIBLE_PARAMS = 6;
+
 	function renderSectionParams(
 		section: SectionKey,
 		params: SectionParam[]
@@ -275,16 +279,23 @@
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-params';
 		const isOverall = section === 'overall';
+		let visibleCount = 0;
 		let hiddenCount = 0;
 		params.forEach( ( param ) => {
 			const row = document.createElement( 'div' );
 			row.className = 'turgenev-section-param';
-			// The main characteristics show by default; secondary ones stay behind
-			// the toggle below until the reader asks for the full breakdown.
-			if ( isOverall && param.low ) {
+			// The most relevant characteristics show by default; provider-flagged
+			// secondary ones and any overflow past the cap stay behind the toggle
+			// below until the reader asks for the full breakdown.
+			const shouldHide =
+				isOverall &&
+				( param.low || visibleCount >= OVERALL_VISIBLE_PARAMS );
+			if ( shouldHide ) {
 				row.hidden = true;
-				row.classList.add( 'turgenev-section-param-low' );
+				row.classList.add( 'turgenev-section-param-hidden' );
 				hiddenCount++;
+			} else if ( isOverall ) {
+				visibleCount++;
 			}
 			const name = document.createElement( 'span' );
 			name.className = 'turgenev-section-param-name';
@@ -304,7 +315,7 @@
 			toggle.textContent = showLabel;
 			toggle.addEventListener( 'click', () => {
 				const expanding = toggle.textContent === showLabel;
-				wrap.querySelectorAll( '.turgenev-section-param-low' ).forEach(
+				wrap.querySelectorAll( '.turgenev-section-param-hidden' ).forEach(
 					( row ) => {
 						( row as HTMLElement ).hidden = ! expanding;
 					}
@@ -1180,6 +1191,7 @@
 		renderBalance,
 		renderMessage,
 		renderResult,
+		renderSectionParams,
 		setBusy,
 	} );
 } )( window, document, window.wp );

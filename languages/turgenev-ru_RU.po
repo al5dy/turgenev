@@ -1,444 +1,467 @@
+# Copyright (C) 2026 al5dy
+# This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Turgenev\n"
+"Project-Id-Version: Turgenev 2.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/turgenev\n"
-"POT-Creation-Date: 2020-07-22T16:42:02+03:00\n"
-"PO-Revision-Date: 2026-09-18 23:09+0300\n"
-"Last-Translator: Anton Lokotkov <ant.lokotkov@gmail.com>\n"
+"Last-Translator: al5dy\n"
 "Language-Team: Lokotkov\n"
 "Language: ru_RU\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.4.2\n"
+"POT-Creation-Date: 2026-09-21T08:56:06+00:00\n"
+"PO-Revision-Date: 2026-09-21 08:59+0000\n"
+"X-Generator: manual\n"
 "X-Domain: turgenev\n"
+#: src/Admin/SettingsPage.php:224
+msgid "A key is already configured. Enter a new one only to rotate it."
+msgstr "Ключ уже настроен. Введите новый только для того, чтобы заменить текущий."
 
-#: src/index.js:11
-msgid "\"Turgenev\""
-msgstr "\"Тургенев\""
+#: assets/build/editor-content.js
+msgid "A synced pattern is not loaded or is unavailable. Load the pattern before analyzing the document."
+msgstr "Синхронизированный паттерн не загружен или недоступен. Загрузите паттерн перед анализом документа."
+
+#: src/Ajax/ApiController.php:72
+msgid "A valid post is required for this request."
+msgstr "Для этого запроса требуется корректная запись."
+
+#: src/Admin/SettingsPage.php:67
+msgid "API connection"
+msgstr "Подключение к API"
+
+#: src/Admin/SettingsPage.php:74
+msgid "API key"
+msgstr "Ключ API"
+
+#. translators: %s: current API balance.
+#, php-format
+#: src/Admin/SettingsPage.php:123
+msgid "API key verified and saved. Current balance: %s ₽."
+msgstr "Ключ API проверен и сохранён. Текущий баланс: %s ₽."
+
+#: assets/build/analysis.js
+msgid "Add content to the editor before running Turgenev."
+msgstr "Добавьте текст в редактор перед запуском Тургенева."
+
+#. Description of the plugin
+#: turgenev.php
+msgid "Analyze WordPress content with the official Turgenev API for SEO over-optimization, readability, style, keyword stuffing and Baden-Baden risk."
+msgstr "Анализируйте контент WordPress с помощью официального API Тургенева: переоптимизация SEO, удобочитаемость, стилистика, переспам ключевых слов и риск Баден-Бадена."
+
+#: src/Admin/EditorIntegration.php:178
+msgid "Analyze content"
+msgstr "Анализировать контент"
+
+#: assets/build/analysis.js
+msgid "Analyze document"
+msgstr "Анализировать документ"
+
+#: src/Admin/EditorIntegration.php:174
+msgid "Analyze plain text only"
+msgstr "Анализировать только обычный текст"
+
+#: assets/build/analysis.js
+msgid "Analyzed text (read-only)"
+msgstr "Анализируемый текст (только для чтения)"
+
+#: assets/build/analysis.js
+msgid "Analyzing document…"
+msgstr "Анализ документа…"
+
+#: assets/build/analysis.js
+msgid "By default, only the current document text is sent. Saving first is not required."
+msgstr "По умолчанию отправляется только текущий текст документа. Предварительное сохранение не требуется."
+
+#: assets/build/editor.js
+msgid "Close"
+msgstr "Закрыть"
+
+#: assets/build/analysis.js src/Admin/EditorIntegration.php:161
+msgid "Configure API key"
+msgstr "Настроить ключ API"
+
+#: assets/build/analysis.js
+msgid "Configure a Turgenev API key before running an analysis."
+msgstr "Перед анализом настройте ключ API Тургенева."
+
+#: src/Api/ApiClient.php:216
+msgid "Configure a Turgenev API key first."
+msgstr "Сначала настройте ключ API Тургенева."
+
+#: src/Admin/SettingsPage.php:163
+msgid "Connect WordPress to the official Turgenev content-analysis API. The API key is stored server-side and is never exposed to editor JavaScript."
+msgstr "Подключите WordPress к официальному API анализа контента Тургенева. Ключ API хранится на сервере и никогда не передаётся в JavaScript редактора."
+
+#: assets/build/analysis.js
+msgid "Content changed. Analyze the document again."
+msgstr "Текст изменился. Запустите анализ документа заново."
+
+#: assets/build/client.js
+msgid "Could not connect to WordPress. Check your network connection and try again."
+msgstr "Не удалось подключиться к WordPress. Проверьте сетевое подключение и повторите попытку."
+
+#: src/Api/ApiClient.php:244
+msgid "Could not reach the Turgenev API. Try again later."
+msgstr "Не удалось подключиться к API Тургенева. Повторите попытку позже."
+
+#: assets/build/analysis.js
+msgid "Could not remove the old Turgenev markup. Your text has not been restored from an older version. Try Reset view again."
+msgstr "Не удалось удалить прежнюю разметку Тургенева. Текст не восстановлен из предыдущей версии. Повторите действие «Сбросить вид»."
+
+#: src/Api/ApiClient.php:178
+msgid "Could not retrieve the Turgenev report. Try again later."
+msgstr "Не удалось получить отчёт Тургенева. Повторите попытку позже."
+
+#: assets/build/analysis.js src/Admin/EditorIntegration.php:167 src/Admin/SettingsPage.php:197
+msgid "Current balance:"
+msgstr "Текущий баланс:"
+
+#: assets/build/client.js
+msgid "Formality"
+msgstr "Водность"
+
+#: assets/build/client.js
+msgid "Frequency"
+msgstr "Повторы"
+
+#. translators: 1: opening link, 2: closing link.
+#, php-format
+#: src/Admin/SettingsPage.php:182
+msgid "Generate an API key in your %1$sTurgenev account%2$s. Turgenev is an external paid service; a content check is sent only when an editor explicitly starts an analysis."
+msgstr "Создайте ключ API в %1$sличном кабинете Тургенева%2$s. Тургенев — внешний платный сервис; проверка контента отправляется только тогда, когда редактор явно запускает анализ."
+
+#: assets/build/analysis.js
+msgid "HTML analysis (send markup)"
+msgstr "Анализ HTML (отправлять разметку)"
+
+#: assets/build/client.js
+msgid "Hide unimportant characteristics"
+msgstr "Скрыть неважные характеристики"
+
+#: src/Api/ReportHighlightParser.php:46
+msgid "Highlighting is unavailable on this server (the PHP DOM extension is not installed). Analysis and balance are unaffected."
+msgstr "Подсветка недоступна на этом сервере (расширение PHP DOM не установлено). На анализ и баланс это не влияет."
+
+#: assets/build/analysis.js
+msgid "Highlighting the analyzed text in reports is unavailable on this server (a required PHP component is missing). Analysis and balance are unaffected."
+msgstr "Подсветка анализируемого текста в отчётах недоступна на этом сервере (отсутствует необходимый компонент PHP). На анализ и баланс это не влияет."
+
+#: assets/build/client.js
+msgid "Hints"
+msgstr "Подсказки"
+
+#: assets/build/client.js
+msgid "Keywords"
+msgstr "Запросы"
+
+#: src/Admin/SettingsPage.php:219
+msgid "Leave blank to keep the saved key"
+msgstr "Оставьте пустым, чтобы сохранить текущий ключ"
+
+#: assets/build/analysis.js
+msgid "Loading highlights…"
+msgstr "Загрузка подсветки…"
+
+#: assets/build/analysis.js assets/build/client.js
+msgid "Loading…"
+msgstr "Загрузка…"
+
+#: assets/build/client.js
+msgid "Open report"
+msgstr "Открыть отчёт"
+
+#: assets/build/client.js
+msgid "Overall risk"
+msgstr "Общий риск"
+
+#: src/Admin/SettingsPage.php:219
+msgid "Paste API key"
+msgstr "Вставьте ключ API"
+
+#: assets/build/client.js
+msgid "Phrases"
+msgstr "Словосочетания"
+
+#: assets/build/client.js
+msgid "Problems in this sentence"
+msgstr "Проблемы в этом предложении"
+
+#: assets/build/client.js
+msgid "Readability"
+msgstr "Удобочитаемость"
+
+#: assets/build/analysis.js src/Admin/SettingsPage.php:199
+msgid "Refresh balance"
+msgstr "Обновить баланс"
+
+#: src/Admin/SettingsPage.php:233
+msgid "Remove the saved API key"
+msgstr "Удалить сохранённый ключ API"
+
+#: assets/build/analysis.js
+msgid "Reset view"
+msgstr "Сбросить вид"
+
+#: assets/build/client.js
+msgid "Risk"
+msgstr "Риск"
+
+#: src/Admin/SettingsPage.php:193
+msgid "Saved key:"
+msgstr "Сохранённый ключ:"
+
+#: src/Api/ReportSectionParser.php:83
+msgid "Section details are unavailable on this server (the PHP DOM extension is not installed)."
+msgstr "Подробности раздела недоступны на этом сервере (расширение PHP DOM не установлено)."
+
+#: src/Admin/SettingsPage.php:249
+msgid "Settings"
+msgstr "Настройки"
+
+#: assets/build/client.js
+msgid "Show all characteristics"
+msgstr "Показать все характеристики"
+
+#: assets/build/client.js
+msgid "Style"
+msgstr "Стилистика"
+
+#: src/Api/ApiClient.php:325
+msgid "The content contains invalid text encoding."
+msgstr "Текст содержит недопустимую кодировку."
+
+#: assets/build/analysis.js
+msgid "The content is longer than the maximum size accepted by Turgenev."
+msgstr "Текст превышает максимальный размер, который принимает Тургенев."
+
+#: assets/build/editor-content.js
+msgid "The document contains an invalid or circular synced pattern."
+msgstr "Документ содержит некорректный или зацикленный синхронизированный паттерн."
+
+#: assets/build/editor-content.js
+msgid "The expanded synced patterns exceed the supported document size."
+msgstr "После разворачивания синхронизированных паттернов документ превышает допустимый размер."
+
+#: src/Admin/SettingsPage.php:226
+msgid "The key is verified with the balance endpoint before it is stored."
+msgstr "Перед сохранением ключ проверяется запросом баланса."
+
+#: src/Admin/SettingsPage.php:148
+msgid "The new API key could not be verified and was not saved. The previous key was kept."
+msgstr "Новый ключ API не удалось проверить, поэтому он не был сохранён. Прежний ключ сохранён без изменений."
+
+#. translators: %s: API validation error.
+#, php-format
+#: src/Admin/SettingsPage.php:136
+msgid "The new API key was not saved: %s"
+msgstr "Новый ключ API не сохранён: %s"
+
+#: src/Api/ApiClient.php:321
+msgid "There is no content to analyze."
+msgstr "Нет текста для анализа."
+
+#: src/Api/ReportHighlightParser.php:91
+msgid "This report contains too many highlights. Use the full report."
+msgstr "В этом отчёте слишком много подсветок. Откройте полный отчёт."
+
+#: assets/build/analysis.js
+msgid "This report has no highlighted fragments."
+msgstr "В этом отчёте нет фрагментов для подсветки."
+
+#: src/Ajax/ApiController.php:82 src/Ajax/ApiController.php:95
+msgid "Too many Turgenev requests. Wait a moment and try again."
+msgstr "Слишком много запросов к Тургеневу. Подождите немного и повторите попытку."
+
+#: assets/build/analysis.js src/Admin/EditorIntegration.php:182
+msgid "Top up Turgenev balance"
+msgstr "Пополнить баланс Тургенева"
+
+#. Plugin Name of the plugin
+#: assets/build/editor.js src/Admin/EditorIntegration.php:143 src/Admin/SettingsPage.php:46 turgenev.php
+msgid "Turgenev"
+msgstr "Тургенев"
+
+#: src/Admin/SettingsPage.php:95
+msgid "Turgenev API key removed."
+msgstr "Ключ API Тургенева удалён."
+
+#. translators: %d: HTTP status code.
+#, php-format
+#: src/Api/ApiClient.php:252
+msgid "Turgenev API returned HTTP %d."
+msgstr "Тургенев вернул HTTP %d."
+
+#: src/Api/ApiClient.php:263
+msgid "Turgenev API returned an empty response."
+msgstr "Тургенев вернул пустой ответ."
+
+#: src/Api/ApiClient.php:260
+msgid "Turgenev API returned an oversized response."
+msgstr "Тургенев вернул слишком большой ответ."
+
+#: src/Api/ApiClient.php:273
+msgid "Turgenev API returned an unexpected response."
+msgstr "Тургенев вернул неожиданный ответ."
+
+#: src/Api/ApiClient.php:269
+msgid "Turgenev API returned malformed JSON."
+msgstr "Тургенев вернул некорректный JSON."
+
+#: src/Admin/SettingsPage.php:45
+msgid "Turgenev Settings"
+msgstr "Настройки Тургенева"
+
+#. translators: %d: maximum character count.
+#, php-format
+#: src/Api/ApiClient.php:332
+msgid "Turgenev accepts up to %d characters per check."
+msgstr "Тургенев принимает не более %d символов за одну проверку."
+
+#: assets/build/analysis.js src/Admin/EditorIntegration.php:158
+msgid "Turgenev is ready, but an API key has not been configured yet."
+msgstr "Тургенев готов к работе, но ключ API ещё не настроен."
+
+#: src/Api/ApiClient.php:282
+msgid "Turgenev rejected the request. Check the API key and account status in Settings → Turgenev."
+msgstr "Тургенев отклонил запрос. Проверьте ключ API и статус аккаунта в разделе «Настройки → Turgenev»."
+
+#: src/Api/ReportHighlightParser.php:51
+msgid "Turgenev report did not contain highlight markup."
+msgstr "Отчёт Тургенева не содержит разметки подсветки."
+
+#: src/Api/ReportSectionParser.php:90
+msgid "Turgenev report did not contain section details."
+msgstr "Отчёт Тургенева не содержит подробностей раздела."
+
+#: src/Api/ReportHighlightParser.php:126 src/Api/ReportSectionParser.php:139
+msgid "Turgenev report markup could not be parsed."
+msgstr "Не удалось обработать разметку отчёта Тургенева."
+
+#: src/Api/ApiClient.php:194
+msgid "Turgenev report markup is unavailable."
+msgstr "Разметка отчёта Тургенева недоступна."
+
+#: src/Api/ResponseValidator.php:40
+msgid "Turgenev report reference is invalid."
+msgstr "Некорректная ссылка на отчёт Тургенева."
+
+#. translators: %d: HTTP status code.
+#, php-format
+#: src/Api/ApiClient.php:186
+msgid "Turgenev report returned HTTP %d."
+msgstr "Отчёт Тургенева вернул HTTP %d."
+
+#: src/Api/ReportHighlightParser.php:61
+msgid "Turgenev report text does not match the analyzed document."
+msgstr "Текст отчёта Тургенева не совпадает с анализируемым документом."
+
+#: src/Api/ApiClient.php:280
+msgid "Turgenev reports insufficient balance. Top up your account and try again."
+msgstr "Тургенев сообщает о нехватке баланса. Пополните счёт и повторите попытку."
+
+#: assets/build/client.js
+msgid "Turgenev request failed."
+msgstr "Запрос к Тургеневу не выполнен."
+
+#. translators: 1: minimum WordPress version, 2: minimum PHP version.
+#, php-format
+#: src/Support/Requirements.php:53
+msgid "Turgenev requires WordPress %1$s or newer and PHP %2$s or newer."
+msgstr "Тургеневу требуется WordPress версии %1$s или новее и PHP версии %2$s или новее."
+
+#: assets/build/analysis.js src/Api/ResponseValidator.php:54
+msgid "Turgenev returned an incomplete analysis."
+msgstr "Тургенев вернул неполный анализ."
+
+#: src/Api/ResponseValidator.php:123
+msgid "Turgenev returned an invalid analysis label."
+msgstr "Тургенев вернул некорректную метку анализа."
+
+#: src/Api/ResponseValidator.php:65
+msgid "Turgenev returned an invalid analysis section."
+msgstr "Тургенев вернул некорректный раздел анализа."
+
+#: src/Api/ApiClient.php:77
+msgid "Turgenev returned an invalid balance response."
+msgstr "Тургенев вернул некорректный ответ о балансе."
+
+#: src/Api/ResponseValidator.php:26
+msgid "Turgenev returned an invalid numeric value."
+msgstr "Тургенев вернул некорректное числовое значение."
+
+#: src/Api/ResponseValidator.php:106 src/Api/ResponseValidator.php:70 src/Api/ResponseValidator.php:80
+msgid "Turgenev returned invalid analysis parameters."
+msgstr "Тургенев вернул некорректные параметры анализа."
+
+#: assets/build/client.js
+msgid "Turgenev returned invalid highlight data."
+msgstr "Тургенев вернул некорректные данные подсветки."
+
+#: assets/build/client.js
+msgid "Turgenev returned invalid section details."
+msgstr "Тургенев вернул некорректные данные раздела отчёта."
+
+#: src/Admin/SettingsPage.php:268
+msgid "Turgenev service"
+msgstr "Сервис Тургенев"
+
+#: src/Ajax/ApiController.php:120
+msgid "Unexpected Turgenev integration error."
+msgstr "Непредвиденная ошибка интеграции с Тургеневом."
+
+#: src/Api/ApiClient.php:211
+msgid "Unsupported Turgenev API operation."
+msgstr "Неподдерживаемая операция API Тургенева."
+
+#: src/Api/ApiClient.php:130 src/Api/ReportSectionParser.php:114
+msgid "Unsupported Turgenev report section."
+msgstr "Неподдерживаемый раздел отчёта Тургенева."
+
+#: src/Ajax/ApiController.php:58
+msgid "Unsupported Turgenev request."
+msgstr "Неподдерживаемый запрос к Тургеневу."
+
+#: src/Admin/EditorIntegration.php:176
+msgid "When enabled, HTML markup is removed before the text is sent for analysis."
+msgstr "Если включено, перед отправкой на анализ HTML-разметка удаляется из текста."
+
+#: assets/build/client.js
+msgid "WordPress returned an invalid response."
+msgstr "WordPress вернул некорректный ответ."
+
+#: assets/build/client.js
+msgid "Words"
+msgstr "Слова"
+
+#: src/Ajax/ApiController.php:76
+msgid "You are not allowed to analyze this post."
+msgstr "У вас нет прав на анализ этой записи."
+
+#: src/Ajax/ApiController.php:89
+msgid "You are not allowed to use Turgenev."
+msgstr "У вас нет прав на использование Тургенева."
+
+#: assets/build/analysis.js
+msgid "Your Turgenev balance is empty. Top it up before running an analysis."
+msgstr "Баланс Тургенева пуст. Пополните его перед запуском анализа."
+
+#: src/Ajax/ApiController.php:51
+msgid "Your editor session expired. Reload the editor and try again."
+msgstr "Сессия редактора истекла. Перезагрузите редактор и повторите попытку."
 
 #. Author of the plugin
 #: turgenev.php
 msgid "al5dy"
 msgstr "al5dy"
 
+#. Plugin URI of the plugin
+#: turgenev.php
+msgid "https://wordpress.org/plugins/turgenev/"
+msgstr "https://wordpress.org/plugins/turgenev/"
+
 #. Author URI of the plugin
 #: turgenev.php
 msgid "https://ziscod.com"
 msgstr "https://ziscod.com"
-
-#: src/Admin/EditorIntegration.php:142 src/Admin/SettingsPage.php:183
-#: src/index.js:203 src/js/editor.js:317
-msgid "Current balance:"
-msgstr "Текущий баланс:"
-
-#: src/index.js:222
-msgid "Check raw content"
-msgstr "Проверить исходный контент"
-
-#: src/index.js:224
-msgid "If the option is enabled, then the content will be checked without HTML tags. Only plain text."
-msgstr "Если данная опция включена, то контент будет проверяться без HTML тегов. Только исходный текст."
-
-#: src/index.js:213
-msgid "Check content"
-msgstr "Проверить контент"
-
-#: src/index.js:259
-msgid "Top-up balance"
-msgstr "Пополнить баланс"
-
-#: src/Admin/SettingsPage.php:60
-msgid "API key"
-msgstr "Ключ API"
-
-#: src/Admin/SettingsPage.php:232
-msgid "Settings"
-msgstr "Настройки"
-
-#: src/index.js:80 src/index_old.js:20 src/js/client.js:75
-msgid "Frequency"
-msgstr "Повторы"
-
-#: src/index.js:83 src/index_old.js:23 src/js/client.js:76
-msgid "Style"
-msgstr "Стилистика"
-
-#: src/index.js:86 src/index_old.js:26 src/js/client.js:77
-msgid "Keywords"
-msgstr "Запросы"
-
-#: src/index.js:89 src/index_old.js:29 src/js/client.js:78
-msgid "Formality"
-msgstr "Водность"
-
-#: src/index.js:92 src/index_old.js:32 src/js/client.js:79
-msgid "Readability"
-msgstr "Удобочитаемость"
-
-#: src/index.js:110 src/index_old.js:48 src/js/client.js:141
-msgid "Overall risk"
-msgstr "Общий риск"
-
-#: src/index.js:114 src/index_old.js:54
-msgid "Report"
-msgstr "Отчет"
-
-#: src/index.js:116 src/index.js:124 src/index_old.js:56 src/index_old.js:69
-msgid "More"
-msgstr "Подробнее"
-
-#: src/index.js:194 src/index_old.js:187
-msgid "Failed to parse content. Add content to the editor or click in the editable area."
-msgstr "Возникли проблемы при анализе контента. Добавьте контент в редактор или щелкните по области редактирования в редакторе."
-
-#. Plugin Name of the plugin
-#: turgenev.php src/Admin/EditorIntegration.php:119
-#: src/Admin/SettingsPage.php:33 src/js/editor.js:415
-msgid "Turgenev"
-msgstr "Тургенев"
-
-#. Plugin URI of the plugin
-#: turgenev.php
-msgid "https://wordpress.org/plugins/turgenev/"
-msgstr ""
-
-#. Description of the plugin
-#: turgenev.php
-msgid "Analyze WordPress content with the official Turgenev API for SEO over-optimization, readability, style, keyword stuffing and Baden-Baden risk."
-msgstr ""
-
-#: src/Admin/EditorIntegration.php:133 src/js/editor.js:73
-msgid "Turgenev is ready, but an API key has not been configured yet."
-msgstr "Тургенев готов к работе, но ключ API ещё не настроен."
-
-#: src/Admin/EditorIntegration.php:136 src/js/editor.js:84
-msgid "Configure API key"
-msgstr "Настроить ключ API"
-
-#: src/Admin/EditorIntegration.php:149 src/js/editor.js:351
-msgid "Analyze plain text only"
-msgstr "Анализировать только обычный текст"
-
-#: src/Admin/EditorIntegration.php:151
-msgid "When enabled, HTML markup is removed before the text is sent for analysis."
-msgstr ""
-
-#: src/Admin/EditorIntegration.php:153
-msgid "Analyze content"
-msgstr ""
-
-#: src/Admin/EditorIntegration.php:157
-msgid "Top up Turgenev balance"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:32
-msgid "Turgenev Settings"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:53
-msgid "API connection"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:79
-msgid "Turgenev API key removed."
-msgstr ""
-
-#. translators: %s: current API balance.
-#: src/Admin/SettingsPage.php:107
-#, php-format
-msgid "API key verified and saved. Current balance: %s ₽."
-msgstr ""
-
-#. translators: %s: API validation error.
-#: src/Admin/SettingsPage.php:120
-#, php-format
-msgid "The new API key was not saved: %s"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:136
-msgid "The new API key could not be verified and was not saved. The previous key was kept."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:150
-msgid "Connect WordPress to the official Turgenev content-analysis API. The API key is stored server-side and is never exposed to editor JavaScript."
-msgstr ""
-
-#. translators: 1: opening link, 2: closing link.
-#: src/Admin/SettingsPage.php:168
-#, php-format
-msgid "Generate an API key in your %1$sTurgenev account%2$s. Turgenev is an external paid service; a content check is sent only when an editor explicitly starts an analysis."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:179
-msgid "Saved key:"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:185
-msgid "Refresh balance"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:204
-msgid "Leave blank to keep the saved key"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:204
-msgid "Paste API key"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:209
-msgid "A key is already configured. Enter a new one only to rotate it."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:211
-msgid "The key is verified with the balance endpoint before it is stored."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:218
-msgid "Remove the saved API key"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:249
-msgid "Turgenev service"
-msgstr ""
-
-#: src/Ajax/ApiController.php:30
-msgid "You are not allowed to use Turgenev."
-msgstr ""
-
-#: src/Ajax/ApiController.php:51
-msgid "Unsupported Turgenev request."
-msgstr ""
-
-#: src/Ajax/ApiController.php:59
-msgid "Unexpected Turgenev integration error."
-msgstr ""
-
-#: src/Api/ApiClient.php:33
-msgid "Turgenev returned an invalid balance response."
-msgstr ""
-
-#: src/Api/ApiClient.php:46
-msgid "There is no content to analyze."
-msgstr ""
-
-#. translators: %d: maximum character count.
-#: src/Api/ApiClient.php:54
-#, php-format
-msgid "Turgenev accepts up to %d characters per check."
-msgstr ""
-
-#: src/Api/ApiClient.php:141
-msgid "Unsupported Turgenev API operation."
-msgstr ""
-
-#: src/Api/ApiClient.php:146
-msgid "Configure a Turgenev API key first."
-msgstr ""
-
-#. translators: %s: WordPress HTTP API error.
-#: src/Api/ApiClient.php:176
-#, php-format
-msgid "Could not reach the Turgenev API: %s"
-msgstr ""
-
-#. translators: %d: HTTP status code.
-#: src/Api/ApiClient.php:187
-#, php-format
-msgid "Turgenev API returned HTTP %d."
-msgstr ""
-
-#: src/Api/ApiClient.php:195
-msgid "Turgenev API returned an empty response."
-msgstr ""
-
-#: src/Api/ApiClient.php:201
-msgid "Turgenev API returned malformed JSON."
-msgstr ""
-
-#: src/Api/ApiClient.php:205
-msgid "Turgenev API returned an unexpected response."
-msgstr ""
-
-#. translators: 1: minimum WordPress version, 2: minimum PHP version.
-#: src/Support/Requirements.php:34
-#, php-format
-msgid "Turgenev requires WordPress %1$s or newer and PHP %2$s or newer."
-msgstr ""
-
-#: src/js/classic.js:46 src/js/editor.js:121
-msgid "Could not load balance."
-msgstr "Не удалось загрузить баланс."
-
-#: src/js/classic.js:58 src/js/editor.js:242
-msgid "Configure a Turgenev API key before running an analysis."
-msgstr "Перед анализом настройте ключ API Тургенева."
-
-#: src/js/classic.js:78
-msgid "Add content to the editor before running Turgenev."
-msgstr ""
-
-#: src/js/classic.js:89 src/js/editor.js:274
-msgid "The content is longer than the maximum size accepted by Turgenev."
-msgstr "Текст превышает максимальный размер, который принимает Тургенев."
-
-#: src/js/classic.js:111 src/js/editor.js:300
-msgid "Content analysis failed."
-msgstr "Не удалось выполнить анализ текста."
-
-#: src/js/client.js:45
-msgid "Could not connect to WordPress. Check your network connection and try again."
-msgstr ""
-
-#: src/js/client.js:57
-msgid "WordPress returned an invalid response."
-msgstr ""
-
-#: src/js/client.js:65
-msgid "Turgenev request failed."
-msgstr ""
-
-#: src/js/client.js:104
-msgid "Open report"
-msgstr ""
-
-#: src/js/editor.js:252
-msgid "Your Turgenev balance is empty. Top it up before running an analysis."
-msgstr "Баланс Тургенева пуст. Пополните его перед запуском анализа."
-
-#: src/js/editor.js:265
-msgid "Add text to the selected block before running Turgenev."
-msgstr "Добавьте текст в выбранный блок перед запуском Тургенева."
-
-#: src/js/editor.js:329
-msgid "Your balance is empty. Top it up to analyze this block."
-msgstr "Баланс пуст. Пополните его, чтобы проанализировать этот блок."
-
-#: src/js/editor.js:352
-msgid "Remove HTML markup before sending the text to Turgenev."
-msgstr "Перед отправкой в Тургенев удалите HTML-разметку."
-
-#: src/js/editor.js:368
-msgid "Analyze selected block"
-msgstr "Проверить выбранный блок"
-
-#: src/js/editor.js:391
-msgid "Top up balance"
-msgstr "Пополнить баланс"
-
-#: src/Api/ApiClient.php:77
-msgid "Turgenev report reference is invalid."
-msgstr ""
-
-#. translators: %s: WordPress HTTP API error.
-#: src/Api/ApiClient.php:108
-#, php-format
-msgid "Could not retrieve the Turgenev report: %s"
-msgstr ""
-
-#. translators: %d: HTTP status code.
-#: src/Api/ApiClient.php:119
-#, php-format
-msgid "Turgenev report returned HTTP %d."
-msgstr ""
-
-#: src/Api/ApiClient.php:127
-msgid "Turgenev report markup is unavailable."
-msgstr "Разметка отчёта Тургенева недоступна."
-
-#: src/Api/ReportHighlightParser.php:20
-msgid "This server cannot parse Turgenev report highlights."
-msgstr "Этот сервер не может обработать подсветку отчёта Тургенева."
-
-#: src/Api/ReportHighlightParser.php:25
-msgid "Turgenev report did not contain highlight markup."
-msgstr ""
-
-#: src/Api/ReportHighlightParser.php:35
-msgid "Turgenev report text does not match the analyzed block."
-msgstr "Текст отчёта Тургенева не совпадает с анализируемым блоком."
-
-#: src/Api/ReportHighlightParser.php:92
-msgid "Turgenev report markup could not be parsed."
-msgstr "Не удалось обработать разметку отчёта Тургенева."
-
-#: src/js/client.js:112
-msgid "Highlight"
-msgstr "Подсветить"
-
-#: src/js/client.js:268
-msgid "Gutenberg rich text is unavailable."
-msgstr "Функции форматирования Gutenberg недоступны."
-
-#: src/js/client.js:285
-msgid "Turgenev highlight"
-msgstr "Подсветка Тургенева"
-
-#: src/js/client.js:224 src/js/client.js:325 src/js/client.js:348
-msgid "Turgenev returned invalid highlight data."
-msgstr "Тургенев вернул некорректные данные подсветки."
-
-#: src/js/client.js:333 src/js/editor-content.js:101 src/js/editor.js:150
-#: src/js/editor.js:170
-msgid "The selected block changed since this report was created."
-msgstr "Выбранный блок был изменён после создания отчёта."
-
-#: src/js/editor.js:186
-msgid "This report has no highlighted fragments."
-msgstr "В этом отчёте нет фрагментов для подсветки."
-
-#: src/js/editor.js:196
-msgid "Could not highlight the selected block."
-msgstr "Не удалось подсветить выбранный блок."
-
-#: src/js/editor.js:231
-msgid "Could not reset the highlighted block."
-msgstr "Не удалось сбросить подсветку выбранного блока."
-
-#: src/js/editor.js:379
-msgid "Reset view"
-msgstr "Сбросить вид"
-
-#: resources/ts/client.ts:225
-msgid "Show all characteristics"
-msgstr "Показать все характеристики"
-
-#: resources/ts/client.ts:226
-msgid "Hide unimportant characteristics"
-msgstr "Скрыть неважные характеристики"
-
-#: resources/ts/client.ts:262
-msgid "Risk"
-msgstr "Риск"
-
-#: resources/ts/client.ts:404
-msgid "Problems in this sentence"
-msgstr "Проблемы в этом предложении"
-
-#: resources/ts/client.ts:293
-msgid "Words"
-msgstr "Слова"
-
-#: resources/ts/client.ts:297
-msgid "Phrases"
-msgstr "Словосочетания"
-
-#: resources/ts/client.ts:354
-msgid "Hints"
-msgstr "Подсказки"
-
-#: resources/ts/client.ts:567
-msgid "Turgenev returned invalid section details."
-msgstr "Тургенев вернул некорректные данные раздела отчёта."
-
-#: src/Api/ApiClient.php:130 src/Api/ReportSectionParser.php:86
-msgid "Unsupported Turgenev report section."
-msgstr "Неподдерживаемый раздел отчёта Тургенева."
-
-#: src/Api/ReportSectionParser.php:57
-msgid "Section details are unavailable on this server (the PHP DOM extension is not installed)."
-msgstr "Подробности раздела недоступны на этом сервере (расширение PHP DOM не установлено)."
-
-#: src/Api/ReportSectionParser.php:64
-msgid "Turgenev report did not contain section details."
-msgstr "Отчёт Тургенева не содержит подробностей раздела."

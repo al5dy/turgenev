@@ -185,6 +185,13 @@
 	border-bottom: 1px solid #f0f0f1;
 }
 
+// The [hidden] attribute and this rule share specificity, and this rule loads
+// after the UA stylesheet, so without this it would win the cascade and the
+// row would stay visible despite being hidden.
+.turgenev-section-param[hidden] {
+	display: none;
+}
+
 .turgenev-section-param-name {
 	color: #50575e;
 }
