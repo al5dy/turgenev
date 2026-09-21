@@ -43,7 +43,11 @@
 			el( BlockEditorProvider, { value: blocks, onInput, onChange, useSubRegistry: false, settings: { hasFixedToolbar: false } },
 				el( RegistryProbe ),
 				el( 'header', { className: 'editor-header edit-post-header' },
-					el( 'div', { className: 'editor-header__toolbar' } )
+					el( 'div', { className: 'editor-header__toolbar' },
+						el( 'div', { className: 'editor-document-tools edit-post-header-toolbar' },
+							el( 'button', { type: 'button' }, 'Inserter' )
+						)
+					)
 				),
 				el( 'main', { style: { display: 'grid', gridTemplateColumns: '1fr 360px', gap: '40px', padding: '30px' } },
 					el( 'div', { className: 'editor-styles-wrapper' },

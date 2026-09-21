@@ -89,7 +89,7 @@ test( 'gutenberg uses an independent toolbar-triggered overlay, not a document s
 	const content = await source( 'resources/ts/editor-content.ts' );
 	assert.doesNotMatch( js, /PluginDocumentSettingPanel/ );
 	assert.match( js, /registerPlugin/ );
-	assert.match( js, /editor-header__toolbar/ );
+	assert.match( js, /editor-document-tools\.edit-post-header-toolbar/ );
 	assert.match( js, /interface-interface-skeleton__sidebar/ );
 	assert.match( content, /core\/editor/ );
 	assert.doesNotMatch( js, /isSelected|selectedBlock|InspectorControls/ );

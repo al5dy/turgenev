@@ -31,7 +31,7 @@ async function loginAsAdmin( page ) {
  */
 async function openTurgenevPanel( page ) {
 	await page
-		.locator( '.editor-header__toolbar' )
+		.locator( '.editor-document-tools.edit-post-header-toolbar' )
 		.getByRole( 'button', { name: /Turgenev/i } )
 		.click();
 	const panel = page.locator( '.turgenev-sidebar' );

@@ -21,7 +21,9 @@
 
 	// The independent sidebar stands in for this region visually (same width, same
 	// vertical offset) but never joins its layout or its tab set.
-	const TOOLBAR_SELECTOR = '.editor-header__toolbar';
+	// Portalling into the document-tools group (rather than the wider toolbar region)
+	// places the button after Gutenberg's own tools, since createPortal appends.
+	const TOOLBAR_SELECTOR = '.editor-document-tools.edit-post-header-toolbar';
 	const SIDEBAR_SELECTOR = '.interface-interface-skeleton__sidebar';
 	const HEADER_SELECTOR = '.editor-header.edit-post-header';
 	// Gutenberg's own settings-sidebar width, used only until the real sidebar can be measured.
