@@ -273,14 +273,14 @@
 	const OVERALL_VISIBLE_PARAMS = 6;
 
 	/**
-	 * Fallback per-characteristic explainer for the "Overall risk" tooltip, keyed by the
-	 * provider's own characteristic label, matched verbatim. `SectionParam.hint`/`hintUrl`
-	 * (parsed server-side from the report's own `div.xphint`, confirmed present live) is
-	 * always preferred when present; this only covers a param the provider ever omits it
-	 * for. An unrecognized label (a new or renamed characteristic with no live hint either)
-	 * simply gets no tooltip rather than a guessed one.
+	 * Fallback per-characteristic explainer for a param row's tooltip, in any section, keyed
+	 * by the provider's own characteristic label, matched verbatim. `SectionParam.hint`/
+	 * `hintUrl` (parsed server-side from the report's own `div.xphint`, confirmed live for
+	 * every section) is always preferred when present; this only covers a param the provider
+	 * ever omits it for. An unrecognized label (a new or renamed characteristic with no live
+	 * hint either) simply gets no tooltip rather than a guessed one.
 	 */
-	const OVERALL_PARAM_HELP: Record< string, { text: string; url: string } > = {
+	const PARAM_HELP: Record< string, { text: string; url: string } > = {
 		'«Академическая тошнота»': {
 			text: __(
 				'Параметр, оценивающий количество повторов слов в тексте. Чем чаще слово повторяется, тем больше его вклад.',
@@ -408,10 +408,11 @@
 			}
 			const name = document.createElement( 'span' );
 			name.className = 'turgenev-section-param-name';
-			const fallbackHelp = OVERALL_PARAM_HELP[ param.name ];
-			const help = ! isOverall
-				? undefined
-				: param.hint
+			// Confirmed live: the provider's own report embeds this explainer in every
+			// section's characteristic rows, not only "overall", so the tooltip is not
+			// restricted to that section either.
+			const fallbackHelp = PARAM_HELP[ param.name ];
+			const help = param.hint
 				? { text: param.hint, url: param.hintUrl ?? fallbackHelp?.url }
 				: fallbackHelp;
 			if ( help ) {
@@ -479,6 +480,12 @@
 				row.className = 'turgenev-section-word-stop';
 			}
 			const text = makeCell( 'th', item.text );
+			// Mirrors the provider's own `title="Стоп-слово"` on this same row, the only
+			// other hover explainer its report markup carries besides the characteristic
+			// hints above.
+			if ( item.stopword ) {
+				text.title = __( 'Stop word', 'turgenev' );
+			}
 			// A repeated word/phrase also highlighted in the document text (e.g. an
 			// "xhl doubles4" row) gets the same exact color here, matching the provider.
 			if ( item.type && Number.isInteger( item.level ) ) {
@@ -1318,6 +1325,7 @@
 		renderMessage,
 		renderResult,
 		renderSectionParams,
+		renderWordStats,
 		setBusy,
 	} );
 } )( window, document, window.wp );

@@ -62,14 +62,18 @@ function createElement( tagName ) {
 	return el;
 }
 
-function fixture() {
+function ui() {
 	const window = {
 		TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 1, isConfigured: true, highlightsAvailable: true },
 		wp: { i18n: { __: ( value ) => value } },
 	};
 	const document = { createElement };
 	vm.runInNewContext( script, { window, document, fetch: () => Promise.reject( new Error( 'not used' ) ), URLSearchParams, AbortController } );
-	return window.TurgenevUI.renderSectionParams;
+	return window.TurgenevUI;
+}
+
+function fixture() {
+	return ui().renderSectionParams;
 }
 
 function param( name, low = false ) {
@@ -180,10 +184,27 @@ test( 'a live hint with no accompanying link URL falls back to the curated link 
 	assert.equal( unrecognizedTooltip.children.length, 1, 'no live URL and no curated fallback: text only, no link' );
 } );
 
-test( 'tooltips never appear outside the overall section, even for a recognized name', () => {
+test( 'tooltips also appear outside the overall section: the provider embeds the same hint in every section\'s report', () => {
 	const renderSectionParams = fixture();
 	const wrap = renderSectionParams( 'frequency', [ param( 'Водность' ) ] );
 	const name = wrap.children[ 0 ].children.find( ( c ) => c.className.includes( 'turgenev-section-param-name' ) );
+	assert.ok( name.className.includes( 'has-tooltip' ) );
+	const tooltip = name.children.find( ( c ) => c.className === 'turgenev-param-tooltip' );
+	assert.ok( tooltip, 'tooltip element missing outside the overall section' );
+} );
+
+test( 'a non-overall section still shows nothing for an unrecognized characteristic with no live hint', () => {
+	const renderSectionParams = fixture();
+	const wrap = renderSectionParams( 'frequency', [ param( 'Some future characteristic' ) ] );
+	const name = wrap.children[ 0 ].children.find( ( c ) => c.className.includes( 'turgenev-section-param-name' ) );
 	assert.equal( name.className.includes( 'has-tooltip' ), false );
 	assert.equal( name.children.length, 0 );
+} );
+
+test( 'a stop-word row gets a native "Stop word" tooltip, mirroring the provider\'s own title attribute', () => {
+	const { renderWordStats } = ui();
+	const table = renderWordStats( [ { text: 'и', count: 3, percent: '11.1%', stopword: true }, { text: 'заказ', count: 6, percent: '22.2%', stopword: false } ], true );
+	const [ stopRow, ordinaryRow ] = table.children[ 0 ].children;
+	assert.equal( stopRow.children[ 0 ].title, 'Stop word' );
+	assert.equal( ordinaryRow.children[ 0 ].title, undefined, 'a non-stop-word row must not get the tooltip' );
 } );
