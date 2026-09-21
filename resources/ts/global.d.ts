@@ -96,6 +96,8 @@ interface SectionDetails {
 	 * labels responsible for that sentence's risk, shown when the reader clicks it.
 	 */
 	sentenceProblems?: Record< string, string[] >;
+	/** The analyzed document's word count, the same figure every report tab shows. */
+	wordCount?: number;
 }
 
 interface HighlightsResponseData {

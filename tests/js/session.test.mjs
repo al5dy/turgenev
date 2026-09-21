@@ -176,6 +176,7 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		legend: [ { type: 'slop', level: 1, label: 'Potential issue.' } ],
 		breakdown: [ { label: 'query coverage', value: '0.2' } ],
 		sentenceProblems: { '107-33': [ 'Стилистические ошибки', 'Запросы' ] },
+		wordCount: 51,
 	};
 	assertSameShape( client.validSectionDetails( full ), full );
 	assertSameShape( client.validSectionDetails( { params: [] } ), { params: [] } );
@@ -198,6 +199,9 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		{ params: [], breakdown: [ { label: 'x' } ] }, // missing "value"
 		{ params: [], sentenceProblems: { 'not-an-id': [ 'x' ] } },
 		{ params: [], sentenceProblems: { '0-5': 'not-an-array' } },
+		{ params: [], wordCount: 'not-a-number' },
+		{ params: [], wordCount: -1 },
+		{ params: [], wordCount: 1.5 },
 		{ params: Array( 201 ).fill( { name: 'a', value: 'b', score: '0', low: false } ) },
 	] ) {
 		assert.throws( () => client.validSectionDetails( invalid ), /invalid section details/ );

@@ -92,6 +92,11 @@ final class ReportSectionParser {
 
 		$result = array( 'params' => $this->parseParams( $xpath ) );
 
+		$word_count = $this->parseWordCount( $xpath );
+		if ( null !== $word_count ) {
+			$result['wordCount'] = $word_count;
+		}
+
 		switch ( $section ) {
 			case 'overall':
 				$result['legend']           = $this->parseLegend( $xpath );
@@ -140,6 +145,20 @@ final class ReportSectionParser {
 		}
 
 		return $document;
+	}
+
+	/**
+	 * Parse the analyzed document's word count, the same figure the provider's own report
+	 * page shows in every tab (a plain `<span id='words_count'>`, confirmed live).
+	 *
+	 * @param \DOMXPath $xpath Report document.
+	 * @return int|null
+	 */
+	private function parseWordCount( \DOMXPath $xpath ): ?int {
+		$node = $xpath->query( "//*[@id='words_count']" )->item( 0 );
+		$text = $node ? trim( $node->textContent ) : '';
+
+		return ( '' !== $text && ctype_digit( $text ) ) ? (int) $text : null;
 	}
 
 	/**

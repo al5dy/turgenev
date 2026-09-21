@@ -346,6 +346,7 @@ try {
 		expect_true( 'abc12345' === $GLOBALS['turgenev_last_request']['args']['body']['t'], 'section details reuse the overall report token, not a separate per-block one' );
 		expect_true( false === isset( $GLOBALS['turgenev_last_request']['args']['body']['key'] ), 'section detail retrieval never sends the API key' );
 		expect_true( ! array_key_exists( 'hint', $style['params'][0] ) && ! array_key_exists( 'hintUrl', $style['params'][0] ), 'a characteristic row with no xphint div exposes no hint/hintUrl at all' );
+		expect_true( ! array_key_exists( 'wordCount', $style ), 'a report with no #words_count span exposes no wordCount at all' );
 
 		// The provider's own hover-tooltip content (a "div.xphint" inside the xphintblock
 		// cell, confirmed live on an anonymous fetch, for every section, not only overall):
@@ -378,6 +379,23 @@ try {
 		);
 		expect_true( ! array_key_exists( 'hint', $overall_with_hints['params'][2] ) && ! array_key_exists( 'hintUrl', $overall_with_hints['params'][2] ), 'a characteristic with no div.xphint at all exposes no hint fields' );
 		expect_true( ! array_key_exists( 'hint', $overall_with_hints['params'][3] ) && ! array_key_exists( 'hintUrl', $overall_with_hints['params'][3] ), 'an href that is not the expected help-wiki anchor shape is never trusted, even with real hint text alongside it' );
+
+		// The analyzed document's word count (a plain `<span id='words_count'>`, confirmed
+		// live on every report tab, not only overall).
+		$word_count_markup = static fn( string $words_count ): string => '<html><body><div id="infoblock"><table class="xprops">'
+			. '<tr><td class="xphintblock"><span class="xpname">Metric</span></td><td></td><td align="right"><span class="value">0</span></td></tr>'
+			. '</table></div>' . $words_count . '</body></html>';
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $word_count_markup( "<span id='words_count'>42</span>" ) );
+		$with_word_count                  = $client->reportSectionDetails( 'abc12345', 'style' );
+		expect_true( 42 === $with_word_count['wordCount'], 'wordCount is parsed as an integer from the report\'s own span' );
+
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $word_count_markup( "<span id='words_count'></span>" ) );
+		$with_blank_word_count            = $client->reportSectionDetails( 'abc12345', 'style' );
+		expect_true( ! array_key_exists( 'wordCount', $with_blank_word_count ), 'a blank #words_count span never becomes wordCount: 0' );
+
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $word_count_markup( "<span id='words_count'>not a number</span>" ) );
+		$with_invalid_word_count          = $client->reportSectionDetails( 'abc12345', 'style' );
+		expect_true( ! array_key_exists( 'wordCount', $with_invalid_word_count ), 'non-numeric #words_count content is never trusted' );
 
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $section_markup() );
 		$overall = $client->reportSectionDetails( 'abc12345', 'overall' );

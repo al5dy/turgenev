@@ -585,6 +585,14 @@
 		wrap.className = 'turgenev-section-content';
 		if ( section === 'overall' ) {
 			wrap.appendChild( renderVerdict( result ) );
+			if ( Number.isInteger( details.wordCount ) ) {
+				const count = document.createElement( 'p' );
+				count.className = 'turgenev-section-word-count';
+				count.textContent = `${ __( 'Analyzed text:', 'turgenev' ) } ${ String(
+					details.wordCount
+				) } ${ __( 'words', 'turgenev' ) }`;
+				wrap.appendChild( count );
+			}
 		}
 		wrap.appendChild( renderSectionParams( section, details.params ) );
 		if ( section === 'frequency' ) {
@@ -897,6 +905,15 @@
 				return invalid();
 			}
 			result.sentenceProblems = raw.sentenceProblems;
+		}
+		if ( raw.wordCount !== undefined ) {
+			if (
+				! Number.isInteger( raw.wordCount ) ||
+				( raw.wordCount as number ) < 0
+			) {
+				return invalid();
+			}
+			result.wordCount = raw.wordCount as number;
 		}
 		return result;
 	}
@@ -1324,6 +1341,7 @@
 		renderBalance,
 		renderMessage,
 		renderResult,
+		renderSectionContent,
 		renderSectionParams,
 		renderWordStats,
 		setBusy,

@@ -208,3 +208,25 @@ test( 'a stop-word row gets a native "Stop word" tooltip, mirroring the provider
 	assert.equal( stopRow.children[ 0 ].title, 'Stop word' );
 	assert.equal( ordinaryRow.children[ 0 ].title, undefined, 'a non-stop-word row must not get the tooltip' );
 } );
+
+const riskResult = { level: 'low', risk: '3', link: 'risk12345', details: [] };
+
+test( 'the overall section shows the analyzed word count next to the verdict, when the provider supplies it', () => {
+	const { renderSectionContent } = ui();
+	const wrap = renderSectionContent( 'overall', { params: [], wordCount: 51 }, riskResult );
+	const count = wrap.children.find( ( c ) => c.className === 'turgenev-section-word-count' );
+	assert.ok( count, 'word count element missing' );
+	assert.match( count.textContent, /51/ );
+} );
+
+test( 'no word count element appears when the provider did not supply one', () => {
+	const { renderSectionContent } = ui();
+	const wrap = renderSectionContent( 'overall', { params: [] }, riskResult );
+	assert.equal( wrap.children.some( ( c ) => c.className === 'turgenev-section-word-count' ), false );
+} );
+
+test( 'the word count never appears outside the overall section', () => {
+	const { renderSectionContent } = ui();
+	const wrap = renderSectionContent( 'frequency', { params: [], wordCount: 51 }, riskResult );
+	assert.equal( wrap.children.some( ( c ) => c.className === 'turgenev-section-word-count' ), false );
+} );
