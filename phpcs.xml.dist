@@ -34,6 +34,8 @@
 				<element value="tagName" />
 				<element value="childNodes" />
 				<element value="textContent" />
+				<element value="ownerDocument" />
+				<element value="parentNode" />
 			</property>
 		</properties>
 	</rule>

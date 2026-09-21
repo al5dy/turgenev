@@ -56,6 +56,10 @@ interface SectionParam {
 	value: string;
 	score: string;
 	low: boolean;
+	/** The provider's own explainer for this characteristic, confirmed live in every section. */
+	hint?: string;
+	/** Absolute URL for this characteristic's "Подробнее" help-wiki anchor. */
+	hintUrl?: string;
 }
 
 interface SectionWordStat {

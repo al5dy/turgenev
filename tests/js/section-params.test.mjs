@@ -30,6 +30,13 @@ function createElement( tagName ) {
 		addEventListener( type, fn ) {
 			( el.listeners[ type ] ||= [] ).push( fn );
 		},
+		_attrs: {},
+		setAttribute( name, value ) {
+			el._attrs[ name ] = String( value );
+		},
+		getAttribute( name ) {
+			return name in el._attrs ? el._attrs[ name ] : null;
+		},
 		click() {
 			( el.listeners.click || [] ).forEach( ( fn ) => fn() );
 		},
@@ -118,4 +125,65 @@ test( 'non-overall sections never hide characteristics, regardless of count or t
 	const wrap = renderSectionParams( 'frequency', params );
 	assert.equal( wrap.children.filter( ( c ) => c.hidden ).length, 0 );
 	assert.equal( wrap.children.some( ( c ) => c.tagName === 'button' ), false );
+} );
+
+test( 'a recognized overall characteristic gets a hover/focus tooltip with the curated explainer and its "Подробнее" link', () => {
+	const renderSectionParams = fixture();
+	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ) ] );
+	const name = wrap.children[ 0 ].children.find( ( c ) => c.className.includes( 'turgenev-section-param-name' ) );
+	assert.ok( name.className.includes( 'has-tooltip' ), 'recognized characteristic must be marked as having a tooltip' );
+	assert.equal( name.tabIndex, 0, 'must be reachable by keyboard, not mouse-only' );
+	const tooltip = name.children.find( ( c ) => c.className === 'turgenev-param-tooltip' );
+	assert.ok( tooltip, 'tooltip element missing' );
+	assert.equal( tooltip.getAttribute( 'role' ), 'tooltip' );
+	const [ description, link ] = tooltip.children;
+	assert.match( description.textContent, /Доля стоп-слов/ );
+	assert.equal( link.tagName, 'a' );
+	assert.equal( link.href, 'https://turgenev.ashmanov.com/?h=vkladki#water' );
+	assert.equal( link.target, '_blank' );
+	assert.equal( link.rel, 'noopener noreferrer' );
+	assert.equal( link.textContent, 'Подробнее' );
+} );
+
+test( 'an unrecognized characteristic name gets no tooltip, degrading gracefully rather than guessing', () => {
+	const renderSectionParams = fixture();
+	const wrap = renderSectionParams( 'overall', [ param( 'Some future characteristic' ) ] );
+	const name = wrap.children[ 0 ].children.find( ( c ) => c.className.includes( 'turgenev-section-param-name' ) );
+	assert.equal( name.className.includes( 'has-tooltip' ), false );
+	assert.equal( name.children.length, 0 );
+	assert.equal( name.textContent, 'Some future characteristic' );
+} );
+
+test( 'a live provider-supplied hint always wins over the curated fallback text, even for a recognized name', () => {
+	const renderSectionParams = fixture();
+	const live = { ...param( 'Водность' ), hint: 'Live text from the provider report itself.', hintUrl: 'https://turgenev.ashmanov.com/?h=vkladki#water-live' };
+	const wrap = renderSectionParams( 'overall', [ live ] );
+	const name = wrap.children[ 0 ].children.find( ( c ) => c.className.includes( 'turgenev-section-param-name' ) );
+	const tooltip = name.children.find( ( c ) => c.className === 'turgenev-param-tooltip' );
+	const [ description, link ] = tooltip.children;
+	assert.equal( description.textContent, 'Live text from the provider report itself.' );
+	assert.equal( link.href, 'https://turgenev.ashmanov.com/?h=vkladki#water-live' );
+} );
+
+test( 'a live hint with no accompanying link URL falls back to the curated link for a recognized name, or shows text only for an unrecognized one', () => {
+	const renderSectionParams = fixture();
+	const recognized = { ...param( 'Водность' ), hint: 'Live text, no URL from the provider this time.' };
+	const unrecognized = { ...param( 'Some future characteristic' ), hint: 'Live text for a characteristic we have no curated fallback for.' };
+	const wrap = renderSectionParams( 'overall', [ recognized, unrecognized ] );
+	const [ recognizedName, unrecognizedName ] = wrap.children.map( ( row ) => row.children.find( ( c ) => c.className.includes( 'turgenev-section-param-name' ) ) );
+
+	const recognizedTooltip = recognizedName.children.find( ( c ) => c.className === 'turgenev-param-tooltip' );
+	const [ , recognizedLink ] = recognizedTooltip.children;
+	assert.equal( recognizedLink.href, 'https://turgenev.ashmanov.com/?h=vkladki#water', 'no live URL: falls back to the curated link for a name we recognize' );
+
+	const unrecognizedTooltip = unrecognizedName.children.find( ( c ) => c.className === 'turgenev-param-tooltip' );
+	assert.equal( unrecognizedTooltip.children.length, 1, 'no live URL and no curated fallback: text only, no link' );
+} );
+
+test( 'tooltips never appear outside the overall section, even for a recognized name', () => {
+	const renderSectionParams = fixture();
+	const wrap = renderSectionParams( 'frequency', [ param( 'Водность' ) ] );
+	const name = wrap.children[ 0 ].children.find( ( c ) => c.className.includes( 'turgenev-section-param-name' ) );
+	assert.equal( name.className.includes( 'has-tooltip' ), false );
+	assert.equal( name.children.length, 0 );
 } );

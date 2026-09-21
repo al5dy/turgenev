@@ -170,7 +170,7 @@ function assertSameShape( actual, expected, message ) {
 test( 'section details validation accepts the full shape and rejects malformed payloads', () => {
 	const { client } = fixture();
 	const full = {
-		params: [ { name: 'Metric', value: '0.42', score: '2', low: false } ],
+		params: [ { name: 'Metric', value: '0.42', score: '2', low: false, hint: 'What this measures.', hintUrl: 'https://turgenev.ashmanov.com/?h=vkladki#metric' } ],
 		words: [ { text: 'and', count: 3, percent: '5.0%', stopword: true, type: 'doubles', level: 4 } ],
 		phrases: [ { text: 'fast car', count: 2 } ],
 		legend: [ { type: 'slop', level: 1, label: 'Potential issue.' } ],
@@ -189,6 +189,8 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		{},
 		{ params: 'nope' },
 		{ params: [ { name: 'Metric', value: '0.42', score: '2' } ] }, // missing "low"
+		{ params: [ { name: 'Metric', value: '0.42', score: '2', low: false, hint: 42 } ] }, // "hint" not a string
+		{ params: [ { name: 'Metric', value: '0.42', score: '2', low: false, hintUrl: 42 } ] }, // "hintUrl" not a string
 		{ params: [], words: [ { text: 'and' } ] }, // missing "count"
 		{ params: [], words: [ { text: 'and', count: 1, type: 'unknown', level: 1 } ] }, // unrecognized "type"
 		{ params: [], legend: [ { level: 1, label: 'x' } ] }, // missing "type"

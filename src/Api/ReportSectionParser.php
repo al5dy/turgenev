@@ -150,7 +150,7 @@ final class ReportSectionParser {
 	 * distinguished only by whether the first cell carries the `xphintblock` wrapper.
 	 *
 	 * @param \DOMXPath $xpath Report document.
-	 * @return list<array{name: string, value: string, score: string, low: bool}>
+	 * @return list<array{name: string, value: string, score: string, low: bool, hint?: string, hintUrl?: string}>
 	 */
 	private function parseParams( \DOMXPath $xpath ): array {
 		$rows  = $xpath->query( "//table[contains(concat(' ', normalize-space(@class), ' '), ' xprops ')]//tr" );
@@ -170,14 +170,71 @@ final class ReportSectionParser {
 			}
 			$value_node = $xpath->query( ".//td[@align='right']//span[contains(concat(' ', normalize-space(@class), ' '), ' value ')]", $row )->item( 0 );
 			$mark_node  = $xpath->query( ".//span[contains(concat(' ', normalize-space(@class), ' '), ' mark ')]", $row )->item( 0 );
-			$items[]    = array(
+			$item       = array(
 				'name'  => ResponseValidator::label( $label ),
 				'value' => $value_node ? ResponseValidator::label( trim( $value_node->textContent ) ) : '',
 				'score' => $mark_node ? (string) max( 0, (int) trim( $mark_node->textContent ) ) : '0',
 				'low'   => (bool) preg_match( '/\blow\b/', (string) $row->getAttribute( 'class' ) ),
 			);
+			$hint       = $this->parseHint( $xpath, $row );
+			if ( null !== $hint ) {
+				$item['hint']    = $hint['hint'];
+				$item['hintUrl'] = $hint['hintUrl'];
+			}
+			$items[] = $item;
 		}
 		return $items;
+	}
+
+	/**
+	 * Extract the per-characteristic explainer the provider embeds in each `xphintblock`
+	 * cell's own `div.xphint` (the same content its report page reveals as a hover tooltip):
+	 * an explanatory sentence, sometimes followed by document-specific detail (e.g. which
+	 * word triggered "Сверхчастые слова"), then a "Подробнее" link to its help-wiki anchor.
+	 * Confirmed present on a live report for every section, not only 'overall'.
+	 *
+	 * @param \DOMXPath   $xpath Report document.
+	 * @param \DOMElement $row Characteristic row.
+	 * @return array{hint: string, hintUrl: string}|null
+	 */
+	private function parseHint( \DOMXPath $xpath, \DOMElement $row ): ?array {
+		$hint_node = $xpath->query( ".//div[contains(concat(' ', normalize-space(@class), ' '), ' xphint ')]", $row )->item( 0 );
+		if ( ! $hint_node instanceof \DOMElement ) {
+			return null;
+		}
+
+		$link_node = $xpath->query( './/a[@href]', $hint_node )->item( 0 );
+		$href      = $link_node instanceof \DOMElement ? trim( $link_node->getAttribute( 'href' ) ) : '';
+		if ( '' === $href || 1 !== preg_match( '#^/?\?h=[\w-]+#', $href ) ) {
+			return null; // Not the expected help-wiki link shape; skip rather than trust an unrecognized href.
+		}
+
+		$clone = $hint_node->cloneNode( true );
+		if ( ! $clone instanceof \DOMElement || ! $clone->ownerDocument instanceof \DOMDocument ) {
+			return null;
+		}
+		$clone_xpath = new \DOMXPath( $clone->ownerDocument );
+		// <br> separates the sentence from any document-specific detail that follows it
+		// (see the docblock above); dropping it outright would run those words together.
+		foreach ( iterator_to_array( $clone_xpath->query( './/br', $clone ) ) as $br ) {
+			$br->parentNode?->replaceChild( $clone->ownerDocument->createTextNode( ' ' ), $br );
+		}
+		foreach ( iterator_to_array( $clone_xpath->query( './/a | .//span[contains(concat(" ", normalize-space(@class), " "), " cloud ")]', $clone ) ) as $node ) {
+			$node->parentNode?->removeChild( $node );
+		}
+		$text = trim( (string) preg_replace( '/\s+/u', ' ', $clone->textContent ) );
+		if ( '' === $text ) {
+			return null;
+		}
+
+		try {
+			return array(
+				'hint'    => ResponseValidator::label( $text ),
+				'hintUrl' => ApiClient::ENDPOINT . ltrim( $href, '/' ),
+			);
+		} catch ( ApiException $exception ) {
+			return null; // Oversized/invalid hint text: degrade to no tooltip rather than fail the whole section.
+		}
 	}
 
 	/**

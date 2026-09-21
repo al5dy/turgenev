@@ -345,6 +345,39 @@ try {
 		expect_true( 'slop_words' === $GLOBALS['turgenev_last_request']['args']['body']['coverdict'], 'the style section requests the provider\'s slop_words report tab' );
 		expect_true( 'abc12345' === $GLOBALS['turgenev_last_request']['args']['body']['t'], 'section details reuse the overall report token, not a separate per-block one' );
 		expect_true( false === isset( $GLOBALS['turgenev_last_request']['args']['body']['key'] ), 'section detail retrieval never sends the API key' );
+		expect_true( ! array_key_exists( 'hint', $style['params'][0] ) && ! array_key_exists( 'hintUrl', $style['params'][0] ), 'a characteristic row with no xphint div exposes no hint/hintUrl at all' );
+
+		// The provider's own hover-tooltip content (a "div.xphint" inside the xphintblock
+		// cell, confirmed live on an anonymous fetch, for every section, not only overall):
+		// an explanatory sentence, sometimes trailing document-specific detail after a <br>,
+		// then a "Подробнее" link and an (always empty) "cloud" span this plugin discards.
+		$hint_markup = '<html><body><div id="infoblock"><table class="xprops">'
+			. "<tr><td class='xphintblock'><span class='xpname'>«Академическая тошнота»</span>"
+			. "<div class='xphint'>Параметр, оценивающий количество повторов слов в тексте.<br>"
+			. "<a href='/?h=vkladki#academ' target='bbhelp' onclick=\"return windowOpen(this)\">Подробнее</a>"
+			. "<span class='cloud'></span></div></td><td><span class='mark'>5</span></td><td align='right'><span class='value'>27.27</span></td></tr>"
+			. "<tr><td class='xphintblock'><span class='xpname'>Сверхчастые слова</span>"
+			. "<div class='xphint'>Количество слов, которые встречаются в тексте существенно чаще:<br><i>слово</i><br>"
+			. "<a href='/?h=vkladki#superfreq' target='bbhelp' onclick=\"return windowOpen(this)\">Подробнее</a>"
+			. "<span class='cloud'></span></div></td><td><span class='mark'>1</span></td><td align='right'><span class='value'>1</span></td></tr>"
+			. "<tr><td class='xphintblock'><span class='xpname'>No hint here</span></td><td></td><td align='right'><span class='value'>0</span></td></tr>"
+			. "<tr><td class='xphintblock'><span class='xpname'>Untrusted href</span>"
+			. "<div class='xphint'>Should be skipped.<br><a href='https://evil.example/'>Подробнее</a><span class='cloud'></span></div></td><td></td><td align='right'><span class='value'>0</span></td></tr>"
+			. '</table></div></body></html>';
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $hint_markup );
+		$overall_with_hints               = $client->reportSectionDetails( 'abc12345', 'overall' );
+		expect_true(
+			'Параметр, оценивающий количество повторов слов в тексте. Подробнее' !== $overall_with_hints['params'][0]['hint']
+			&& 'Параметр, оценивающий количество повторов слов в тексте.' === $overall_with_hints['params'][0]['hint'],
+			'the hint text excludes the trailing "Подробнее" link and cloud span'
+		);
+		expect_true( 'https://turgenev.ashmanov.com/?h=vkladki#academ' === $overall_with_hints['params'][0]['hintUrl'], 'the relative help-wiki href resolves against the provider\'s own endpoint' );
+		expect_true(
+			'Количество слов, которые встречаются в тексте существенно чаще: слово' === $overall_with_hints['params'][1]['hint'],
+			'a <br> before trailing document-specific detail (e.g. the flagged word) becomes a space, not a run-together word'
+		);
+		expect_true( ! array_key_exists( 'hint', $overall_with_hints['params'][2] ) && ! array_key_exists( 'hintUrl', $overall_with_hints['params'][2] ), 'a characteristic with no div.xphint at all exposes no hint fields' );
+		expect_true( ! array_key_exists( 'hint', $overall_with_hints['params'][3] ) && ! array_key_exists( 'hintUrl', $overall_with_hints['params'][3] ), 'an href that is not the expected help-wiki anchor shape is never trusted, even with real hint text alongside it' );
 
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $section_markup() );
 		$overall = $client->reportSectionDetails( 'abc12345', 'overall' );

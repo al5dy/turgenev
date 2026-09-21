@@ -272,6 +272,115 @@
 	// default so the panel stays scannable regardless of how many the report has.
 	const OVERALL_VISIBLE_PARAMS = 6;
 
+	/**
+	 * Fallback per-characteristic explainer for the "Overall risk" tooltip, keyed by the
+	 * provider's own characteristic label, matched verbatim. `SectionParam.hint`/`hintUrl`
+	 * (parsed server-side from the report's own `div.xphint`, confirmed present live) is
+	 * always preferred when present; this only covers a param the provider ever omits it
+	 * for. An unrecognized label (a new or renamed characteristic with no live hint either)
+	 * simply gets no tooltip rather than a guessed one.
+	 */
+	const OVERALL_PARAM_HELP: Record< string, { text: string; url: string } > = {
+		'«Академическая тошнота»': {
+			text: __(
+				'Параметр, оценивающий количество повторов слов в тексте. Чем чаще слово повторяется, тем больше его вклад.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#academ',
+		},
+		'«Тошнота» словосочетаний': {
+			text: __(
+				'«Академическая тошнота», посчитанная не для отдельных слов, а для пар слов (между которыми может быть предлог). Она тем выше, чем больше повторов словосочетаний.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#academ',
+		},
+		'Плотность стилистических проблем': {
+			text: __(
+				'Количество стилистических проблем, деленное на длину текста в словах.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#styleden',
+		},
+		'Покрытие ключевыми словами': {
+			text: __(
+				'Доля текста, которую занимают запросы (с учетом «штрафов» за запросы в точной форме и длинные запросы).',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#queries',
+		},
+		'Доля содержательного текста': {
+			text: __(
+				'Доля в тексте слов, не входящих в списки стоп-слов и общих слов.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#informative',
+		},
+		'Индекс удобочитаемости': {
+			text: __(
+				'Индекс, оценивающий сложность текста на основе средних длин слов и предложений. Automated Readability Index в варианте, адаптированном для русского языка.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#readability',
+		},
+		'«Классическая тошнота»': {
+			text: __(
+				'Параметр, зависящий от максимальной частоты слов в тексте. Для определения риска не используется.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#classic',
+		},
+		'Сверхчастые слова': {
+			text: __(
+				'Количество слов, которые встречаются в тексте существенно чаще, чем должны были в соответствии с вероятностной моделью.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#superfreq',
+		},
+		'Сверхконцентрация «и»': {
+			text: __(
+				'Слишком большое количество повторов союза «и». Может свидетельствовать о злоупотреблении конструкциями типа «удобно и выгодно».',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#superand',
+		},
+		'Количество стилистических проблем': {
+			text: __(
+				'Сумма «квантов» (от 1 до 3), полученных словами текста за стилистические проблемы.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#stylenum',
+		},
+		Водность: {
+			text: __(
+				'Доля стоп-слов в тексте. Для определения риска не используется.',
+				'turgenev'
+			),
+			url: 'https://turgenev.ashmanov.com/?h=vkladki#water',
+		},
+	};
+
+	function renderParamTooltip( help: {
+		text: string;
+		url?: string;
+	} ): HTMLElement {
+		const tooltip = document.createElement( 'span' );
+		tooltip.className = 'turgenev-param-tooltip';
+		tooltip.setAttribute( 'role', 'tooltip' );
+		const description = document.createElement( 'span' );
+		description.textContent = help.text;
+		tooltip.appendChild( description );
+		if ( help.url ) {
+			const link = document.createElement( 'a' );
+			link.href = help.url;
+			link.target = '_blank';
+			link.rel = 'noopener noreferrer';
+			link.textContent = __( 'Подробнее', 'turgenev' );
+			tooltip.appendChild( link );
+		}
+		return tooltip;
+	}
+
 	function renderSectionParams(
 		section: SectionKey,
 		params: SectionParam[]
@@ -299,7 +408,20 @@
 			}
 			const name = document.createElement( 'span' );
 			name.className = 'turgenev-section-param-name';
-			name.textContent = param.name;
+			const fallbackHelp = OVERALL_PARAM_HELP[ param.name ];
+			const help = ! isOverall
+				? undefined
+				: param.hint
+				? { text: param.hint, url: param.hintUrl ?? fallbackHelp?.url }
+				: fallbackHelp;
+			if ( help ) {
+				name.classList.add( 'has-tooltip' );
+				name.tabIndex = 0;
+				name.textContent = param.name;
+				name.appendChild( renderParamTooltip( help ) );
+			} else {
+				name.textContent = param.name;
+			}
 			const value = document.createElement( 'span' );
 			value.className = 'turgenev-section-param-value';
 			value.textContent = `${ param.value } (${ param.score })`;
@@ -646,7 +768,11 @@
 			typeof candidate.name === 'string' &&
 			typeof candidate.value === 'string' &&
 			typeof candidate.score === 'string' &&
-			typeof candidate.low === 'boolean'
+			typeof candidate.low === 'boolean' &&
+			( candidate.hint === undefined ||
+				typeof candidate.hint === 'string' ) &&
+			( candidate.hintUrl === undefined ||
+				typeof candidate.hintUrl === 'string' )
 		);
 	}
 
