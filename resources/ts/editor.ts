@@ -99,16 +99,49 @@
 		return metrics;
 	}
 
+	/**
+	 * Other plugins (e.g. page builders) inject their own toolbar buttons at unpredictable
+	 * times relative to this one, so appending once at mount isn't enough: whichever button
+	 * happens to mount last wins the last position, and that varies from load to load.
+	 * Watching the container and re-appending on every child-list change keeps this button
+	 * pinned to the end regardless of what else gets inserted, before or after it.
+	 */
+	function useStayLast(
+		container: HTMLElement | null,
+		nodeRef: { current: HTMLElement | null }
+	): void {
+		useEffect( () => {
+			const node = nodeRef.current;
+			if ( ! container || ! node ) {
+				return;
+			}
+			function moveLast(): void {
+				if ( container?.lastElementChild !== node ) {
+					container?.appendChild( node as HTMLElement );
+				}
+			}
+			moveLast();
+			const observer = new window.MutationObserver( moveLast );
+			observer.observe( container, { childList: true } );
+			return () => observer.disconnect();
+		}, [ container ] );
+	}
+
 	function ToolbarButton( {
 		open,
 		onClick,
+		toolbar,
 	}: {
 		open: boolean;
 		onClick: () => void;
+		toolbar: HTMLElement | null;
 	} ): unknown {
+		const ref = useRef< HTMLButtonElement >( null );
+		useStayLast( toolbar, ref );
 		return el(
 			'button',
 			{
+				ref,
 				type: 'button',
 				className:
 					'turgenev-toolbar-button components-button' +
@@ -196,6 +229,7 @@
 						el( ToolbarButton, {
 							open,
 							onClick: () => setOpen( ( value ) => ! value ),
+							toolbar,
 						} ),
 						toolbar
 				  )

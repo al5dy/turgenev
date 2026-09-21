@@ -97,3 +97,13 @@ test( 'gutenberg uses an independent toolbar-triggered overlay, not a document s
 	assert.match( session, /Analyze document/ );
 	assert.match( session, /topUpUrl/ );
 } );
+
+test( 'the toolbar button keeps re-asserting itself as the last child, not just at mount', async () => {
+	const js = await source( 'resources/ts/editor.ts' );
+	// Other plugins (page builders, etc.) can insert their own toolbar buttons after this
+	// one mounts; a one-time append at mount can't win that race, so the button must watch
+	// the container and re-append itself on every later mutation too.
+	assert.match( js, /new window\.MutationObserver/ );
+	assert.match( js, /lastElementChild/ );
+	assert.match( js, /childList:\s*true/ );
+} );
