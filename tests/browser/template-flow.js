@@ -137,7 +137,7 @@ async page => {
 	const overlap = await page.evaluate( () => {
 		const host = document.createElement( 'div' );
 		TurgenevUI.renderHighlightText( host, { text: 'A B C', marks: [ { start: 0, end: 5, category: 'style', level: 1 }, { start: 2, end: 3, category: 'keywords', level: 1 } ] } );
-		return { text: host.textContent, spans: [ ...host.children ].map( mark => ( { text: mark.textContent, color: mark.style.backgroundColor } ) ) };
+		return { text: host.textContent, spans: [ ...host.children ].map( mark => ( { text: mark.textContent, color: mark.style.color } ) ) };
 	} );
 	assert( overlap.text === 'A B C' && overlap.spans.length === 3 && overlap.spans[ 0 ].color === overlap.spans[ 2 ].color && overlap.spans[ 1 ].color !== overlap.spans[ 0 ].color, 'Overlapping fallback ranges must retain the strongest severity without losing text.' );
 	await page.evaluate( results => { window.templateSmokeResults = results; }, checks );

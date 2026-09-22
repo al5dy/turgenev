@@ -339,6 +339,14 @@ interface DecorationSurface {
 						if ( ! surface.style ) {
 							surface.style =
 								target.document.createElement( 'style' );
+							// `::highlight()` paints straight onto the live text via the
+							// browser's own text layout, so severity can be shown as the
+							// text's own color rather than a background wash behind it —
+							// unlike the two paths below (a native <textarea> can't style
+							// individual characters at all, and the pre-Highlight-API
+							// fallback draws a separate overlay box that never touches the
+							// real text), both of which stay background-based out of
+							// necessity, not choice.
 							surface.style.textContent = Object.entries(
 								client.highlightColorTable
 							)
@@ -346,9 +354,9 @@ interface DecorationSurface {
 									( [ key, color ] ) =>
 										'::highlight(turgenev-' +
 										key +
-										'){background-color:' +
+										'){color:' +
 										color +
-										';color:#1e1e1e;}'
+										';}'
 								)
 								.join( '\n' );
 							target.document.head.appendChild( surface.style );

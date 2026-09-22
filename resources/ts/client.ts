@@ -1451,7 +1451,13 @@
 				if ( winner ) {
 					const mark =
 						container.ownerDocument.createElement( 'mark' );
-					mark.style.backgroundColor = highlightColor( winner );
+					// A real element this function fully controls (unlike the live
+					// decoration layer's overlay techniques), so severity is shown the
+					// same way as the in-editor Highlight API path: text color, not a
+					// background wash. `background: none` overrides the browser's own
+					// default yellow <mark> background.
+					mark.style.background = 'none';
+					mark.style.color = highlightColor( winner );
 					mark.textContent = value;
 					container.appendChild( mark );
 				} else {
