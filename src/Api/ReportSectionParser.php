@@ -352,7 +352,8 @@ final class ReportSectionParser {
 	 * `"<word offset>-<word count>"` sentence id — the same id each highlighted span in that
 	 * report's own text carries as its `xhint-<id>` class (see
 	 * {@see ReportHighlightParser::mark_for_element()}'s `sentence` field) — mapping to the
-	 * list of category labels responsible for that sentence's risk. Confirmed present on this
+	 * list of category labels responsible for that sentence's risk, each paired with the report
+	 * section its provider link targets. Confirmed present on this
 	 * class's own anonymous, token-only fetch (unlike the per-document verdict sentence and
 	 * "problems in this sentence" text the class docblock describes, which stayed empty here:
 	 * this object's own `"t"` field is that same always-empty text, so only `"c"` is read).
@@ -360,7 +361,7 @@ final class ReportSectionParser {
 	 * `{}`.
 	 *
 	 * @param string $report_html Full report page markup (not the parsed DOM; see below).
-	 * @return array<string, list<string>>
+	 * @return array<string, list<array{label: string, section?: string}>>
 	 */
 	private function parseSentenceProblems( string $report_html ): array {
 		/*
@@ -399,29 +400,39 @@ final class ReportSectionParser {
 
 	/**
 	 * Extract plain-text category labels out of a sentence's `"c"` field
-	 * (`<a href='#tab' onclick='...'>Label</a>,<br>...`).
+	 * (`<a href='#tab' onclick='...'>Label</a>,<br>...`), each paired with the plugin's own
+	 * section key when its `#tab` anchor names one of {@see ApiClient::SECTION_TABS}' report
+	 * tabs (confirmed live: the provider's links use exactly those `coverdict` values), so the
+	 * browser can jump to that section. An unrecognized anchor keeps the label, without a target.
 	 *
 	 * @param string $html Untrusted provider markup fragment.
-	 * @return list<string>
+	 * @return list<array{label: string, section?: string}>
 	 */
 	private static function sentenceProblemLabels( string $html ): array {
 		// preg_match_all() returns a match *count* (falsy 0 or false on failure), unlike
 		// preg_match()'s 1/0 — a `1 !==` check here would incorrectly reject any sentence
 		// with more than one problem link, which is the common case, not the exception.
-		if ( ! preg_match_all( '/<a\b[^>]*>(.*?)<\/a>/is', $html, $matches ) ) {
+		if ( ! preg_match_all( '/<a\b([^>]*)>(.*?)<\/a>/is', $html, $matches, PREG_SET_ORDER ) ) {
 			return array();
 		}
-		$labels = array();
-		foreach ( $matches[1] as $raw_label ) {
-			if ( count( $labels ) >= 20 ) {
+		// 'overall' is the tab these links are rendered in, so it is never a jump target.
+		$sections = array_flip( array_diff_key( ApiClient::SECTION_TABS, array( 'overall' => true ) ) );
+		$items    = array();
+		foreach ( $matches as $match ) {
+			if ( count( $items ) >= 20 ) {
 				break;
 			}
-			$label = trim( html_entity_decode( wp_strip_all_tags( $raw_label ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
-			if ( '' !== $label ) {
-				$labels[] = ResponseValidator::label( $label );
+			$label = trim( html_entity_decode( wp_strip_all_tags( $match[2] ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+			if ( '' === $label ) {
+				continue;
 			}
+			$item = array( 'label' => ResponseValidator::label( $label ) );
+			if ( 1 === preg_match( '/\bhref\s*=\s*([\'"])#([\w-]+)\1/i', $match[1], $href ) && isset( $sections[ $href[2] ] ) ) {
+				$item['section'] = $sections[ $href[2] ];
+			}
+			$items[] = $item;
 		}
-		return $labels;
+		return $items;
 	}
 
 	/**

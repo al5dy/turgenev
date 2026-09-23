@@ -409,15 +409,26 @@ try {
 		// fixture above) and its per-sentence XHints breakdown.
 		$xhints_markup = $section_markup(
 			"<div id='legend'><table><tr><td><em class='xhl bb1'>&nbsp;</em></td><td>Some problems.</td></tr></table></div>"
-			. '<script>var XHints = {"107-33":[{"c":"<a href=\'#doubles\' onclick=\'tabAClick(this); return false;\'>Word repetition</a>,<br><a href=\'#slop_words\' onclick=\'tabAClick(this); return false;\'>Style errors</a>","t":""}],"not-a-real-id-shape":[{"c":"ignored","t":""}]};</script>'
+			. '<script>var XHints = {"107-33":[{"c":"<a href=\'#doubles\' onclick=\'tabAClick(this); return false;\'>Word repetition</a>,<br><a href=\'#slop_words\' onclick=\'tabAClick(this); return false;\'>Style errors</a>,<br><a href=\'#unknown-tab\'>Unknown tab</a>,<br><a href=\'#bb-mix\'>Overall tab</a>","t":""}],"not-a-real-id-shape":[{"c":"ignored","t":""}]};</script>'
 		);
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $xhints_markup );
 		$overall_with_xhints = $client->reportSectionDetails( 'abc12345', 'overall' );
 		expect_true( 1 === count( $overall_with_xhints['legend'] ) && 'bb' === $overall_with_xhints['legend'][0]['type'] && 'Some problems.' === $overall_with_xhints['legend'][0]['label'], 'the overall section now exposes its own color legend, previously skipped entirely' );
 		expect_true( 1 === count( $overall_with_xhints['sentenceProblems'] ), 'a malformed sentence id ("not-a-real-id-shape") is dropped, a well-formed one kept' );
 		expect_true(
-			array( 'Word repetition', 'Style errors' ) === $overall_with_xhints['sentenceProblems']['107-33'],
-			'sentenceProblems strips the <a href=...> markup down to plain category labels, in document order'
+			array(
+				array(
+					'label'   => 'Word repetition',
+					'section' => 'frequency',
+				),
+				array(
+					'label'   => 'Style errors',
+					'section' => 'style',
+				),
+				array( 'label' => 'Unknown tab' ),
+				array( 'label' => 'Overall tab' ),
+			) === $overall_with_xhints['sentenceProblems']['107-33'],
+			'sentenceProblems strips the <a href=...> markup down to plain labels in document order, mapping each #tab anchor to its section (never overall, never an unknown tab)'
 		);
 
 		$style_never_gets_sentence_problems = $client->reportSectionDetails( 'abc12345', 'style' );

@@ -7,19 +7,38 @@ interface DecorationSurface {
 	textareas: Set< HTMLTextAreaElement >;
 	resize: ResizeObserver | null;
 	/**
-	 * Clickable-sentence hit boxes for the current paint, rebuilt on every repaint. Needed
+	 * Hoverable-sentence hit boxes for the current paint, rebuilt on every repaint. Needed
 	 * only for the CSS Custom Highlight API path (::highlight() pseudo-elements can't
-	 * receive DOM events themselves); the textarea and older-browser paths attach a real
-	 * click listener directly to their own real <span> elements instead.
+	 * receive DOM events themselves, so entry/exit is detected with a hit test against these
+	 * instead); the textarea and older-browser paths attach real hover listeners directly to
+	 * their own real <span> elements instead. `range` is only used to paint the "currently
+	 * hovered" highlight and is a snapshot from the same paint pass as `rects`.
 	 */
-	sentenceRects: { sentence: string; rects: DOMRect[] }[];
-	/** Bound reference kept so clear() can remove exactly the listener observe() added. */
-	handleClick: ( event: MouseEvent ) => void;
+	sentenceRects: {
+		sentence: string;
+		type: string;
+		level: number;
+		range: Range;
+		rects: DOMRect[];
+	}[];
+	/** The active hit's identity (or null), so repeated mousemoves over the same sentence/mark are a no-op. */
+	hoverKey: string | null;
+	/** Bound references kept so clear() can remove exactly the listeners observe() added. */
+	handleMove: ( event: MouseEvent ) => void;
+	handleLeave: ( event: MouseEvent ) => void;
 }
+
+/** What the reader's cursor is currently over: the sentence, and the mark that painted it. */
+type SentenceHover = { sentence: string; type: string; level: number };
 
 ( function ( window: Window & typeof globalThis ): void {
 	'use strict';
 	const client = window.TurgenevClient as TurgenevClientApi;
+	// A single shared highlight name for "whichever exact mark occurrence is under the
+	// cursor right now" — registered fresh on every hover change, painted with only a
+	// background (see the stylesheet below), layered on top of the mark's own
+	// color-only `turgenev-<type><level>` highlight for the same range.
+	const HOVER_HIGHLIGHT_NAME = 'turgenev-hover';
 	// Used only to pick a winner when highlight ranges overlap; the actual paint color
 	// always comes from client.highlightColor(), never from this number.
 	function severity( mark: HighlightMark ): number {
@@ -40,7 +59,7 @@ interface DecorationSurface {
 		target: TextareaAnalysisTarget,
 		marks: HighlightMark[],
 		surface: DecorationSurface,
-		onSentenceClick: ( ( sentence: string ) => void ) | null
+		onSentenceHover: ( ( hover: SentenceHover | null ) => void ) | null
 	): void {
 		const { textarea, document: doc } = target;
 		const win = doc.defaultView as Window;
@@ -152,15 +171,29 @@ interface DecorationSurface {
 					span.dataset.category = mark.category;
 					span.dataset.type = mark.type;
 					span.style.color = 'transparent';
-					span.style.backgroundColor = client.highlightColor( mark );
+					const restColor = client.highlightColor( mark );
+					span.style.backgroundColor = restColor;
 					span.textContent = text;
-					if ( onSentenceClick && mark.sentence ) {
-						const sentence = mark.sentence;
+					// A real <textarea> can't recolor individual characters (the real text
+					// underneath stays its normal color; this overlay span only ever supplies
+					// a background), so hovering swaps this whole span's background between
+					// its resting severity color and #eee rather than layering a second color.
+					if ( onSentenceHover && mark.sentence ) {
+						const hover: SentenceHover = {
+							sentence: mark.sentence,
+							type: mark.type,
+							level: mark.level,
+						};
 						span.style.pointerEvents = 'auto';
 						span.style.cursor = 'pointer';
-						span.addEventListener( 'click', () =>
-							onSentenceClick( sentence )
-						);
+						span.addEventListener( 'mouseenter', () => {
+							span.style.backgroundColor = '#eee';
+							onSentenceHover( hover );
+						} );
+						span.addEventListener( 'mouseleave', () => {
+							span.style.backgroundColor = restColor;
+							onSentenceHover( null );
+						} );
 					}
 					mirror.appendChild( span );
 				} else {
@@ -192,38 +225,83 @@ interface DecorationSurface {
 	): Decorations {
 		let active: { source: SourceSnapshot; marks: HighlightMark[] } | null =
 			null;
-		let sentenceClick: ( ( sentence: string ) => void ) | null = null;
+		let hoverCallback: ( ( hover: SentenceHover | null ) => void ) | null =
+			null;
 		let frame = 0;
 		const surfaces = new Map< Document, DecorationSurface >();
-		function handleSurfaceClick(
+		function surfaceWindow( surface: DecorationSurface ): ( Window & {
+			CSS?: {
+				highlights?: {
+					delete: ( name: string ) => void;
+					set: ( name: string, value: unknown ) => void;
+				};
+			};
+			Highlight?: new ( range: Range ) => unknown;
+		} ) | null {
+			return surface.doc.defaultView as ReturnType< typeof surfaceWindow >;
+		}
+		/**
+		 * Applies (or clears) the hover state for one surface: repaints the shared
+		 * "currently hovered" CSS Highlight so it lands only on that exact mark occurrence,
+		 * and reports the change up so the sidebar can show its sentence problems and light
+		 * up the matching legend entry. A no-op when the hit hasn't actually changed, so a
+		 * mousemove within the same mark doesn't re-fire either.
+		 */
+		function setHover(
+			surface: DecorationSurface,
+			hit: DecorationSurface[ 'sentenceRects' ][ number ] | null
+		): void {
+			const key = hit
+				? hit.sentence + '\u0000' + hit.type + hit.level
+				: null;
+			if ( key === surface.hoverKey ) {
+				return;
+			}
+			surface.hoverKey = key;
+			const win = surfaceWindow( surface );
+			win?.CSS?.highlights?.delete( HOVER_HIGHLIGHT_NAME );
+			if ( hit && win?.CSS?.highlights && win.Highlight ) {
+				win.CSS.highlights.set(
+					HOVER_HIGHLIGHT_NAME,
+					new win.Highlight( hit.range )
+				);
+			}
+			hoverCallback?.(
+				hit
+					? { sentence: hit.sentence, type: hit.type, level: hit.level }
+					: null
+			);
+		}
+		function findHit(
+			surface: DecorationSurface,
+			x: number,
+			y: number
+		): DecorationSurface[ 'sentenceRects' ][ number ] | null {
+			return (
+				surface.sentenceRects.find( ( entry ) =>
+					entry.rects.some(
+						( rect ) =>
+							x >= rect.left &&
+							x <= rect.right &&
+							y >= rect.top &&
+							y <= rect.bottom
+					)
+				) ?? null
+			);
+		}
+		function handleSurfaceMove(
 			surface: DecorationSurface,
 			event: MouseEvent
 		): void {
-			if ( ! sentenceClick ) {
-				return;
-			}
-			const hit = surface.sentenceRects.find( ( entry ) =>
-				entry.rects.some(
-					( rect ) =>
-						event.clientX >= rect.left &&
-						event.clientX <= rect.right &&
-						event.clientY >= rect.top &&
-						event.clientY <= rect.bottom
-				)
-			);
-			if ( hit ) {
-				sentenceClick( hit.sentence );
-			}
+			setHover( surface, findHit( surface, event.clientX, event.clientY ) );
 		}
 		function clearSurface( surface: DecorationSurface ): void {
-			const win = surface.doc.defaultView as
-				| ( Window & {
-						CSS?: { highlights?: Map< string, unknown > };
-				  } )
-				| null;
+			const win = surfaceWindow( surface );
 			for ( const name of surface.names ) {
 				win?.CSS?.highlights?.delete( name );
 			}
+			win?.CSS?.highlights?.delete( HOVER_HIGHLIGHT_NAME );
+			surface.hoverKey = null;
 			surface.names.clear();
 			surface.layer?.replaceChildren();
 			surface.sentenceRects = [];
@@ -260,9 +338,21 @@ interface DecorationSurface {
 					? new doc.defaultView.ResizeObserver( schedule )
 					: null,
 				sentenceRects: [],
-				handleClick: ( event ) => handleSurfaceClick( surface, event ),
+				hoverKey: null,
+				handleMove: ( event ) => handleSurfaceMove( surface, event ),
+				// `mouseleave` doesn't bubble and Document isn't itself a valid target for
+				// it in every engine, so leaving the whole document is instead detected via
+				// `mouseout` with no `relatedTarget` (the pointer left to outside the
+				// viewport) — the ordinary "moved onto some other element" case is already
+				// covered by handleMove's own hit test coming back empty.
+				handleLeave: ( event ) => {
+					if ( ! ( event as MouseEvent ).relatedTarget ) {
+						setHover( surface, null );
+					}
+				},
 			};
-			doc.addEventListener( 'click', surface.handleClick );
+			doc.addEventListener( 'mousemove', surface.handleMove );
+			doc.addEventListener( 'mouseout', surface.handleLeave );
 			surfaces.set( doc, surface );
 			return surface;
 		}
@@ -331,6 +421,9 @@ interface DecorationSurface {
 					if ( mark.sentence ) {
 						surface.sentenceRects.push( {
 							sentence: mark.sentence,
+							type: mark.type,
+							level: mark.level,
+							range,
 							rects: [ ...range.getClientRects() ],
 						} );
 					}
@@ -347,18 +440,23 @@ interface DecorationSurface {
 							// fallback draws a separate overlay box that never touches the
 							// real text), both of which stay background-based out of
 							// necessity, not choice.
-							surface.style.textContent = Object.entries(
-								client.highlightColorTable
-							)
-								.map(
-									( [ key, color ] ) =>
-										'::highlight(turgenev-' +
-										key +
-										'){color:' +
-										color +
-										';}'
-								)
-								.join( '\n' );
+							surface.style.textContent =
+								Object.entries( client.highlightColorTable )
+									.map(
+										( [ key, color ] ) =>
+											'::highlight(turgenev-' +
+											key +
+											'){color:' +
+											color +
+											';}'
+									)
+									.join( '\n' ) +
+								// Layered on top of a mark's own color-only rule above (never
+								// registered together on overlapping text otherwise), so
+								// hovering shows severity color and a background at once.
+								'\n::highlight(' +
+								HOVER_HIGHLIGHT_NAME +
+								'){background-color:#eee;}';
 							target.document.head.appendChild( surface.style );
 						}
 						if ( ! surface.names.has( name ) ) {
@@ -371,6 +469,7 @@ interface DecorationSurface {
 					} else {
 						// Older browsers: viewport rectangles outside body, hence outside TinyMCE too.
 						const layer = layerFor( surface );
+						const restColor = client.highlightColor( mark );
 						for ( const rect of range.getClientRects() ) {
 							const box = target.document.createElement( 'span' );
 							box.style.cssText =
@@ -380,15 +479,27 @@ interface DecorationSurface {
 								top: rect.top + 'px',
 								width: rect.width + 'px',
 								height: rect.height + 'px',
-								backgroundColor: client.highlightColor( mark ),
+								backgroundColor: restColor,
 							} );
-							if ( sentenceClick && mark.sentence ) {
-								const sentence = mark.sentence;
+							// No rich text to layer a separate hover background onto here
+							// (unlike the Highlight API path above), so hovering swaps this
+							// box's own background between its resting severity color and #eee.
+							if ( hoverCallback && mark.sentence ) {
+								const hover: SentenceHover = {
+									sentence: mark.sentence,
+									type: mark.type,
+									level: mark.level,
+								};
 								box.style.pointerEvents = 'auto';
 								box.style.cursor = 'pointer';
-								box.addEventListener( 'click', () =>
-									sentenceClick?.( sentence )
-								);
+								box.addEventListener( 'mouseenter', () => {
+									box.style.backgroundColor = '#eee';
+									hoverCallback?.( hover );
+								} );
+								box.addEventListener( 'mouseleave', () => {
+									box.style.backgroundColor = restColor;
+									hoverCallback?.( null );
+								} );
 							}
 							layer.appendChild( box );
 						}
@@ -400,7 +511,7 @@ interface DecorationSurface {
 						target as TextareaAnalysisTarget,
 						sourceMarks,
 						surface,
-						sentenceClick
+						hoverCallback
 					);
 				}
 			}
@@ -424,7 +535,7 @@ interface DecorationSurface {
 		}
 		function clear(): void {
 			active = null;
-			sentenceClick = null;
+			hoverCallback = null;
 			window.cancelAnimationFrame( frame );
 			frame = 0;
 			for ( const surface of surfaces.values() ) {
@@ -436,7 +547,8 @@ interface DecorationSurface {
 					'resize',
 					schedule
 				);
-				surface.doc.removeEventListener( 'click', surface.handleClick );
+				surface.doc.removeEventListener( 'mousemove', surface.handleMove );
+				surface.doc.removeEventListener( 'mouseout', surface.handleLeave );
 				surface.layer?.remove();
 				surface.style?.remove();
 			}
@@ -447,7 +559,7 @@ interface DecorationSurface {
 			apply(
 				source: SourceSnapshot,
 				data: HighlightsResponseData,
-				onSentenceClick?: ( sentence: string ) => void
+				onSentenceHover?: ( hover: SentenceHover | null ) => void
 			) {
 				if ( data?.text !== source.text ) {
 					throw new Error(
@@ -458,7 +570,7 @@ interface DecorationSurface {
 					source,
 					marks: client.validHighlights( data.text, data.marks ),
 				};
-				sentenceClick = onSentenceClick ?? null;
+				hoverCallback = onSentenceHover ?? null;
 				const visible = paint();
 				// Non-rendered third-party fields use the session's read-only text view.
 				// Keep every valid in-place decoration; malformed provider data still fails above.

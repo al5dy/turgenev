@@ -369,6 +369,17 @@
 	border-radius: 2px;
 }
 
+// Dimmed by default; renderLegend()'s `is-active` (client.ts) lights up the one row
+// matching whatever mark the reader is currently hovering over in the document.
+.turgenev-section-legend-label {
+	opacity: 0.5;
+	transition: opacity 0.15s ease;
+}
+
+.turgenev-section-legend-item.is-active .turgenev-section-legend-label {
+	opacity: 1;
+}
+
 .turgenev-section-heading {
 	margin: 0;
 	color: #50575e;
@@ -421,6 +432,28 @@
 	justify-content: space-between;
 	gap: 12px;
 	padding-left: 8px;
+}
+
+.turgenev-section-problem {
+	display: flex;
+	gap: 4px;
+}
+
+.turgenev-section-problem-link {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	text-align: left;
+	color: var(--wp-admin-theme-color, #2271b1);
+	text-decoration: underline;
+	cursor: pointer;
+
+	&:hover,
+	&:focus {
+		color: var(--wp-admin-theme-color-darker-10, #135e96);
+	}
 }
 
 .turgenev-report-actions {

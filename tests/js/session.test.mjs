@@ -8,15 +8,15 @@ const result = { risk: '3', level: 'low', link: 'risk12345', details: [] };
 function fixture( configured = true, highlightsAvailable = true ) {
 	const requests = [];
 	let source = { text: 'Original text', html: '<p>Original text</p>', key: 'original' };
-	let state, cleared = 0, applied = 0, counts = { visible: 1, total: 1 };
+	let state, cleared = 0, applied = 0, counts = { visible: 1, total: 1 }, onHover = null;
 	const sandbox = { URLSearchParams, console, window: { AbortController, TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 42, isConfigured: configured, highlightsAvailable }, fetch: ( url, options ) => new Promise( resolve => requests.push( { body: new URLSearchParams( options.body ), options, resolve } ) ) }, document: {}, wp: { i18n: { __: value => value } } };
 	sandbox.window.wp = sandbox.wp;
 	vm.createContext( sandbox );
 	scripts.forEach( script => vm.runInContext( script, sandbox ) );
-	const session = sandbox.window.TurgenevAnalysis.create( () => source, { clear: () => cleared++, dispose() {}, apply: () => { applied++; return counts; } } );
+	const session = sandbox.window.TurgenevAnalysis.create( () => source, { clear: () => cleared++, dispose() {}, apply: ( _source, _data, hover ) => { applied++; onHover = hover ?? null; return counts; } } );
 	session.subscribe( value => { state = value; } );
 	function respond( index, data, ok = true ) { requests[ index ].resolve( { ok, json: async () => ( { success: ok, data } ) } ); }
-	return { session, requests, respond, client: sandbox.window.TurgenevClient, setCounts: value => { counts = value; }, setSource: value => { source = value; }, get state() { return state; }, get applied() { return applied; }, get cleared() { return cleared; } };
+	return { session, requests, respond, client: sandbox.window.TurgenevClient, setCounts: value => { counts = value; }, setSource: value => { source = value; }, get state() { return state; }, hover: value => onHover( value ), get applied() { return applied; }, get cleared() { return cleared; } };
 }
 
 test( 'decimal balances use exact string checks, never float thresholds', () => {
@@ -175,7 +175,7 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		phrases: [ { text: 'fast car', count: 2 } ],
 		legend: [ { type: 'slop', level: 1, label: 'Potential issue.' } ],
 		breakdown: [ { label: 'query coverage', value: '0.2' } ],
-		sentenceProblems: { '107-33': [ 'Стилистические ошибки', 'Запросы' ] },
+		sentenceProblems: { '107-33': [ { label: 'Стилистические ошибки', section: 'style' }, { label: 'Запросы', section: 'keywords' }, { label: 'Без раздела' } ] },
 		wordCount: 51,
 	};
 	assertSameShape( client.validSectionDetails( full ), full );
@@ -199,6 +199,10 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		{ params: [], breakdown: [ { label: 'x' } ] }, // missing "value"
 		{ params: [], sentenceProblems: { 'not-an-id': [ 'x' ] } },
 		{ params: [], sentenceProblems: { '0-5': 'not-an-array' } },
+		{ params: [], sentenceProblems: { '0-5': [ 'a bare string' ] } }, // pre-section shape
+		{ params: [], sentenceProblems: { '0-5': [ { label: 'x', section: 'overall' } ] } }, // never a jump target
+		{ params: [], sentenceProblems: { '0-5': [ { label: 'x', section: 'unknown' } ] } },
+		{ params: [], sentenceProblems: { '0-5': [ { section: 'style' } ] } }, // missing "label"
 		{ params: [], wordCount: 'not-a-number' },
 		{ params: [], wordCount: -1 },
 		{ params: [], wordCount: 1.5 },
@@ -325,4 +329,25 @@ test( 'reset clears accordion section state, and dispose stops any further secti
 	const requestsBefore = f.requests.length;
 	await f.session.toggleSection( 'style', 'style12345' );
 	assert.equal( f.requests.length, requestsBefore );
+} );
+test( 'a hovered sentence\'s problems outlive the hover so their section links stay reachable, while the legend highlight follows the cursor', async () => {
+	const f = fixture();
+	const pending = f.session.analyze();
+	f.respond( 0, { result } );
+	await pending;
+	const problems = { '0-2': [ { label: 'Word repetition', section: 'frequency' } ], '2-1': [ { label: 'Style errors', section: 'style' } ] };
+	f.respond( 2, { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( 3, { details: { params: [], sentenceProblems: problems } } );
+	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+
+	f.hover( { sentence: '0-2', type: 'doubles', level: 3 } );
+	assertSameShape( f.state.sentenceProblem, problems[ '0-2' ] );
+	assert.equal( f.state.hoveredLegendKey, 'doubles3' );
+
+	f.hover( null );
+	assertSameShape( f.state.sentenceProblem, problems[ '0-2' ], 'leaving the sentence keeps its problem list' );
+	assert.equal( f.state.hoveredLegendKey, null, 'the legend highlight still follows the cursor' );
+
+	f.hover( { sentence: '2-1', type: 'slop', level: 1 } );
+	assertSameShape( f.state.sentenceProblem, problems[ '2-1' ], 'only hovering another sentence replaces it' );
 } );

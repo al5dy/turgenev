@@ -43,7 +43,7 @@ interface HighlightMark {
 	/**
 	 * The "Overall risk" report's shared sentence id ("<word offset>-<word count>", e.g.
 	 * "107-33"), present only there — null for every other section's marks. Looks up that
-	 * sentence's entry in SectionDetails.sentenceProblems when the reader clicks it.
+	 * sentence's entry in SectionDetails.sentenceProblems when the reader hovers it.
 	 */
 	sentence: string | null;
 }
@@ -79,6 +79,13 @@ interface SectionLegendItem {
 	label: string;
 }
 
+/** One entry of the "Problems in this sentence" list (see SectionDetails.sentenceProblems). */
+interface SentenceProblem {
+	label: string;
+	/** The report section this problem is explained in, when the provider's link names one. */
+	section?: HighlightCategory;
+}
+
 interface SectionBreakdownItem {
 	label: string;
 	value: string;
@@ -92,10 +99,10 @@ interface SectionDetails {
 	legend?: SectionLegendItem[];
 	breakdown?: SectionBreakdownItem[];
 	/**
-	 * 'overall' only: sentence id (matching HighlightMark.sentence) → the list of category
-	 * labels responsible for that sentence's risk, shown when the reader clicks it.
+	 * 'overall' only: sentence id (matching HighlightMark.sentence) → the problems responsible
+	 * for that sentence's risk, shown when the reader hovers it.
 	 */
-	sentenceProblems?: Record< string, string[] >;
+	sentenceProblems?: Record< string, SentenceProblem[] >;
 	/** The analyzed document's word count, the same figure every report tab shows. */
 	wordCount?: number;
 }
@@ -173,10 +180,11 @@ interface Decorations {
 		source: SourceSnapshot,
 		data: HighlightsResponseData,
 		/**
-		 * Invoked when the reader clicks a rendered mark that carries a
-		 * HighlightMark.sentence id (only ever true for the "Overall risk" section).
+		 * Invoked as the reader's cursor enters or leaves a rendered mark that carries a
+		 * HighlightMark.sentence id (only ever true for the "Overall risk" section): the
+		 * hovered mark's identity, or null once the cursor is no longer over any such mark.
 		 */
-		onSentenceClick?: ( sentence: string ) => void
+		onSentenceHover?: ( hover: SentenceHover | null ) => void
 	): { visible: number; total: number };
 	clear(): void;
 	dispose(): void;
@@ -277,8 +285,10 @@ interface TurgenevUIApi {
 			sectionLoading?: boolean;
 			sectionData?: SectionDetails | null;
 			sectionError?: string;
-			/** 'overall' only: labels for the sentence last clicked, from sectionData.sentenceProblems. */
-			sentenceProblem?: string[] | null;
+			/** 'overall' only: problems of the sentence last hovered, from sectionData.sentenceProblems. */
+			sentenceProblem?: SentenceProblem[] | null;
+			/** `<type><level>` (see SectionLegendItem) of the mark last hovered, or null. */
+			hoveredLegendKey?: string | null;
 		}
 	): void;
 	setBusy( panel: HTMLElement | null, busy: unknown ): void;
@@ -307,8 +317,10 @@ interface SessionState {
 	sectionLoading: boolean;
 	sectionData: SectionDetails | null;
 	sectionError: string;
-	/** 'overall' only: labels for the sentence last clicked in the editor, or null until one is. */
-	sentenceProblem: string[] | null;
+	/** 'overall' only: problems of the sentence last hovered in the editor, or null until one is. */
+	sentenceProblem: SentenceProblem[] | null;
+	/** `<type><level>` of the mark last hovered in the editor, or null while hovering nothing. */
+	hoveredLegendKey: string | null;
 }
 
 interface AnalysisSession {

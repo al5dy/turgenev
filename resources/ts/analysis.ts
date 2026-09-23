@@ -31,6 +31,7 @@
 			sectionData: null,
 			sectionError: '',
 			sentenceProblem: null,
+			hoveredLegendKey: null,
 		};
 		let source: SourceSnapshot | null = null;
 		let pending: AbortController | null = null;
@@ -73,6 +74,7 @@
 				sectionData: null,
 				sectionError: '',
 				sentenceProblem: null,
+				hoveredLegendKey: null,
 			} );
 		}
 		function reset(): void {
@@ -286,6 +288,7 @@
 				error: '',
 				notice: '',
 				sentenceProblem: null,
+				hoveredLegendKey: null,
 			} );
 			try {
 				contentReset?.capture();
@@ -307,12 +310,22 @@
 				const counts = decorations.apply(
 					source as SourceSnapshot,
 					response.highlights,
-					( sentence ) => {
+					( hover ) => {
+						// The problem list outlives the hover on purpose: its entries link
+						// to other sections, and the cursor has to leave the sentence to
+						// reach them. Only hovering a different sentence replaces it.
 						update( {
-							sentenceProblem:
-								state.sectionData?.sentenceProblems?.[
-									sentence
-								] ?? null,
+							hoveredLegendKey: hover
+								? hover.type + hover.level
+								: null,
+							...( hover
+								? {
+										sentenceProblem:
+											state.sectionData?.sentenceProblems?.[
+												hover.sentence
+											] ?? null,
+								  }
+								: {} ),
 						} );
 					}
 				);
@@ -673,6 +686,7 @@
 										sectionData: state.sectionData,
 										sectionError: state.sectionError,
 										sentenceProblem: state.sentenceProblem,
+										hoveredLegendKey: state.hoveredLegendKey,
 								  }
 								: {}
 						);

@@ -209,6 +209,14 @@
 		'fre',
 		'ari',
 	] );
+	// Every HighlightCategory, i.e. every report section other than 'overall'.
+	const HIGHLIGHT_CATEGORIES = new Set< string >( [
+		'frequency',
+		'formality',
+		'keywords',
+		'readability',
+		'style',
+	] );
 	// A HighlightMark.sentence id: "<word offset>-<word count>", matching a key in
 	// SectionDetails.sentenceProblems (see ReportSectionParser::parseSentenceProblems()).
 	const SENTENCE_ID_PATTERN = /^\d+-\d+$/;
@@ -600,16 +608,33 @@
 		return wrap;
 	}
 
-	function renderLegend( items: SectionLegendItem[] ): HTMLElement {
+	/**
+	 * `activeKey` (the `<type><level>` of whatever mark the reader is currently hovering in
+	 * the document, matching legendColor()/highlightColorTable's own key shape) lights up
+	 * the one row it names; every other row stays at its dimmed resting opacity (see
+	 * `.turgenev-section-legend-label`). Passed in and rendered fresh each time, like every
+	 * other piece of session state, rather than patched onto already-rendered rows: this
+	 * legend is rebuilt on every state change highlighting itself triggers (sentenceProblem
+	 * included), so a DOM patch applied between two such rebuilds would just be discarded by
+	 * the next one.
+	 */
+	function renderLegend(
+		items: SectionLegendItem[],
+		activeKey: string | null = null
+	): HTMLElement {
 		const list = document.createElement( 'div' );
 		list.className = 'turgenev-section-legend';
 		items.forEach( ( item ) => {
 			const row = document.createElement( 'div' );
-			row.className = 'turgenev-section-legend-item';
+			const key = item.type ? item.type + item.level : '';
+			row.className =
+				'turgenev-section-legend-item' +
+				( key && key === activeKey ? ' is-active' : '' );
 			const swatch = document.createElement( 'span' );
 			swatch.className = 'turgenev-section-legend-swatch';
 			swatch.style.backgroundColor = legendColor( item );
 			const label = document.createElement( 'span' );
+			label.className = 'turgenev-section-legend-label';
 			label.textContent = item.label;
 			row.append( swatch, label );
 			list.appendChild( row );
@@ -691,7 +716,15 @@
 		return wrap;
 	}
 
-	function renderSentenceProblems( labels: string[] ): HTMLElement {
+	/**
+	 * A problem whose provider link names a report section renders as a button that opens
+	 * that section exactly as its own accordion toggle would (`onOpenSection`); one with no
+	 * known target, or with nothing to open it through, stays plain text.
+	 */
+	function renderSentenceProblems(
+		problems: SentenceProblem[],
+		onOpenSection?: ( section: SectionKey ) => void
+	): HTMLElement {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-sentence-problems';
 		const heading = document.createElement( 'h4' );
@@ -699,10 +732,25 @@
 		heading.textContent = __( 'Problems in this sentence', 'turgenev' );
 		const list = document.createElement( 'div' );
 		list.className = 'turgenev-section-breakdown';
-		labels.forEach( ( label ) => {
+		problems.forEach( ( problem ) => {
 			const row = document.createElement( 'div' );
 			row.className = 'turgenev-section-breakdown-item';
-			row.textContent = `• ${ label }`;
+			const section = problem.section;
+			if ( section && onOpenSection ) {
+				const link = document.createElement( 'button' );
+				link.type = 'button';
+				link.className = 'button-link turgenev-section-problem-link';
+				link.textContent = problem.label;
+				link.addEventListener( 'click', () => onOpenSection( section ) );
+				// One flex child, so the row's space-between never splits bullet from label,
+				// and a wrapping label stays beside its bullet instead of dropping below it.
+				const label = document.createElement( 'span' );
+				label.className = 'turgenev-section-problem';
+				label.append( document.createTextNode( '•' ), link );
+				row.appendChild( label );
+			} else {
+				row.textContent = `• ${ problem.label }`;
+			}
 			list.appendChild( row );
 		} );
 		wrap.append( heading, list );
@@ -729,7 +777,9 @@
 		section: SectionKey,
 		details: SectionDetails,
 		result: RiskResult,
-		sentenceProblem?: string[] | null
+		sentenceProblem?: SentenceProblem[] | null,
+		hoveredLegendKey?: string | null,
+		onOpenSection?: ( section: SectionKey ) => void
 	): HTMLElement {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-content';
@@ -752,29 +802,40 @@
 			const heading = document.createElement( 'h4' );
 			heading.className = 'turgenev-section-heading';
 			heading.textContent = __( 'Hints', 'turgenev' );
-			wrap.append( heading, renderLegend( details.legend ) );
+			wrap.append(
+				heading,
+				renderLegend( details.legend, hoveredLegendKey ?? null )
+			);
 		}
 		if ( section === 'keywords' ) {
 			if ( details.breakdown?.length ) {
 				wrap.appendChild( renderBreakdown( details.breakdown ) );
 			}
 			if ( details.legend?.length ) {
-				wrap.appendChild( renderLegend( details.legend ) );
+				wrap.appendChild(
+					renderLegend( details.legend, hoveredLegendKey ?? null )
+				);
 			}
 		}
 		if (
 			( section === 'formality' || section === 'readability' ) &&
 			details.legend?.length
 		) {
-			wrap.appendChild( renderLegend( details.legend ) );
+			wrap.appendChild(
+				renderLegend( details.legend, hoveredLegendKey ?? null )
+			);
 		}
 		if ( section === 'overall' ) {
-			// Only ever set once the reader clicks a highlighted sentence in the editor.
+			// Only ever set once the reader hovers a highlighted sentence in the editor.
 			if ( sentenceProblem?.length ) {
-				wrap.appendChild( renderSentenceProblems( sentenceProblem ) );
+				wrap.appendChild(
+					renderSentenceProblems( sentenceProblem, onOpenSection )
+				);
 			}
 			if ( details.legend?.length ) {
-				wrap.appendChild( renderLegend( details.legend ) );
+				wrap.appendChild(
+					renderLegend( details.legend, hoveredLegendKey ?? null )
+				);
 			}
 		}
 		return wrap;
@@ -789,7 +850,8 @@
 			sectionLoading?: boolean;
 			sectionData?: SectionDetails | null;
 			sectionError?: string;
-			sentenceProblem?: string[] | null;
+			sentenceProblem?: SentenceProblem[] | null;
+			hoveredLegendKey?: string | null;
 		} = {}
 	): void {
 		if ( ! container ) {
@@ -804,7 +866,26 @@
 		const accordion = document.createElement( 'div' );
 		accordion.className = 'turgenev-accordion';
 
-		sectionEntries( data ).forEach( ( entry ) => {
+		const entries = sectionEntries( data );
+		const onToggleSection = options.onToggleSection;
+		// Opens another section through the same toggle its accordion button uses, so
+		// switching (closing the current panel, loading the new one) behaves identically.
+		const openSection =
+			typeof onToggleSection === 'function'
+				? ( section: SectionKey ): void => {
+						const target = entries.find(
+							( candidate ) => candidate.key === section
+						);
+						if (
+							target?.link &&
+							options.openSection !== section
+						) {
+							onToggleSection( section, target.link );
+						}
+				  }
+				: undefined;
+
+		entries.forEach( ( entry ) => {
 			const open = options.openSection === entry.key;
 			const item = document.createElement( 'div' );
 			item.className = 'turgenev-accordion-item';
@@ -854,7 +935,9 @@
 							entry.key,
 							options.sectionData,
 							data,
-							options.sentenceProblem
+							options.sentenceProblem,
+							options.hoveredLegendKey,
+							openSection
 						)
 					);
 					// Only once this panel's own content has actually finished loading,
@@ -873,13 +956,6 @@
 	}
 
 	function validHighlights( text: string, marks: unknown ): HighlightMark[] {
-		const allowedCategories = new Set< string >( [
-			'frequency',
-			'formality',
-			'keywords',
-			'readability',
-			'style',
-		] );
 		if (
 			! Array.isArray( marks ) ||
 			marks.length > 20000 ||
@@ -901,7 +977,7 @@
 					( candidate.start as number ) >= 0 &&
 					( candidate.end as number ) > ( candidate.start as number ) &&
 					( candidate.end as number ) <= text.length &&
-					allowedCategories.has( candidate.category as string ) &&
+					HIGHLIGHT_CATEGORIES.has( candidate.category as string ) &&
 					typeof candidate.type === 'string' &&
 					KNOWN_HIGHLIGHT_TYPES.has( candidate.type ) &&
 					Number.isInteger( candidate.level ) &&
@@ -1000,9 +1076,22 @@
 		);
 	}
 
+	function isSentenceProblem( value: unknown ): value is SentenceProblem {
+		if ( ! value || typeof value !== 'object' ) {
+			return false;
+		}
+		const candidate = value as Record< string, unknown >;
+		return (
+			typeof candidate.label === 'string' &&
+			( candidate.section === undefined ||
+				( typeof candidate.section === 'string' &&
+					HIGHLIGHT_CATEGORIES.has( candidate.section ) ) )
+		);
+	}
+
 	function isSentenceProblems(
 		value: unknown
-	): value is Record< string, string[] > {
+	): value is Record< string, SentenceProblem[] > {
 		if ( ! value || typeof value !== 'object' || Array.isArray( value ) ) {
 			return false;
 		}
@@ -1010,11 +1099,11 @@
 		return (
 			entries.length <= 200 &&
 			entries.every(
-				( [ key, labels ] ) =>
+				( [ key, problems ] ) =>
 					SENTENCE_ID_PATTERN.test( key ) &&
-					Array.isArray( labels ) &&
-					labels.length <= 20 &&
-					labels.every( ( label ) => typeof label === 'string' )
+					Array.isArray( problems ) &&
+					problems.length <= 20 &&
+					problems.every( isSentenceProblem )
 			)
 		);
 	}

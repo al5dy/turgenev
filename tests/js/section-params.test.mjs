@@ -425,3 +425,45 @@ test( 'the "Open report" link only appears once the clicked panel\'s own content
 	renderResult( container, riskResult, { onToggleSection: () => {}, openSection: 'overall', sectionData: { params: [] } } );
 	assert.equal( panelOf().querySelectorAll( '.turgenev-report-actions' ).length, 1, 'report link appears once the panel\'s own content has loaded' );
 } );
+
+test( 'a sentence problem with a known section opens that section through the accordion toggle; others stay plain text', () => {
+	const { renderResult } = ui();
+	const container = createElement( 'div' );
+	const withSections = {
+		...riskResult,
+		details: [
+			{ block: 'frequency', sum: '2', link: 'freq12345' },
+			{ block: 'style', sum: '1', link: 'style1234' },
+		],
+	};
+	const toggled = [];
+	const render = ( openSection ) =>
+		renderResult( container, withSections, {
+			onToggleSection: ( section, token ) => toggled.push( [ section, token ] ),
+			openSection,
+			sectionData: { params: [] },
+			sentenceProblem: [
+				{ label: 'Word repetition', section: 'frequency' },
+				{ label: 'Keywords', section: 'keywords' }, // no such accordion entry in this result
+				{ label: 'Unlinked' },
+			],
+		} );
+	render( 'overall' );
+
+	const links = container.querySelectorAll( '.turgenev-section-problem-link' );
+	assert.equal( links.length, 2, 'the problem with no section never becomes a link' );
+	assert.equal( links[ 0 ].tagName, 'button' );
+	assert.equal( links[ 0 ].type, 'button' );
+	assert.equal( links[ 0 ].textContent, 'Word repetition' );
+	const rows = container.querySelectorAll( '.turgenev-section-breakdown-item' );
+	assert.equal( rows[ 2 ].textContent, '• Unlinked' );
+
+	links[ 0 ].click();
+	assert.deepEqual( toggled, [ [ 'frequency', 'freq12345' ] ], 'opens the target section with that section\'s own report token' );
+	links[ 1 ].click();
+	assert.deepEqual( toggled.length, 1, 'a section missing from the result has no token to open it with' );
+
+	// Rendered without a toggle callback (e.g. highlights unavailable) nothing is clickable.
+	renderResult( container, withSections, { openSection: 'overall', sectionData: { params: [] }, sentenceProblem: [ { label: 'Word repetition', section: 'frequency' } ] } );
+	assert.equal( container.querySelectorAll( '.turgenev-section-problem-link' ).length, 0 );
+} );
