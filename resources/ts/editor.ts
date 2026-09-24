@@ -20,28 +20,20 @@
 	const clientApi = window.TurgenevClient as TurgenevClientApi;
 	const dataModule = wp.data as WPDataRegistry;
 
-	// Confirmed live against the real provider (no documented enum exists for this field):
-	// the "risk" operation's `level` string is this exact lowercase Russian word when
-	// Turgenev's Baden-Baden verdict is critical.
-	const CRITICAL_RISK_LEVEL = 'критический';
-	const CRITICAL_RISK_URL = 'https://turgenev.ashmanov.com/?h=results';
 	// A stable id lets repeated dispatches update the same notice instead of stacking
 	// duplicates, and lets removeNotice() target it precisely.
-	const CRITICAL_RISK_NOTICE_ID = 'turgenev-risk-critical';
-
-	function isCriticalRisk( level: string | null ): boolean {
-		return level !== null && level.trim().toLowerCase() === CRITICAL_RISK_LEVEL;
-	}
+	const RISK_NOTICE_ID = 'turgenev-risk-warning';
 
 	/**
-	 * Mirrors the critical-risk verdict into the block editor's own notices store, so it
-	 * renders through Gutenberg's standard `.editor-notices` area (the same mechanism behind
-	 * every other core editor notice) instead of a one-off element inside this plugin's own
-	 * panel. Tracks only `result.level` and `openSection`: the notice is up only while the
-	 * "Overall risk" accordion section is the one open and its verdict is critical, regardless
-	 * of whether this plugin's own sidebar happens to be visible at that moment.
+	 * Mirrors the provider's high/critical risk warning (client.riskWarning()) into the block
+	 * editor's own notices store, so it renders through Gutenberg's standard `.editor-notices`
+	 * area (the same mechanism behind every other core editor notice) instead of a one-off
+	 * element inside this plugin's own panel. Tracks only `result.level` and `openSection`:
+	 * like the provider's own warning, it is up only while the "Overall risk" accordion
+	 * section is the one open, regardless of whether this plugin's own sidebar happens to be
+	 * visible at that moment.
 	 */
-	function useCriticalRiskNotice( session: AnalysisSession ): void {
+	function useRiskNotice( session: AnalysisSession ): void {
 		useEffect( () => {
 			const notices = dataModule.dispatch( 'core/notices' ) as {
 				createNotice: (
@@ -51,13 +43,21 @@
 				) => void;
 				removeNotice: ( id: string ) => void;
 			};
-			let shown = false;
+			let shown: string | null = null;
 			const unsubscribe = session.subscribe( ( state ) => {
-				const critical =
-					state.openSection === 'overall' &&
-					isCriticalRisk( state.result?.level ?? null );
-				if ( critical && ! shown ) {
-					shown = true;
+				const warning =
+					state.openSection === 'overall'
+						? clientApi.riskWarning(
+								state.result?.level,
+								state.sectionData?.tooShort
+						  )
+						: null;
+				const message = warning?.message ?? null;
+				if ( message === shown ) {
+					return;
+				}
+				shown = message;
+				if ( warning ) {
 					// The message is `content` (a plain string — `@wordpress/notices` forces
 					// `content = String( content )` internally, so this must never be a React
 					// element or it collapses to "[object Object]"). The "More information"
@@ -66,36 +66,31 @@
 					// `url` action's rendered `<a>` can never get `target`/`rel`, and this link
 					// is meant to open in a new tab. `isDismissible` is left at its default
 					// (true) for the standard close button.
-					notices.createNotice(
-						'error',
-						__( 'Risk is critical! What to do?', 'turgenev' ),
-						{
-							id: CRITICAL_RISK_NOTICE_ID,
-							actions: [
-								{
-									label: __(
-										'More information',
-										'turgenev'
-									),
-									onClick: () =>
-										window.open(
-											CRITICAL_RISK_URL,
-											'_blank',
-											'noopener,noreferrer'
-										),
-								},
-							],
-						}
-					);
-				} else if ( ! critical && shown ) {
-					shown = false;
-					notices.removeNotice( CRITICAL_RISK_NOTICE_ID );
+					// The same id replaces the notice when the verdict changes between levels.
+					notices.createNotice( 'error', warning.message, {
+						id: RISK_NOTICE_ID,
+						actions: warning.url
+							? [
+									{
+										label: __( 'More information', 'turgenev' ),
+										onClick: () =>
+											window.open(
+												warning.url,
+												'_blank',
+												'noopener,noreferrer'
+											),
+									},
+							  ]
+							: [],
+					} );
+				} else {
+					notices.removeNotice( RISK_NOTICE_ID );
 				}
 			} );
 			return () => {
 				unsubscribe();
 				if ( shown ) {
-					notices.removeNotice( CRITICAL_RISK_NOTICE_ID );
+					notices.removeNotice( RISK_NOTICE_ID );
 				}
 			};
 		}, [ session ] );
@@ -398,7 +393,7 @@
 				session.dispose();
 			};
 		}, [ registry, session ] );
-		useCriticalRiskNotice( session );
+		useRiskNotice( session );
 		const toolbar = useLiveNode( TOOLBAR_SELECTOR );
 		return el(
 			Fragment,

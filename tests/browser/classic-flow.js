@@ -1,5 +1,9 @@
 async page => {
 	const assert = ( value, message ) => { if ( ! value ) throw new Error( message ); };
+	// The analysis payload is the document's own blocks with their text escaped (the provider
+	// reads it as HTML and ends sentences at block elements): these read it back.
+	const visible = html => html.replace( /<[^>]*>/g, ' ' ).replace( /&nbsp;/g, ' ' ).replace( /&lt;/g, '<' ).replace( /&gt;/g, '>' ).replace( /&amp;/g, '&' ).replace( /\s+/g, ' ' ).trim();
+	const onlyBlocks = html => ! /<!--|<(?!\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul)>)/.test( html );
 	const requests = [];
 	let failure = '', malicious = false, balance = '100', fragments = false, provider = false;
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
@@ -83,7 +87,7 @@ async page => {
 	assert( await superfreqRow.locator( '.turgenev-section-param-score' ).innerText() === '0', 'Score badge shows the plain score, no parentheses.' );
 	const shareRow = page.locator( '.turgenev-section-param', { hasText: 'Доля' } );
 	assert( await shareRow.locator( '.turgenev-section-param-value-text' ).innerText() === '12.5%', 'Formatted measurement must retain its units.' );
-	assert( lastRisk().text === 'Visual test text 😀. Second paragraph.', 'Visual mode must analyze entire unsaved TinyMCE document.' );
+	assert( lastRisk().text.replace( />\s+</g, '><' ) === '<p>Visual test text 😀.</p><p>Second paragraph.</p>', 'Visual mode must analyze the entire unsaved TinyMCE document, in its own paragraphs, without inline markup.' );
 	await open( 1 );
 	await page.waitForFunction( () => tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.size > 0 );
 	assert( original === await page.evaluate( () => tinymce.get( 'content' ).getContent() ), 'Visual highlights changed TinyMCE content.' );
@@ -235,7 +239,7 @@ async page => {
 	await page.goto( 'http://127.0.0.1:8897/classic?text=1' );
 	await page.locator( '#content' ).waitFor( { state: 'visible' } );
 	await analyze().click(); await analyzed();
-	assert( lastRisk().text === 'Text mode unsaved document. Second paragraph.', 'Hidden TinyMCE must not override Text mode textarea.' );
+	assert( lastRisk().text.replace( />\s+</g, '><' ) === '<p>Text mode unsaved document.</p><p>Second paragraph.</p>', 'Hidden TinyMCE must not override Text mode textarea.' );
 	const sourceMark = () => page.evaluate( () => {
 		const node = document.querySelector( '.turgenev-source-mark' );
 		const rect = node.getBoundingClientRect();
@@ -260,11 +264,18 @@ async page => {
 	await page.goto( 'http://127.0.0.1:8897/classic?fallback=1' );
 	await page.locator( '#content' ).fill( '<p>Fallback one.</p><p>Fallback two.</p>' );
 	await analyze().click(); await analyzed();
-	assert( lastRisk().text === 'Fallback one. Fallback two.', 'TinyMCE unavailable fallback failed.' );
+	assert( lastRisk().text.replace( />\s+</g, '><' ) === '<p>Fallback one.</p><p>Fallback two.</p>', 'TinyMCE unavailable fallback failed.' );
+	// Text-tab content keeps paragraphs as blank lines: they must still end sentences.
+	await page.evaluate( () => { window.wp.editor = { autop: text => text.split( /\n\s*\n/ ).map( block => '<p>' + block.trim() + '</p>' ).join( '\n' ) }; } );
+	await page.locator( '#content' ).fill( 'Заголовок без точки\n\nПервый абзац & <второй>.' );
+	await analyze().click(); await analyzed();
+	assert( lastRisk().text === '<p>Заголовок без точки</p>\n<p>Первый абзац &amp; &lt;второй&gt;.</p>' && visible( lastRisk().text ) === 'Заголовок без точки Первый абзац & <второй>.', 'Text-tab paragraphs must reach the provider as paragraphs, text escaped.' );
+	assert( await page.locator( '#content' ).inputValue() === 'Заголовок без точки\n\nПервый абзац & <второй>.', 'Restoring paragraphs for analysis must never rewrite the textarea.' );
+	await page.evaluate( () => { delete window.wp.editor; } );
 	const beforeEmpty = requests.filter( request => request.operation === 'risk' ).length;
 	await page.locator( '#content' ).fill( '' ); await analyze().click();
 	await page.getByText( 'Add content to the editor before running Turgenev.', { exact: true } ).waitFor();
-	await page.locator( '#content' ).fill( 'a'.repeat( 20001 ) ); await analyze().click();
+	await page.locator( '#content' ).fill( 'a'.repeat( 50001 ) ); await analyze().click();
 	await page.getByText( 'The content is longer than the maximum size accepted by Turgenev.', { exact: true } ).waitFor();
 	assert( requests.filter( request => request.operation === 'risk' ).length === beforeEmpty, 'Invalid content issued paid request.' );
 	checks.push( 'TinyMCE unavailable fallback, empty/oversized document blocked before network' );

@@ -17,7 +17,15 @@ final class ReportHighlightParser {
 	/** Bounds each per-span class list (type classes, fragments, stems); live reports never send more than three of one kind. */
 	private const MAX_CLASS_LIST = 8;
 	/** ECMAScript whitespace: the browser and provider ranges must use the same offsets. */
-	private const WHITESPACE = '/[\x{0009}-\x{000D}\x{0020}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]+/u';
+	public const WHITESPACE = '/[\x{0009}-\x{000D}\x{0020}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]+/u';
+	/**
+	 * A "Frequency" stem class: `stm-<length>-<hex id>`, or `stm-<length>--<UTF-8 hex of the
+	 * word>` for a word the provider has no stem for (confirmed live: "роутер" is
+	 * `stm-5--d180d0bed183d182d0b5d180`). bb-hl.js accepts any `stm-` class alike.
+	 */
+	public const STEM_PATTERN = '/^stm-\d{1,3}--?[0-9A-Fa-f]{1,256}$/D';
+	/** Elements that separate words, exactly as the browser's text model (client.ts `blockBoundary`). */
+	public const BLOCK_ELEMENTS = 'address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul';
 
 	/**
 	 * Whether this environment can parse highlight markup.
@@ -53,22 +61,26 @@ final class ReportHighlightParser {
 			throw new ApiException( __( 'Turgenev report did not contain highlight markup.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
-		$markup_document = $this->load_html( $markup );
-		$raw_text        = '';
-		$raw_marks       = array();
-		$this->collect( $markup_document, $raw_text, $raw_marks );
-
-		$normalized_text = $this->normalize( $raw_text );
-		if ( '' === $normalized_text || $normalized_text !== $this->normalize( $expected_text ) ) {
+		$expected = $this->normalize( $expected_text );
+		$reading  = '' === $expected ? null : $this->matching_reading( $markup, $expected );
+		if ( null === $reading ) {
 			throw new ApiException( __( 'Turgenev report text does not match the analyzed document.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		$marks   = array();
-		$offsets = $this->normalized_offsets( $raw_text );
-		$length  = $this->utf16_length( $normalized_text );
-		foreach ( $raw_marks as $raw_mark ) {
+		$offsets = $this->normalized_offsets( $reading['raw_text'] );
+		$length  = $this->utf16_length( $expected );
+		foreach ( $reading['raw_marks'] as $raw_mark ) {
 			$start = $offsets[ $raw_mark['start'] ];
-			$end   = min( $length, $offsets[ $raw_mark['end'] ] );
+			$end   = $offsets[ $raw_mark['end'] ];
+			if ( null !== $reading['alignment'] ) {
+				$start = $reading['alignment']['starts'][ $start ] ?? null;
+				$end   = $reading['alignment']['ends'][ $end ] ?? null;
+				if ( null === $start || null === $end ) {
+					continue;
+				}
+			}
+			$end = min( $length, $end );
 
 			if ( $start >= $end ) {
 				continue;
@@ -98,9 +110,136 @@ final class ReportHighlightParser {
 		}
 
 		return array(
-			'text'  => $normalized_text,
+			'text'  => $expected,
 			'marks' => $marks,
 		);
+	}
+
+	/**
+	 * Read the report's annotated text the way that yields the analyzed document.
+	 *
+	 * The textarea holds the provider's HTML serialization, but its escaping depends on the
+	 * input (confirmed live): usually the text is escaped twice for the textarea (`&amp;lt;`,
+	 * undone once by the browser before its editor parses it), sometimes only once (`&lt;`).
+	 * Both readings are tried, exactly first, then through align().
+	 *
+	 * @param string $markup Raw textarea contents.
+	 * @param string $expected Normalized document text.
+	 * @return array{raw_text: string, raw_marks: list<array<string, mixed>>, alignment: ?array{starts: array<int, int>, ends: array<int, int>}}|null
+	 */
+	private function matching_reading( string $markup, string $expected ): ?array {
+		$readings = array();
+		foreach ( array_unique( array( $markup, str_replace( '&amp;', '&', $markup ) ) ) as $candidate ) {
+			$raw_text  = '';
+			$raw_marks = array();
+			$this->collect( $this->load_html( $candidate ), $raw_text, $raw_marks );
+			$reading = array(
+				'raw_text'  => $raw_text,
+				'raw_marks' => $raw_marks,
+				'alignment' => null,
+			);
+			if ( $this->normalize( $raw_text ) === $expected ) {
+				return $reading;
+			}
+			$readings[] = $reading;
+		}
+		foreach ( $readings as $reading ) {
+			$reading['alignment'] = $this->align( $this->normalize( $reading['raw_text'] ), $expected );
+			if ( null !== $reading['alignment'] ) {
+				return $reading;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Map the report's text onto the document's when the provider only dropped parts of it.
+	 *
+	 * Confirmed live, the provider removes invisible format characters (a soft hyphen, a
+	 * zero-width space) and turns text that merely looks like a tag ("<b>", "<p>") into
+	 * markup, dropping `<script>`/`<style>` content with it. Those are the only differences
+	 * accepted: every other report character must match the document's, in order, or the
+	 * report is rejected as before. A tag the provider now renders as a block may add one
+	 * space the document does not have.
+	 *
+	 * @param string $report Normalized report text.
+	 * @param string $expected Normalized document text.
+	 * @return array{starts: array<int, int>, ends: array<int, int>}|null UTF-16 report offset => document offset, for a mark's start and for its end; null when not alignable.
+	 */
+	private function align( string $report, string $expected ): ?array {
+		preg_match_all( '/./us', $report, $report_chars );
+		preg_match_all( '/./us', $expected, $expected_chars, PREG_OFFSET_CAPTURE );
+		$r        = $report_chars[0];
+		$e        = $expected_chars[0];
+		$starts   = array();
+		$ends     = array( 0 => 0 );
+		$i        = 0;
+		$j        = 0;
+		$r_pos    = 0;
+		$e_pos    = 0;
+		$past_tag = false;
+		$count_r  = count( $r );
+		$count_e  = count( $e );
+		while ( $j < $count_r || $i < $count_e ) {
+			if ( $i < $count_e && $j < $count_r && $e[ $i ][0] === $r[ $j ] ) {
+				$starts[ $r_pos ] = $e_pos;
+				$r_pos           += $this->utf16_length( $r[ $j++ ] );
+				$e_pos           += $this->utf16_length( $e[ $i++ ][0] );
+				$ends[ $r_pos ]   = $e_pos;
+				$past_tag         = false;
+				continue;
+			}
+			// A space is dropped only where a dropped tag left it doubled, or trailing.
+			$collapse = ( $past_tag && ( 0 === $j || ' ' === $r[ $j - 1 ] ) ) || $j === $count_r;
+			$dropped  = $i < $count_e ? $this->dropped_length( $expected, $e, $i, $collapse ) : 0;
+			if ( $dropped > 0 ) {
+				$past_tag = $past_tag || $dropped > 1;
+				for ( $end = $i + $dropped; $i < $end; ++$i ) {
+					$e_pos += $this->utf16_length( $e[ $i ][0] );
+				}
+				continue;
+			}
+			if ( $past_tag && $j < $count_r && ' ' === $r[ $j ] ) {
+				$starts[ $r_pos ] = $e_pos;
+				++$r_pos;
+				++$j;
+				$ends[ $r_pos ] = $e_pos;
+				continue;
+			}
+			return null;
+		}
+		return array(
+			'starts' => $starts,
+			'ends'   => $ends,
+		);
+	}
+
+	/**
+	 * How many document characters from `$index` on the provider drops (see align()).
+	 *
+	 * @param string                         $text Normalized document text.
+	 * @param list<array{0: string, 1: int}> $chars Its characters with byte offsets.
+	 * @param int                            $index Current character.
+	 * @param bool                           $collapse Whether a space here only doubles one a dropped tag left behind.
+	 * @return int Characters dropped; 0 when this one must match.
+	 */
+	private function dropped_length( string $text, array $chars, int $index, bool $collapse ): int {
+		$character = $chars[ $index ][0];
+		if ( preg_match( '/^\p{Cf}$/u', $character ) ) {
+			return 1;
+		}
+		if ( ' ' === $character ) {
+			return $collapse ? 1 : 0;
+		}
+		if ( '<' !== $character || ! preg_match( '~\G</?([a-z][a-z0-9-]*)\b[^<>]*>~i', $text, $tag, 0, $chars[ $index ][1] ) ) {
+			return 0;
+		}
+		$bytes = strlen( $tag[0] );
+		// Raw-text elements go with their content, as the provider drops them.
+		if ( '/' !== $tag[0][1] && preg_match( '/^(?:script|style|template|noscript|iframe|svg|canvas|textarea|title)$/i', $tag[1] ) && preg_match( '~\G.*?</' . $tag[1] . '\s*>~is', $text, $element, 0, $chars[ $index ][1] ) ) {
+			$bytes = strlen( $element[0] );
+		}
+		return (int) preg_match_all( '/./us', substr( $text, $chars[ $index ][1], $bytes ) );
 	}
 
 	/**
@@ -146,6 +285,12 @@ final class ReportHighlightParser {
 		 * Turgenev writes annotated HTML directly inside a textarea. DOMDocument
 		 * normalizes that non-standard markup and drops the nested span elements,
 		 * so preserve the raw textarea contents before parsing the annotation HTML.
+		 *
+		 * Those contents are the provider's own HTML serialization of the analyzed text,
+		 * not an escaped copy of it (confirmed live: a literal "<" arrives as `&lt;`, a
+		 * literal "&amp;" as `&amp;amp;`, markup as-is), so they are parsed exactly once.
+		 * Decoding them first would turn escaped text back into markup or entities, even
+		 * in a report with no highlight at all.
 		 */
 		$matched = preg_match(
 			'/<textarea\\b(?=[^>]*\\bid\\s*=\\s*([\'\"])textfield\\1)[^>]*>(.*?)<\\/textarea\\s*>/is',
@@ -157,7 +302,7 @@ final class ReportHighlightParser {
 			return '';
 		}
 
-		return preg_match( '/<(?:p|span|div)\b/i', $match[2] ) ? $match[2] : html_entity_decode( $match[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		return $match[2];
 	}
 
 	/**
@@ -176,7 +321,7 @@ final class ReportHighlightParser {
 		if ( $node instanceof \DOMElement && ( in_array( strtolower( $node->tagName ), array( 'script', 'style', 'template', 'noscript', 'svg', 'canvas', 'iframe' ), true ) || $node->hasAttribute( 'hidden' ) || 'true' === $node->getAttribute( 'aria-hidden' ) ) ) {
 			return;
 		}
-		$separated = $node instanceof \DOMElement && preg_match( '/^(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul)$/i', $node->tagName );
+		$separated = $node instanceof \DOMElement && preg_match( '/^(?:' . self::BLOCK_ELEMENTS . ')$/i', $node->tagName );
 		if ( $separated ) {
 			$text .= ' ';
 		}
@@ -319,7 +464,7 @@ final class ReportHighlightParser {
 			}
 			// "Frequency" ties every occurrence of a repeated word to its row in the report's
 			// word table through `stm-*` stem classes (bb-hl.js `higlightByStm()`).
-			if ( count( $stems ) < self::MAX_CLASS_LIST && preg_match( '/^stm-\d+-[0-9A-Fa-f]+$/', $class_name ) && ! in_array( $class_name, $stems, true ) ) {
+			if ( count( $stems ) < self::MAX_CLASS_LIST && preg_match( self::STEM_PATTERN, $class_name ) && ! in_array( $class_name, $stems, true ) ) {
 				$stems[] = $class_name;
 			}
 		}

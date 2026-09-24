@@ -148,6 +148,8 @@ interface SectionDetails {
 	hints?: Record< string, SectionHint[] >;
 	/** The analyzed document's word count, the same figure every report tab shows. */
 	wordCount?: number;
+	/** 'overall' only: the provider assesses no risk for a text this short. */
+	tooShort?: boolean;
 }
 
 interface HighlightsResponseData {
@@ -326,6 +328,19 @@ interface TurgenevClientApi {
 		signal?: AbortSignal
 	): Promise< T >;
 	toPlainText( html: unknown ): string;
+	/** The default analysis payload: the visible text, escaped, inside its own block elements. */
+	toAnalysisHTML( html: unknown ): string;
+	/** Words in a text, counted exactly as the provider's own report page counts them. */
+	wordCount( text: string ): number;
+	/**
+	 * The provider's own warning above the text for a risk level (high or critical) or a text
+	 * too short to assess, or null for none; `url` is '' when it links nowhere.
+	 */
+	riskWarning(
+		level: unknown,
+		tooShort?: boolean
+	): { message: string; url: string } | null;
+	/** Maximum visible characters per check (the payload's markup is not counted). */
 	maxTextLength: number;
 	isConfigured: boolean;
 	settingsUrl: string;
@@ -338,6 +353,11 @@ interface TurgenevUIApi {
 		container: HTMLElement,
 		data: HighlightsResponseData
 	): void;
+	/** A dismissible admin notice for TurgenevClientApi.riskWarning() (Classic Editor). */
+	renderRiskNotice(
+		warning: { message: string; url: string },
+		onDismiss: () => void
+	): HTMLElement;
 	renderBalance( container: HTMLElement | null, balance: unknown ): void;
 	renderMessage(
 		container: HTMLElement | null,
@@ -556,6 +576,8 @@ interface WPGlobal {
 	element?: WPElementModule;
 	plugins?: WPPluginsModule;
 	blocks?: WPBlocksModule;
+	/** wp-admin/js/editor.js (Classic Editor): the browser twin of PHP's wpautop(). */
+	editor?: { autop?: ( text: string ) => string };
 }
 
 interface TinyMCEBookmark {

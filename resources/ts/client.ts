@@ -33,6 +33,48 @@
 		return fallback;
 	}
 
+	/**
+	 * The `wp_send_json()` object in an admin-ajax response body.
+	 *
+	 * On a site that displays PHP errors, another plugin can print into the same response:
+	 * a notice before it, or (seen live with WooCommerce's Action Scheduler) a database
+	 * error from a `shutdown` hook that runs after WordPress has already sent this JSON.
+	 * The object itself is intact, so it is located and parsed exactly, string-aware; any
+	 * other malformed body still fails.
+	 */
+	function parseAjaxResponse( raw: string ): unknown {
+		try {
+			return JSON.parse( raw );
+		} catch ( error ) {
+			const start = raw.indexOf( '{"success":' );
+			if ( start < 0 ) {
+				throw error;
+			}
+			let depth = 0;
+			let inString = false;
+			for ( let i = start; i < raw.length; i++ ) {
+				const character = raw[ i ];
+				if ( inString ) {
+					if ( character === '\\' ) {
+						i++;
+					} else if ( character === '"' ) {
+						inString = false;
+					}
+				} else if ( character === '"' ) {
+					inString = true;
+				} else if ( character === '{' || character === '[' ) {
+					depth++;
+				} else if (
+					( character === '}' || character === ']' ) &&
+					--depth === 0
+				) {
+					return JSON.parse( raw.slice( start, i + 1 ) );
+				}
+			}
+			throw error;
+		}
+	}
+
 	async function request< T >(
 		operation: string,
 		parameters: Record< string, unknown > = {},
@@ -73,7 +115,7 @@
 
 		let payload: unknown;
 		try {
-			payload = await response.json();
+			payload = parseAjaxResponse( await response.text() );
 		} catch {
 			throw new Error(
 				__( 'WordPress returned an invalid response.', 'turgenev' )
@@ -222,9 +264,13 @@
 	const SENTENCE_ID_PATTERN = /^\d+-\d+$/;
 	// HighlightMark list entries; the shared bound mirrors ReportHighlightParser's own.
 	const FRAGMENT_ID_PATTERN = /^(?:xhint|xhlln)-\d+-\d+$/;
-	const STEM_ID_PATTERN = /^stm-\d+-[0-9A-Fa-f]+$/;
+	// Mirrors ReportHighlightParser::STEM_PATTERN, including the `stm-5--<UTF-8 hex>` shape.
+	const STEM_ID_PATTERN = /^stm-\d{1,3}--?[0-9A-Fa-f]{1,256}$/;
 	const TYPE_CLASS_PATTERN = /^([a-z_]+)[1-9]\d*$/;
 	const MAX_MARK_FRAGMENTS = 8;
+	// SectionDetails.sentenceProblems/hints: one entry per flagged sentence or phrase, which a
+	// long text has thousands of. Mirrors ReportSectionParser::MAX_FRAGMENTS.
+	const MAX_FRAGMENT_ENTRIES = 5000;
 	function isIdList( value: unknown, valid: ( id: string ) => boolean ): boolean {
 		return (
 			Array.isArray( value ) &&
@@ -276,6 +322,31 @@
 		return LEGEND_COLORS[ item.type + item.level ] || 'transparent';
 	}
 
+	/**
+	 * The warning the provider's own report shows above the text once the "Overall risk"
+	 * tab opens (confirmed live: "Риск высокий. Что делать?" from 8 points, "Риск
+	 * критический! Что делать?" from 13, nothing below), keyed by the `risk` operation's
+	 * `level`, which is that same verdict word. The provider links it to its guide on
+	 * reading the results.
+	 */
+	const RISK_HELP_URL = 'https://turgenev.ashmanov.com/?h=results';
+	function riskWarning(
+		level: unknown,
+		tooShort = false
+	): { message: string; url: string } | null {
+		if ( tooShort ) {
+			return { message: tooShortMessage(), url: '' };
+		}
+		const verdict = typeof level === 'string' ? level.trim().toLowerCase() : '';
+		let message = '';
+		if ( verdict === 'высокий' ) {
+			message = __( 'Risk is high. What to do?', 'turgenev' );
+		} else if ( verdict === 'критический' ) {
+			message = __( 'Risk is critical! What to do?', 'turgenev' );
+		}
+		return message ? { message, url: RISK_HELP_URL } : null;
+	}
+
 	function sectionEntries(
 		data: RiskResult
 	): { key: SectionKey; label: string; score: unknown; link?: string }[] {
@@ -311,12 +382,19 @@
 		return entries;
 	}
 
-	function renderVerdict( data: RiskResult ): HTMLElement {
+	/** The provider's own words for a text below its length threshold (SectionDetails.tooShort). */
+	function tooShortMessage(): string {
+		return __( 'The text is too short. Risk is not assessed.', 'turgenev' );
+	}
+
+	function renderVerdict( data: RiskResult, tooShort = false ): HTMLElement {
 		const verdict = document.createElement( 'p' );
 		verdict.className = 'turgenev-section-verdict';
-		verdict.textContent = `${ __( 'Risk', 'turgenev' ) } ${ String(
-			data.level || '—'
-		) } (${ String( data.risk ?? '—' ) })`;
+		verdict.textContent = tooShort
+			? tooShortMessage()
+			: `${ __( 'Risk', 'turgenev' ) } ${ String( data.level || '—' ) } (${ String(
+					data.risk ?? '—'
+			  ) })`;
 		return verdict;
 	}
 
@@ -973,13 +1051,14 @@
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-content';
 		if ( section === 'overall' ) {
-			wrap.appendChild( renderVerdict( result ) );
+			wrap.appendChild( renderVerdict( result, details.tooShort === true ) );
 			if ( Number.isInteger( details.wordCount ) ) {
 				const count = document.createElement( 'p' );
 				count.className = 'turgenev-section-word-count';
-				count.textContent = `${ __( 'Analyzed text:', 'turgenev' ) } ${ String(
+				// The provider's own wording ("слов: 103"), which needs no plural forms.
+				count.textContent = `${ __( 'Words:', 'turgenev' ) } ${ String(
 					details.wordCount
-				) } ${ __( 'words', 'turgenev' ) }`;
+				) }`;
 				wrap.appendChild( count );
 			}
 		}
@@ -1334,7 +1413,7 @@
 		}
 		const entries = Object.entries( value as Record< string, unknown > );
 		return (
-			entries.length <= 200 &&
+			entries.length <= MAX_FRAGMENT_ENTRIES &&
 			entries.every(
 				( [ key, problems ] ) =>
 					SENTENCE_ID_PATTERN.test( key ) &&
@@ -1395,7 +1474,7 @@
 		}
 		const entries = Object.entries( value as Record< string, unknown > );
 		return (
-			entries.length <= 200 &&
+			entries.length <= MAX_FRAGMENT_ENTRIES &&
 			entries.every(
 				( [ key, hints ] ) =>
 					SENTENCE_ID_PATTERN.test( key ) &&
@@ -1465,6 +1544,12 @@
 			}
 			result.wordCount = raw.wordCount as number;
 		}
+		if ( raw.tooShort !== undefined ) {
+			if ( typeof raw.tooShort !== 'boolean' ) {
+				return invalid();
+			}
+			result.tooShort = raw.tooShort;
+		}
 		return result;
 	}
 
@@ -1524,6 +1609,43 @@
 		container.appendChild( notice );
 	}
 
+	/**
+	 * A standard, dismissible admin notice carrying riskWarning(): the Classic Editor's
+	 * counterpart of the block editor's notices area. Plain text and a fixed link only.
+	 */
+	function renderRiskNotice(
+		warning: { message: string; url: string },
+		onDismiss: () => void
+	): HTMLElement {
+		const notice = document.createElement( 'div' );
+		notice.className =
+			'notice notice-error is-dismissible turgenev-risk-notice';
+		notice.setAttribute( 'role', 'alert' );
+		const text = document.createElement( 'p' );
+		text.textContent = warning.message;
+		if ( warning.url ) {
+			const link = document.createElement( 'a' );
+			link.href = warning.url;
+			link.target = '_blank';
+			link.rel = 'noopener noreferrer';
+			link.textContent = __( 'More information', 'turgenev' );
+			text.append( ' ', link );
+		}
+		const dismiss = document.createElement( 'button' );
+		dismiss.type = 'button';
+		dismiss.className = 'notice-dismiss';
+		const label = document.createElement( 'span' );
+		label.className = 'screen-reader-text';
+		label.textContent = __( 'Dismiss this notice.', 'turgenev' );
+		dismiss.appendChild( label );
+		dismiss.addEventListener( 'click', () => {
+			notice.remove();
+			onDismiss();
+		} );
+		notice.append( text, dismiss );
+		return notice;
+	}
+
 	function renderBalance( container: HTMLElement | null, balance: unknown ): void {
 		if ( ! container ) {
 			return;
@@ -1542,6 +1664,21 @@
 		panel.querySelectorAll( 'button' ).forEach( ( button ) => {
 			button.disabled = Boolean( busy );
 		} );
+	}
+
+	/** Whether the text model (and so the analysis payload) leaves an element out entirely. */
+	function isSkipped( element: Element, editor: boolean ): boolean {
+		return (
+			/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|SVG|CANVAS|IFRAME)$/.test(
+				element.tagName
+			) ||
+			Boolean( ( element as HTMLElement ).hidden ) ||
+			element.getAttribute( 'aria-hidden' ) === 'true' ||
+			( editor &&
+				element.matches(
+					'button, input, select, textarea, [data-mce-bogus="all"], .block-editor-block-toolbar, .block-editor-block-list__insertion-point'
+				) )
+		);
 	}
 
 	// One whitespace model for requests and read-only DOM highlight ranges.
@@ -1564,17 +1701,7 @@
 				return;
 			}
 			const element = node as Element;
-			if (
-				/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|SVG|CANVAS|IFRAME)$/.test(
-					element.tagName
-				) ||
-				( element as HTMLElement ).hidden ||
-				element.getAttribute( 'aria-hidden' ) === 'true' ||
-				( editor &&
-					element.matches(
-						'button, input, select, textarea, [data-mce-bogus="all"], .block-editor-block-toolbar, .block-editor-block-list__insertion-point'
-					) )
-			) {
+			if ( isSkipped( element, editor ) ) {
 				return;
 			}
 			const separated = blockBoundary.test( element.tagName );
@@ -1641,12 +1768,72 @@
 		return { text: model.text, range, isVisible };
 	}
 
+	/**
+	 * The word count the provider's own report page shows: its `countWCStat()` recounts the
+	 * editor's text in the browser and replaces the server-rendered figure before anyone sees
+	 * it. The two can differ (the page splits "Wi-Fi" or "192.168.0.1" into several words).
+	 */
+	function wordCount( text: string ): number {
+		const trimmed = text.replace( /^[^\wа-яёА-ЯЁ]+|[^\wа-яёА-ЯЁ]+$/g, '' );
+		return trimmed ? trimmed.split( /[^\wа-яёА-ЯЁ]+/ ).length : 0;
+	}
+
 	function toPlainText( html: unknown ): string {
 		const parsed = new window.DOMParser().parseFromString(
 			String( html || '' ),
 			'text/html'
 		);
 		return textModel( parsed.body, false ).text;
+	}
+
+	/**
+	 * The default analysis payload: the document's visible text inside its own block
+	 * elements, i.e. what the provider's own editor submits for the same content.
+	 *
+	 * The provider reads every `text` payload as HTML (confirmed live: a plain "<b>" becomes
+	 * markup, "&amp;" an ampersand) and ends a sentence only at a block element, never at a
+	 * line break. Joining blocks into one line would therefore run a heading into the next
+	 * sentence and change the verdict, the scores and every highlight that sentence gets.
+	 * Inline markup and attributes are dropped (they change nothing the provider reports),
+	 * and the text is escaped so it is never read back as markup. Uses the text model's own
+	 * skip rules and block list, so the report's text normalizes to exactly `toPlainText()`.
+	 */
+	function toAnalysisHTML( html: unknown ): string {
+		const parsed = new window.DOMParser().parseFromString(
+			String( html || '' ),
+			'text/html'
+		);
+		let payload = '';
+		function walk( node: Node ): void {
+			if ( node.nodeType === 3 ) {
+				payload += ( node as Text ).data
+					.replace( /&/g, '&amp;' )
+					.replace( /</g, '&lt;' )
+					.replace( />/g, '&gt;' )
+					.replace( / /g, '&nbsp;' );
+				return;
+			}
+			if ( node.nodeType !== 1 || isSkipped( node as Element, false ) ) {
+				return;
+			}
+			const element = node as Element;
+			const tag = blockBoundary.test( element.tagName )
+				? element.tagName.toLowerCase()
+				: '';
+			if ( tag === 'br' || tag === 'hr' ) {
+				payload += `<${ tag }>`;
+				return;
+			}
+			if ( tag ) {
+				payload += `<${ tag }>`;
+			}
+			element.childNodes.forEach( walk );
+			if ( tag ) {
+				payload += `</${ tag }>`;
+			}
+		}
+		walk( parsed.body );
+		return payload.trim();
 	}
 
 	// Map decoded text back to literal HTML offsets, including entities and split inline tags.
@@ -1893,7 +2080,10 @@
 		validSectionDetails,
 		request,
 		toPlainText,
-		maxTextLength: Number( config.maxTextLength ) || 20000,
+		toAnalysisHTML,
+		wordCount,
+		riskWarning,
+		maxTextLength: Number( config.maxTextLength ) || 50000,
 		isConfigured: Boolean( config.isConfigured ),
 		settingsUrl:
 			typeof config.settingsUrl === 'string' ? config.settingsUrl : '',
@@ -1902,6 +2092,7 @@
 	} );
 	window.TurgenevUI = Object.freeze( {
 		renderHighlightText,
+		renderRiskNotice,
 		renderBalance,
 		renderMessage,
 		renderResult,

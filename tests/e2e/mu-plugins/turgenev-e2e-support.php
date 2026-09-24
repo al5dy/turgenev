@@ -137,7 +137,10 @@ add_filter(
 		}
 
 		if ( isset( $body['text'] ) && is_string( $body['text'] ) ) {
-			update_option( 'turgenev_e2e_mock_last_text', wp_strip_all_tags( $body['text'] ) );
+			// Like the provider: the payload is HTML whose block elements separate words.
+			$visible = preg_replace( '~</?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul)\b[^>]*>~i', ' ', $body['text'] );
+			$visible = html_entity_decode( wp_strip_all_tags( (string) $visible ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+			update_option( 'turgenev_e2e_mock_last_text', trim( (string) preg_replace( '/[\s\x{00A0}]+/u', ' ', $visible ) ) );
 		}
 
 		$sections = array( 'frequency', 'style', 'keywords', 'formality', 'readability' );

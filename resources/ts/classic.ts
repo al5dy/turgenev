@@ -5,13 +5,22 @@
 		const editor = window.tinymce?.get( 'content' );
 		return editor && ! editor.isHidden() ? editor : null;
 	}
-	function getSource(): SourceSnapshot {
-		const html =
+	function editorHTML(): string {
+		return (
 			visualEditor()?.getContent() ??
 			( document.getElementById( 'content' ) as HTMLTextAreaElement | null )
 				?.value ??
-			'';
-		return { html, text: client.toPlainText( html ), key: html };
+			''
+		);
+	}
+	function getSource(): SourceSnapshot {
+		const raw = editorHTML();
+		// The Text tab holds paragraphs as blank lines; WordPress only turns them into <p>
+		// on output (wpautop). Restore them, as the Visual tab already has them, so each
+		// paragraph ends its sentences for the provider exactly as the published one does.
+		const autop = window.wp?.editor?.autop;
+		const html = visualEditor() || ! autop ? raw : autop( raw );
+		return { html, text: client.toPlainText( html ), key: raw };
 	}
 	function targets( source: SourceSnapshot ): AnalysisTarget[] {
 		const editor = visualEditor();
@@ -45,7 +54,8 @@
 			getSource,
 			decorations,
 			( window.TurgenevContentReset as TurgenevContentResetApi ).create(
-				() => [ { key: 'content', html: getSource().html } ],
+				// The editor's own markup, never the autop'd analysis copy of it.
+				() => [ { key: 'content', html: editorHTML() } ],
 				( [ { html } ] ) => {
 					const editor = visualEditor();
 					if ( editor ) {
@@ -79,6 +89,44 @@
 		( window.TurgenevAnalysis as TurgenevAnalysisApi ).mount( panel, session, {
 			settings,
 			highlights: client.highlightsAvailable,
+		} );
+		// The block editor shows the provider's risk warning in its notices area; here it is
+		// the same message as a standard admin notice under the screen title, with the same
+		// lifetime: up while "Overall risk" is open, replaced when the verdict changes, and a
+		// dismissed one stays away until then.
+		let riskNotice: HTMLElement | null = null;
+		let shownWarning: string | null = null;
+		session.subscribe( ( state ) => {
+			const warning =
+				state.openSection === 'overall'
+					? client.riskWarning(
+							state.result?.level,
+							state.sectionData?.tooShort
+					  )
+					: null;
+			const message = warning?.message ?? null;
+			if ( message === shownWarning ) {
+				return;
+			}
+			shownWarning = message;
+			riskNotice?.remove();
+			riskNotice = null;
+			if ( ! warning ) {
+				return;
+			}
+			const notice = ( window.TurgenevUI as TurgenevUIApi ).renderRiskNotice(
+				warning,
+				() => {
+					riskNotice = null;
+				}
+			);
+			const headerEnd = document.querySelector( '.wp-header-end' );
+			if ( headerEnd ) {
+				headerEnd.after( notice );
+			} else {
+				panel.before( notice );
+			}
+			riskNotice = notice;
 		} );
 		const textarea = document.getElementById( 'content' );
 		textarea?.addEventListener( 'input', session.invalidate );

@@ -2,24 +2,28 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
+import { JSDOM } from 'jsdom';
 
 const scripts = await Promise.all( [ 'client', 'analysis' ].map( name => readFile( new URL( '../../assets/build/' + name + '.js', import.meta.url ), 'utf8' ) ) );
 const result = { risk: '3', level: 'low', link: 'risk12345', details: [] };
+// The analysis payload is built with the browser's own HTML parser.
+const { DOMParser } = new JSDOM( '' ).window;
 function fixture( configured = true, highlightsAvailable = true ) {
 	const requests = [];
 	let source = { text: 'Original text', html: '<p>Original text</p>', key: 'original' };
 	let state, cleared = 0, applied = 0, counts = { visible: 1, total: 1 }, onHover = null;
-	const sandbox = { URLSearchParams, console, window: { AbortController, TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 42, isConfigured: configured, highlightsAvailable }, fetch: ( url, options ) => new Promise( resolve => requests.push( { body: new URLSearchParams( options.body ), options, resolve } ) ) }, document: {}, wp: { i18n: { __: value => value } } };
+	const sandbox = { URLSearchParams, console, window: { AbortController, DOMParser, TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 42, isConfigured: configured, highlightsAvailable, maxTextLength: 50000 }, fetch: ( url, options ) => new Promise( resolve => requests.push( { body: new URLSearchParams( options.body ), options, resolve } ) ) }, document: {}, wp: { i18n: { __: value => value } } };
 	sandbox.window.wp = sandbox.wp;
 	vm.createContext( sandbox );
 	scripts.forEach( script => vm.runInContext( script, sandbox ) );
 	const activeStems = [];
 	const session = sandbox.window.TurgenevAnalysis.create( () => source, { clear: () => cleared++, dispose() {}, setActiveStems: stems => activeStems.push( stems ), apply: ( _source, _data, hover ) => { applied++; onHover = hover ?? null; return counts; } } );
 	session.subscribe( value => { state = value; } );
-	function respond( index, data, ok = true ) { requests[ index ].resolve( { ok, json: async () => ( { success: ok, data } ) } ); }
+	function respond( index, data, ok = true ) { respondRaw( index, JSON.stringify( { success: ok, data } ), ok ); }
+	function respondRaw( index, body, ok = true ) { requests[ index ].resolve( { ok, text: async () => body } ); }
 	// A MarkHover as highlights.ts reports it.
 	const hover = value => onHover( value && { sentence: null, classes: [ value.type + value.level ], fragments: [], stems: [], ...value } );
-	return { session, requests, respond, client: sandbox.window.TurgenevClient, setCounts: value => { counts = value; }, setSource: value => { source = value; }, get state() { return state; }, hover, activeStems, get applied() { return applied; }, get cleared() { return cleared; } };
+	return { session, requests, respond, respondRaw, client: sandbox.window.TurgenevClient, setCounts: value => { counts = value; }, setSource: value => { source = value; }, get state() { return state; }, hover, activeStems, get applied() { return applied; }, get cleared() { return cleared; } };
 }
 
 test( 'decimal balances use exact string checks, never float thresholds', () => {
@@ -30,7 +34,34 @@ test( 'decimal balances use exact string checks, never float thresholds', () => 
 test( 'missing key and empty/oversize text never issue a paid request', async () => {
 	const missing = fixture( false ); await missing.session.analyze(); assert.equal( missing.requests.length, 0 ); assert.match( missing.state.error, /Configure/ );
 	const empty = fixture(); empty.setSource( { text: '', html: '', key: '' } ); await empty.session.analyze(); assert.equal( empty.requests.length, 0 );
-	empty.setSource( { text: 'a'.repeat( 20001 ), html: '', key: 'large' } ); await empty.session.analyze(); assert.equal( empty.requests.length, 0 ); assert.match( empty.state.error, /longer/ );
+	empty.setSource( { text: 'a'.repeat( 50001 ), html: '', key: 'large' } ); await empty.session.analyze(); assert.equal( empty.requests.length, 0 ); assert.match( empty.state.error, /longer/ );
+} );
+test( 'the size limit counts the visible text, never the markup around it', async () => {
+	// 50,000 visible characters in 5,000 paragraphs: a payload far longer than the limit.
+	const words = Array.from( { length: 5000 }, () => 'абвгдежзи' );
+	const f = fixture();
+	f.setSource( { text: words.join( ' ' ) + 'к', html: words.map( ( w, i ) => '<p>' + w + ( i === 4999 ? 'к' : '' ) + '</p>' ).join( '' ), key: 'long' } );
+	assert.equal( Array.from( f.client.toPlainText( words.map( ( w ) => '<p>' + w + '</p>' ).join( '' ) ) ).length, 49999, 'test fixture: 49,999 visible characters before the last one' );
+	const pending = f.session.analyze();
+	assert.equal( f.requests.length, 1, 'exactly the limit in visible characters reaches the provider' );
+	assert.ok( f.requests[ 0 ].body.get( 'text' ).length > 50000, 'even though the payload itself is longer' );
+	f.respond( 0, { result } ); await pending;
+} );
+test( 'the default payload is the document\'s own block structure with its visible text escaped, as the provider\'s editor submits it', () => {
+	const { client } = fixture();
+	const html = '<!-- wp:heading --><h2 class="wp-block-heading">Почему выбирают нас</h2><!-- /wp:heading -->\n\n'
+		+ '<!-- wp:paragraph --><p id="x" style="color:red">Не <strong>секрет</strong>, что 5 &lt; 6 &amp; A&amp;B, <a href="https://e.test/?a=1&amp;b=2">ссылка</a>&nbsp;тут.</p><!-- /wp:paragraph -->'
+		+ '<ul class="wp-block-list"><li>Первый<br>пункт</li><li>Второй <script>alert(1)</script><span hidden>скрыт</span><span aria-hidden="true">тоже</span></li></ul>'
+		+ '<figure class="wp-block-table"><table><tbody><tr><td>Параметр</td><td>&lt;b&gt;Значение&lt;/b&gt;</td></tr></tbody></table></figure><hr><pre>код  с  пробелами</pre>';
+	assert.equal(
+		client.toAnalysisHTML( html ),
+		'<h2>Почему выбирают нас</h2>\n\n<p>Не секрет, что 5 &lt; 6 &amp; A&amp;B, ссылка&nbsp;тут.</p><ul><li>Первый<br>пункт</li><li>Второй </li></ul><figure><table><tr><td>Параметр</td><td>&lt;b&gt;Значение&lt;/b&gt;</td></tr></table></figure><hr><pre>код  с  пробелами</pre>'
+	);
+	// Stripped of its tags and entities, the payload is exactly the text the report is matched against.
+	const visible = new DOMParser().parseFromString( client.toAnalysisHTML( html ), 'text/html' );
+	assert.equal( client.toPlainText( visible.body.innerHTML ), client.toPlainText( html ) );
+	assert.equal( client.toAnalysisHTML( '' ), '' );
+	assert.equal( client.toAnalysisHTML( 'bare &lt;text&gt; & more' ), 'bare &lt;text&gt; &amp; more', 'escaped text is never sent as markup' );
 } );
 test( 'a known-empty balance blocks analysis with a top-up message, without spending a paid request', async () => {
 	const f = fixture();
@@ -63,7 +94,7 @@ test( 'analyzes unsaved text with nonce and post ID, rejects duplicate clicks', 
 	const f = fixture(); const pending = f.session.analyze();
 	assert.equal( f.state.analyzing, true, 'the loader starts as soon as the click fires' );
 	await f.session.analyze();
-	assert.equal( f.requests.length, 1 ); assert.equal( f.requests[0].body.get( 'text' ), 'Original text' ); assert.equal( f.requests[0].body.get( 'post_id' ), '42' ); assert.equal( f.requests[0].body.get( 'nonce' ), 'nonce' );
+	assert.equal( f.requests.length, 1 ); assert.equal( f.requests[0].body.get( 'text' ), '<p>Original text</p>' ); assert.equal( f.requests[0].body.get( 'post_id' ), '42' ); assert.equal( f.requests[0].body.get( 'nonce' ), 'nonce' );
 	f.respond( 0, { result } ); await pending; assert.equal( f.state.result.level, 'low' ); assert.equal( f.state.busy, false );
 } );
 test( 'a successful analysis never auto-opens a section when highlighting is unavailable (no ext-dom)', async () => {
@@ -105,7 +136,7 @@ test( 'unrendered fragments get a local fallback that resets and is replaced wit
 	const highlights = { text: 'Original text', marks: [ { start: 0, end: 8, category: 'style', level: 2 } ] };
 	f.setCounts( { visible: 0, total: 1 } );
 	pending = f.session.highlight( 'style12345' ); f.respond( 4, { highlights } ); await pending;
-	assert.equal( f.state.error, '' ); assert.equal( f.state.highlighted, true ); assert.equal( f.state.highlightFallback, highlights );
+	assert.equal( f.state.error, '' ); assert.equal( f.state.highlighted, true ); assertSameShape( f.state.highlightFallback, highlights );
 	f.session.reset(); assert.equal( f.state.highlightFallback, null );
 	f.setCounts( { visible: 1, total: 1 } );
 	pending = f.session.highlight( 'frequency12345' ); f.respond( 5, { highlights } ); await pending;
@@ -168,6 +199,23 @@ test( 'failure and malformed success restore buttons and never report success', 
 	assert.equal( f.state.error, 'Insufficient balance' ); assert.equal( f.state.busy, false );
 	assert.equal( f.state.analyzing, false );
 } );
+test( 'a response surrounded by other plugins\' PHP output still yields WordPress\'s own JSON; any other body is rejected', async () => {
+	const noise = '<div id="error"><p class="wpdberror"><strong>WordPress database error:</strong> [x] SELECT {"a":1} FROM t</p></div>';
+	const f = fixture();
+	let pending = f.session.analyze();
+	f.respondRaw( 0, 'Notice: something {broken\n' + JSON.stringify( { success: true, data: { result: { ...result, level: 'a "}" in {text}' } } } ) + noise );
+	await pending;
+	assert.equal( f.state.result?.level, 'a "}" in {text}', 'braces inside JSON strings do not end the object early' );
+	assert.equal( f.state.error, '' );
+	for ( const body of [ noise, '{"success":true,"data":{"result":', '' ] ) {
+		const g = fixture();
+		pending = g.session.analyze();
+		g.respondRaw( 0, body );
+		await pending;
+		assert.equal( g.state.result, null );
+		assert.match( g.state.error, /invalid response/, JSON.stringify( body ) );
+	}
+} );
 test( 'document identity, not selection, controls invalidation', async () => {
 	const f = fixture(); const pending = f.session.analyze(); f.respond( 0, { result } ); await pending;
 	f.session.invalidate(); assert.ok( f.state.result );
@@ -188,17 +236,43 @@ test( 'disposing a session aborts pending work and drops late responses', async 
 function assertSameShape( actual, expected, message ) {
 	assert.equal( JSON.stringify( actual ), JSON.stringify( expected ), message );
 }
+test( 'words are counted as the provider\'s own page counts them, and that count replaces the server-rendered one', async () => {
+	const f = fixture();
+	for ( const [ text, count ] of [ [ '', 0 ], [ ' — ', 0 ], [ 'Мама мыла раму.', 3 ], [ 'Wi-Fi 192.168.0.1 и ёлка', 8 ], [ 'MyHome_5G, admin/admin — 2,4 ГГц!', 6 ], [ '😀 слово 👍', 1 ] ] ) {
+		assert.equal( f.client.wordCount( text ), count, text );
+	}
+	f.setSource( { text: 'Wi-Fi роутер 2,4 ГГц', html: '<p>Wi-Fi роутер 2,4 ГГц</p>', key: 'wifi' } );
+	const pending = f.session.analyze();
+	f.respond( 0, { result } ); await pending;
+	f.respond( 2, { highlights: { text: 'Wi-Fi роутер 2,4 ГГц', marks: [] } } );
+	f.respond( 3, { details: { params: [], wordCount: 4 } } );
+	await new Promise( resolve => setTimeout( resolve, 0 ) );
+	assert.equal( f.state.sectionData.wordCount, 6, 'the page recounts "Wi-Fi" and "2,4" as two words each' );
+} );
+test( 'the risk warning follows the provider\'s own: high and critical only, or a text too short to assess', () => {
+	const { client } = fixture();
+	for ( const level of [ 'минимальный', 'низкий', 'средний', '', null, undefined, 42 ] ) assert.equal( client.riskWarning( level ), null, String( level ) );
+	assertSameShape( client.riskWarning( 'высокий' ), { message: 'Risk is high. What to do?', url: 'https://turgenev.ashmanov.com/?h=results' } );
+	assertSameShape( client.riskWarning( ' Критический ' ), { message: 'Risk is critical! What to do?', url: 'https://turgenev.ashmanov.com/?h=results' } );
+	assertSameShape( client.riskWarning( 'минимальный', true ), { message: 'The text is too short. Risk is not assessed.', url: '' } );
+	assertSameShape( client.riskWarning( 'высокий', true ), { message: 'The text is too short. Risk is not assessed.', url: '' } );
+} );
 test( 'section details validation accepts the full shape and rejects malformed payloads', () => {
 	const { client } = fixture();
+	// A long text flags thousands of sentences and phrases (over 200 live): none may be dropped.
+	const many = { params: [], sentenceProblems: Object.fromEntries( Array.from( { length: 3000 }, ( _, i ) => [ i + '-1', [ { label: 'x', section: 'style' } ] ] ) ), hints: Object.fromEntries( Array.from( { length: 3000 }, ( _, i ) => [ i + '-1', [ { title: '', text: [ { text: 'x' } ] } ] ] ) ) };
+	assert.equal( Object.keys( client.validSectionDetails( many ).sentenceProblems ).length, 3000 );
+	assert.equal( Object.keys( client.validSectionDetails( many ).hints ).length, 3000 );
 	const full = {
 		params: [ { name: 'Metric', value: '0.42', score: '2', low: false, hint: 'What this measures.', hintUrl: 'https://turgenev.ashmanov.com/?h=vkladki#metric' } ],
-		words: [ { text: 'and', count: 3, percent: '5.0%', stopword: true, type: 'doubles', level: 4, score: '2', stems: [ 'stm-6-190E7' ] } ],
+		words: [ { text: 'and', count: 3, percent: '5.0%', stopword: true, type: 'doubles', level: 4, score: '2', stems: [ 'stm-6-190E7' ] }, { text: 'роутер', count: 5, stems: [ 'stm-5--d180d0bed183d182d0b5d180' ] } ],
 		phrases: [ { text: 'fast car', count: 2 } ],
 		legend: [ { type: 'slop', level: 1, label: 'Potential issue.' } ],
 		breakdown: [ { label: 'query coverage', value: '0.2' } ],
 		sentenceProblems: { '107-33': [ { label: 'Стилистические ошибки', section: 'style' }, { label: 'Запросы', section: 'keywords' }, { label: 'Без раздела' } ] },
 		hints: { '68-3': [ { title: 'в процессе', text: [ { text: 'Слово ' }, { text: 'процесс', italic: true } ], more: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy', seeAlso: [ { label: 'Канцелярит', url: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#kants' } ] }, { title: '', text: [ { text: 'x' } ] } ] },
 		wordCount: 51,
+		tooShort: false,
 	};
 	assertSameShape( client.validSectionDetails( full ), full );
 	assertSameShape( client.validSectionDetails( { params: [ { name: 'Водность', value: '0.46', score: '', low: true } ] } ).params[ 0 ].score, '' );
@@ -228,6 +302,7 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		{ params: [], sentenceProblems: { '0-5': [ { section: 'style' } ] } }, // missing "label"
 		{ params: [], words: [ { text: 'and', count: 1, score: 'high' } ] },
 		{ params: [], words: [ { text: 'and', count: 1, stems: [ 'stem' ] } ] },
+		{ params: [], words: [ { text: 'and', count: 1, stems: [ 'stm-5---d180' ] } ] },
 		{ params: [], hints: [] }, // a list, not the id-keyed object
 		{ params: [], hints: { 'xhint-68-3': [ { title: '', text: [ { text: 'x' } ] } ] } }, // ids are bare
 		{ params: [], hints: { '68-3': [ { title: '', text: [] } ] } }, // nothing to show
@@ -238,7 +313,11 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		{ params: [], wordCount: 'not-a-number' },
 		{ params: [], wordCount: -1 },
 		{ params: [], wordCount: 1.5 },
+		{ params: [], tooShort: 'yes' },
+		{ params: [], tooShort: 1 },
 		{ params: Array( 201 ).fill( { name: 'a', value: 'b', score: '0', low: false } ) },
+		{ params: [], sentenceProblems: Object.fromEntries( Array.from( { length: 5001 }, ( _, i ) => [ i + '-1', [ { label: 'x' } ] ] ) ) },
+		{ params: [], hints: Object.fromEntries( Array.from( { length: 5001 }, ( _, i ) => [ i + '-1', [ { title: '', text: [ { text: 'x' } ] } ] ] ) ) },
 	] ) {
 		assert.throws( () => client.validSectionDetails( invalid ), /invalid section details/ );
 	}
@@ -268,7 +347,7 @@ test( 'analyzing a document auto-opens the overall section, running highlight an
 	// instead of awaiting a captured promise.
 	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 	assert.equal( f.state.sectionLoading, false );
-	assertSameShape( f.state.sectionData, sectionResult );
+	assertSameShape( f.state.sectionData, { ...sectionResult, wordCount: 2 } );
 	assert.equal( f.state.sectionError, '' );
 	assert.equal( f.state.activeToken, 'risk12345' );
 	assert.equal( f.state.analyzing, false, 'the loader hands off only once "overall" is fully open and populated' );

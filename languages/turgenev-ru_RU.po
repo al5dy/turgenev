@@ -15,10 +15,6 @@ msgstr ""
 "PO-Revision-Date: 2026-09-21 08:59+0000\n"
 "X-Generator: manual\n"
 "X-Domain: turgenev\n"
-#: src/Admin/SettingsPage.php:224
-msgid "A key is already configured. Enter a new one only to rotate it."
-msgstr "Ключ уже настроен. Введите новый только для того, чтобы заменить текущий."
-
 #: assets/build/editor-content.js
 msgid "A synced pattern is not loaded or is unavailable. Load the pattern before analyzing the document."
 msgstr "Синхронизированный паттерн не загружен или недоступен. Загрузите паттерн перед анализом документа."
@@ -204,10 +200,6 @@ msgstr "Удобочитаемость"
 msgid "Refresh balance"
 msgstr "Обновить баланс"
 
-#: src/Admin/SettingsPage.php:233
-msgid "Remove the saved API key"
-msgstr "Удалить сохранённый ключ API"
-
 #: assets/build/analysis.js
 msgid "Reset view"
 msgstr "Сбросить вид"
@@ -215,10 +207,6 @@ msgstr "Сбросить вид"
 #: assets/build/client.js
 msgid "Risk"
 msgstr "Риск"
-
-#: src/Admin/SettingsPage.php:193
-msgid "Saved key:"
-msgstr "Сохранённый ключ:"
 
 #: src/Api/ReportSectionParser.php:83
 msgid "Section details are unavailable on this server (the PHP DOM extension is not installed)."
@@ -477,3 +465,48 @@ msgstr "https://wordpress.org/plugins/turgenev/"
 #: turgenev.php
 msgid "https://ziscod.com"
 msgstr "https://ziscod.com"
+
+#: assets/build/client.js
+msgid "Dismiss this notice."
+msgstr "Скрыть это уведомление."
+
+#: assets/build/client.js
+#: assets/build/editor.js
+msgid "More information"
+msgstr "Подробнее"
+
+#: assets/build/client.js
+msgid "Risk is critical! What to do?"
+msgstr "Риск критический! Что делать?"
+
+#: assets/build/client.js
+msgid "Risk is high. What to do?"
+msgstr "Риск высокий. Что делать?"
+
+#: assets/build/client.js
+msgid "Stop word"
+msgstr "Стоп-слово"
+
+#: assets/build/client.js
+msgid "Words:"
+msgstr "Слов:"
+
+#: assets/build/client.js
+msgid "The text is too short. Risk is not assessed."
+msgstr "Текст слишком короткий. Риск не оценивается"
+
+#: src/Admin/SettingsPage.php
+msgid "Saved token:"
+msgstr "Сохранённый токен:"
+
+#: src/Admin/SettingsPage.php
+msgid "Leave this field empty to keep the currently saved API key."
+msgstr "Оставьте поле пустым, чтобы сохранить текущий ключ API."
+
+#: src/Admin/SettingsPage.php
+msgid "Save API key"
+msgstr "Сохранить ключ API"
+
+#: src/Admin/SettingsPage.php
+msgid "Delete API Key"
+msgstr "Удалить ключ API"

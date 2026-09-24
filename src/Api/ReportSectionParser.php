@@ -27,6 +27,12 @@ defined( 'ABSPATH' ) || exit;
  */
 final class ReportSectionParser {
 	private const MAX_ITEMS = 200;
+	/**
+	 * Bounds the per-sentence problems and per-fragment hints: one entry per flagged sentence
+	 * or phrase, which a 50,000-character text can have thousands of (over 200 live). The
+	 * report page's own size limit bounds them long before this does.
+	 */
+	private const MAX_FRAGMENTS = 5000;
 	/** Bounds the explainers per fragment and the "См. также" links per explainer. */
 	private const MAX_HINTS = 20;
 
@@ -108,8 +114,18 @@ final class ReportSectionParser {
 
 		switch ( $section ) {
 			case 'overall':
-				$result['legend']           = $this->parseLegend( $xpath );
-				$result['sentenceProblems'] = $this->parseSentenceProblems( $report_html );
+				$result['legend'] = $this->parseLegend( $xpath );
+				// Omitted when empty, like hints below: an empty PHP array serializes as a JSON
+				// list, never the id-keyed object the browser validates, so a report without a
+				// single flagged sentence (any low-risk text) would read as invalid data.
+				$sentence_problems = $this->parseSentenceProblems( $report_html );
+				if ( array() !== $sentence_problems ) {
+					$result['sentenceProblems'] = $sentence_problems;
+				}
+				// Below its own length threshold the provider reports no verdict at all
+				// ("Текст слишком короткий. Риск не оценивается"), whatever `level` the JSON
+				// `risk` operation returned for the same text ("минимальный", confirmed live).
+				$result['tooShort'] = $xpath->query( "//ul[contains(concat(' ', normalize-space(@class), ' '), ' tabs ') and contains(concat(' ', normalize-space(@class), ' '), ' too_short ')]" )->length > 0;
 				break;
 			case 'frequency':
 				$result['words']   = $this->parseWordStats( $xpath, 'words_frq_stat', true );
@@ -384,7 +400,7 @@ final class ReportSectionParser {
 	private function parseSentenceProblems( string $report_html ): array {
 		$result = array();
 		foreach ( $this->xhints( $report_html ) as $sentence_id => $entries ) {
-			if ( count( $result ) >= self::MAX_ITEMS ) {
+			if ( count( $result ) >= self::MAX_FRAGMENTS ) {
 				break;
 			}
 			if ( ! is_string( $sentence_id ) || ! preg_match( '/^\d+-\d+$/D', $sentence_id ) || ! is_array( $entries ) ) {
@@ -438,7 +454,7 @@ final class ReportSectionParser {
 	private function parseHints( string $report_html ): array {
 		$result = array();
 		foreach ( $this->xhints( $report_html ) as $fragment_id => $entries ) {
-			if ( count( $result ) >= self::MAX_ITEMS ) {
+			if ( count( $result ) >= self::MAX_FRAGMENTS ) {
 				break;
 			}
 			if ( ! is_string( $fragment_id ) || ! preg_match( '/^\d+-\d+$/D', $fragment_id ) || ! is_array( $entries ) ) {
@@ -633,7 +649,7 @@ final class ReportSectionParser {
 			}
 			// The same `stm-*` stems its occurrences in the text carry: the provider lights
 			// every one of them up when this row is clicked or one of them is hovered.
-			$stems = array_slice( array_values( preg_grep( '/^stm-\d+-[0-9A-Fa-f]+$/', $class_names ) ), 0, 8 );
+			$stems = array_slice( array_values( preg_grep( ReportHighlightParser::STEM_PATTERN, $class_names ) ), 0, 8 );
 			if ( array() !== $stems ) {
 				$item['stems'] = $stems;
 			}

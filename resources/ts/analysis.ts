@@ -169,7 +169,7 @@
 			}
 			const text = state.htmlMode
 				? source.html.replace( /<!--[\s\S]*?-->/g, '' ).trim()
-				: source.text;
+				: client.toAnalysisHTML( source.html );
 			if ( ! client.isConfigured ) {
 				update( {
 					error: __(
@@ -197,7 +197,8 @@
 				} );
 				return;
 			}
-			if ( Array.from( text ).length > client.maxTextLength ) {
+			// The provider's limit counts the text a reader sees, never the markup around it.
+			if ( Array.from( source.text ).length > client.maxTextLength ) {
 				update( {
 					error: __(
 						'The content is longer than the maximum size accepted by Turgenev.',
@@ -463,6 +464,8 @@
 				}
 				return;
 			}
+			// Captured now: invalidate() may drop `source` while the request is in flight.
+			const analyzedText = source.text;
 			sectionRequest?.abort();
 			const request = new window.AbortController();
 			sectionRequest = request;
@@ -489,6 +492,13 @@
 					request.signal
 				);
 				details = client.validSectionDetails( response.details );
+				if ( section === 'overall' ) {
+					// The figure the provider's page actually shows (see client.wordCount()).
+					details = {
+						...details,
+						wordCount: client.wordCount( analyzedText ),
+					};
+				}
 			} catch ( caught ) {
 				if ( ! request.signal.aborted ) {
 					error = ( caught as Error ).message;

@@ -2,6 +2,10 @@
 async page => {
 	const checks = [];
 	const assert = ( value, message ) => { if ( ! value ) throw new Error( message ); };
+	// The analysis payload is the document's own blocks with their text escaped (the provider
+	// reads it as HTML and ends sentences at block elements): these read it back.
+	const visible = html => html.replace( /<[^>]*>/g, ' ' ).replace( /&nbsp;/g, ' ' ).replace( /&lt;/g, '<' ).replace( /&gt;/g, '>' ).replace( /&amp;/g, '&' ).replace( /\s+/g, ' ' ).trim();
+	const onlyBlocks = html => ! /<!--|<(?!\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul)>)/.test( html );
 	let mode = 'success', operationMode = 'highlights', release;
 	const requests = [];
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
@@ -110,7 +114,7 @@ async page => {
 	const shareRow = page.locator( '.turgenev-section-param', { hasText: 'Доля' } );
 	assert( await shareRow.locator( '.turgenev-section-param-value-text' ).innerText() === '12.5%', 'Formatted measurement must retain its units.' );
 	const riskRequest = requests.find( r => r.operation === 'risk' );
-	assert( riskRequest.text === 'Это тестовый текст с ссылкой и 😀 словами. Первый абзац. Второй абзац.', 'Analyze must submit all unsaved document text without block comments/HTML/image alt.' );
+	assert( visible( riskRequest.text ) === 'Это тестовый текст с ссылкой и 😀 словами. Первый абзац. Второй абзац.' && onlyBlocks( riskRequest.text ) && riskRequest.text.startsWith( '<p>' ), 'Analyze must submit all unsaved document text in its own blocks, without block comments, inline markup, attributes or image alt.' );
 	checks.push( 'document panel immediately visible, no selection, entire unsaved content' );
 	for ( let i = 0; i < 6; i++ ) {
 		await open( i );
@@ -189,7 +193,7 @@ async page => {
 	await analyze().waitFor();
 	release(); mode = 'success';
 	await analyze().click(); await analyzed();
-	assert( requests.filter( r => r.operation === 'risk' ).at( -1 ).text.startsWith( 'Совсем другой документ.' ), 'Stale analysis won race.' );
+	assert( visible( requests.filter( r => r.operation === 'risk' ).at( -1 ).text ).startsWith( 'Совсем другой документ.' ), 'Stale analysis won race.' );
 	checks.push( 'content edit cancels pending analysis; next analysis uses current content' );
 
 	await page.getByRole( 'checkbox', { name: 'HTML analysis (send markup)' } ).check();
@@ -266,7 +270,7 @@ async page => {
 
 	// Hovering one word lights up the whole flagged sentence or phrase it belongs to (every
 	// fragment it is in), never that word alone; a mark with no fragment stays alone.
-	assert( requests.filter( r => r.operation === 'risk' ).at( -1 ).text === 'Совсем другой документ. Первый абзац. Второй абзац.', 'Fragment scenario expects the document left by the edits above.' );
+	assert( visible( requests.filter( r => r.operation === 'risk' ).at( -1 ).text ) === 'Совсем другой документ. Первый абзац. Второй абзац.', 'Fragment scenario expects the document left by the edits above.' );
 	mode = 'fragments';
 	await open( 0 );
 	const hoverWord = async ( word, nth = 0 ) => {

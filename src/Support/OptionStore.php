@@ -47,6 +47,7 @@ final class OptionStore {
 
 		$tail = strlen( $key ) > 8 ? substr( $key, -4 ) : '';
 
-		return '••••••••' . $tail;
+		// A fixed-length mask: it never hints at how long the secret is.
+		return '••••••••••••' . $tail;
 	}
 }

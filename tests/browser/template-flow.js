@@ -1,6 +1,10 @@
 // Real controlled core/post-content inside a template, not a post-only editor approximation.
 async page => {
 	const assert = ( value, message ) => { if ( ! value ) throw new Error( message ); };
+	// The analysis payload is the document's own blocks with their text escaped (the provider
+	// reads it as HTML and ends sentences at block elements): these read it back.
+	const visible = html => html.replace( /<[^>]*>/g, ' ' ).replace( /&nbsp;/g, ' ' ).replace( /&lt;/g, '<' ).replace( /&gt;/g, '>' ).replace( /&amp;/g, '&' ).replace( /\s+/g, ' ' ).trim();
+	const onlyBlocks = html => ! /<!--|<(?!\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul)>)/.test( html );
 	const checks = [];
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
 	// 'risk' is the overall report's own token; each maps to the provider class that section paints with.
@@ -55,7 +59,7 @@ async page => {
 	async function verifyCategories() {
 		const original = await state();
 		await analyze().click(); await analyzed();
-		assert( submitted.at( -1 ).text === original.text, 'The request must contain only the current post body, not template chrome.' );
+		assert( visible( submitted.at( -1 ).text ) === original.text && onlyBlocks( submitted.at( -1 ).text ), 'The request must contain only the current post body, not template chrome.' );
 		for ( let index = 0; index < 6; index++ ) {
 			await open( index );
 			const result = await state();
@@ -76,7 +80,7 @@ async page => {
 			await editor.locator( '[data-type="core/post-content"] [contenteditable="true"]' ).first().waitFor();
 			await page.getByRole( 'button', { name: 'Turgenev', exact: true } ).click();
 			await verifyCategories();
-			assert( submitted.at( -1 ).text === 'Это тестовый текст с ссылкой и 😀 словами. Первый абзац. Второй абзац.', 'Repeated header/footer text contaminated the submitted body.' );
+			assert( visible( submitted.at( -1 ).text ) === 'Это тестовый текст с ссылкой и 😀 словами. Первый абзац. Второй абзац.', 'Repeated header/footer text contaminated the submitted body.' );
 			checks.push( postType + ( iframe ? ' iframe' : ' inline' ) + ': controlled Content root, all categories, exact reset, unchanged post/template' );
 		}
 	}
@@ -116,7 +120,7 @@ async page => {
 	} );
 	await page.frameLocator( 'iframe[name="editor-canvas"]' ).getByText( 'Текст синхронизированного блока.', { exact: true } ).waitFor();
 	await verifyCategories();
-	assert( submitted.at( -1 ).text === 'До общего блока. Текст синхронизированного блока. После общего блока.', 'Synced pattern content was omitted from paid analysis.' );
+	assert( submitted.at( -1 ).text.replace( />\s+</g, '><' ) === '<p>До общего блока.</p><p>Текст синхронизированного блока.</p><p>После общего блока.</p>', 'Synced pattern content was omitted from paid analysis.' );
 	await page.evaluate( () => {
 		wp.data.dispatch( 'core' ).editEntityRecord( 'postType', 'wp_block', 123, { content: '<!-- wp:paragraph --><p>Изменённый общий текст.</p><!-- /wp:paragraph -->', blocks: undefined } );
 	} );

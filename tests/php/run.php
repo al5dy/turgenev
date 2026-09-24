@@ -26,6 +26,14 @@ function get_option( string $name, $default = false ) { return $GLOBALS['turgene
 function sanitize_text_field( string $value ): string { return trim( strip_tags( $value ) ); }
 function wp_unslash( $value ) { return $value; }
 function esc_html( $value ): string { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
+function esc_html_e( string $text, string $domain = '' ): void { echo esc_html( $text ); }
+function esc_attr__( string $text, string $domain = '' ): string { return esc_html( $text ); }
+function esc_url( string $url ): string { return esc_html( $url ); }
+function submit_button( ?string $text = null, string $type = 'primary', string $name = 'submit', bool $wrap = true ): void { echo ( $wrap ? '<p class="submit">' : '' ) . '<input type="submit" name="' . esc_html( $name ) . '" class="button button-' . esc_html( $type ) . '" value="' . esc_html( $text ?? 'Save Changes' ) . '" />' . ( $wrap ? '</p>' : '' ); }
+function settings_fields( string $group ): void { echo '<input type="hidden" name="option_page" value="' . esc_html( $group ) . '" />'; }
+function do_settings_sections( string $page ): void {}
+function get_admin_page_title(): string { return 'Turgenev Settings'; }
+function render_to_string( callable $render ): string { ob_start(); $render(); return (string) ob_get_clean(); }
 function add_settings_error( string $setting, string $code, string $message, string $type = 'error' ): void { $GLOBALS['turgenev_settings_errors'][] = compact( 'setting', 'code', 'message', 'type' ); }
 function is_wp_error( $value ): bool { return $value instanceof WP_Error; }
 function wp_remote_retrieve_response_code( array $response ): int { return (int) ( $response['response']['code'] ?? 0 ); }
@@ -149,6 +157,7 @@ function get_post( int $post_id ) { return in_array( $post_id, $GLOBALS['test_po
 function absint( $value ): int { return abs( (int) $value ); }
 function sanitize_key( string $value ): string { return preg_replace( '/[^a-z0-9_-]/', '', strtolower( $value ) ); }
 function wp_strip_all_tags( string $value ): string { return strip_tags( $value ); }
+function wp_json_encode_for_test( $data ) { return json_encode( $data, JSON_UNESCAPED_UNICODE ); }
 function fixture_analysis(): array {
 	$result = array( 'risk' => '4', 'level' => 'low', 'link' => 'risk12345', 'details' => array_map( static fn( $block ) => array( 'block' => $block, 'sum' => '1', 'link' => $block . '12345', 'params' => array() ), Al5dy\Turgenev\Api\ResponseValidator::SECTIONS ) );
 	$result['details'][0]['params'] = array(
@@ -404,7 +413,26 @@ try {
 		expect_true( 'bb-mix' === $GLOBALS['turgenev_last_request']['args']['body']['coverdict'], 'the overall section requests the provider\'s bb-mix report tab' );
 		expect_true( ! array_key_exists( 'words', $overall ) && ! array_key_exists( 'breakdown', $overall ), 'the overall section never exposes the frequency/keywords-only fields' );
 		expect_true( array() === $overall['legend'], 'overall legend is empty when the report has no #legend block' );
-		expect_true( array() === $overall['sentenceProblems'], 'overall sentenceProblems is empty when the report has no XHints script' );
+		// Never an empty PHP array: that serializes as a JSON list, which the browser rightly
+		// rejects as not the id-keyed object, failing the whole section of any low-risk text.
+		expect_true( ! array_key_exists( 'sentenceProblems', $overall ), 'overall carries no sentenceProblems when the report has no XHints script' );
+		expect_true( '{' === substr( (string) wp_json_encode_for_test( $overall ), 0, 1 ) && ! str_contains( (string) wp_json_encode_for_test( $overall ), '"sentenceProblems":[]' ), 'the overall details never serialize an empty sentenceProblems list' );
+		expect_true( false === $overall['tooShort'] && ! array_key_exists( 'tooShort', $style ), 'a report of a long-enough text is assessed; only overall carries the flag' );
+		// Live shape of a text below the provider's threshold: no verdict, whatever `level` said.
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => str_replace( '<div id="infoblock">', "<ul class='tabs  too_short'><li class='bb-mix ilvl0 selected'></li></ul><div id=\"infoblock\">", $section_markup() ) );
+		expect_true( true === $client->reportSectionDetails( 'abc12345', 'overall' )['tooShort'], 'a report of a too-short text is flagged, as the provider shows no risk for it' );
+
+		// A long text: far more than 200 flagged sentences, every one kept (live: a
+		// 45,000-character text lost the problems of every sentence past the 200th).
+		$many_sentences = array();
+		for ( $i = 0; $i < 450; $i++ ) {
+			$many_sentences[] = '"' . $i . '-3":[{"c":"<a href=\'#slop_words\'>Стилистические ошибки</a>","t":""}]';
+		}
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $section_markup( '<script>var XHints = {' . implode( ',', $many_sentences ) . '};</script>' ) );
+		expect_true( 450 === count( $client->reportSectionDetails( 'abc12345', 'overall' )['sentenceProblems'] ), 'a long text keeps the problems of every flagged sentence, not only the first 200' );
+		$many_hints = str_replace( '"t":""', '"t":"слово"', str_replace( '"c":"<a href=\'#slop_words\'>Стилистические ошибки</a>"', '"c":["Пояснение. &#heavy"]', implode( ',', $many_sentences ) ) );
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $section_markup( '<script>var XHints = {' . $many_hints . '};</script>' ) );
+		expect_true( 450 === count( $client->reportSectionDetails( 'abc12345', 'style' )['hints'] ), 'a long text keeps the hints of every flagged phrase, not only the first 200' );
 
 		// The "Overall risk" report's own legend (confirmed live on an anonymous fetch to
 		// carry no legend-active/legend-inactive rows, unlike this dev-only exclusion test's
@@ -506,12 +534,14 @@ try {
 			. "<tr class='xhl doubles4 stmhl-btn stm-6-190E7'><td>house</td><td>&nbsp;</td><td>&nbsp;<span class='value'>5</span></td><td align=right>&nbsp;<span class='value'>3.3%</span></td></tr>"
 			. "<tr class='xhl doubles5 top_notstop2 stmhl-btn stm-6-1088D'><td>ремонт</td><td><span class=mark>2</span></td><td>&nbsp;<span class='value'>13</span></td><td align=right>&nbsp;<span class='value'>12.9%</span></td></tr>"
 			. "<tr class='xhl top_and1 stmhl-btn stm-6-22906' title='Стоп-слово'><td>и</td><td><span class=mark>1</span></td><td>&nbsp;<span class='value'>10</span></td><td align=right>&nbsp;<span class='value'>9.9%</span></td></tr>"
+			. "<tr class=\"xhl doubles4 top_notstop1 stmhl-btn stm-5--d180d0bed183d182d0b5d180\" ><td>роутер</td><td>&nbsp;</td><td>&nbsp;<span class='value'>5</span></td><td align=right>&nbsp;<span class='value'>4.3%</span></td></tr>"
 			. '</table></div>'
 			. "<div id='bgrms_frq_stat'><table class='wstat'><tr><td>fast car</td><td><span class='value'>2</span></td></tr></table></div>"
 			. '</div></body></html>';
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $words_markup );
 		$frequency = $client->reportSectionDetails( 'abc12345', 'frequency' );
-		expect_true( 4 === count( $frequency['words'] ) && 'and' === $frequency['words'][0]['text'] && 3 === $frequency['words'][0]['count'] && '10.0%' === $frequency['words'][0]['percent'] && true === $frequency['words'][0]['stopword'], 'word repetition rows expose text, count, percentage and the stop-word flag' );
+		expect_true( array( 'stm-5--d180d0bed183d182d0b5d180' ) === $frequency['words'][4]['stems'], 'a row keyed by a word\'s UTF-8 hex ("stm-5--…", live shape for a word with no stem) keeps its stem' );
+		expect_true( 5 === count( $frequency['words'] ) && 'and' === $frequency['words'][0]['text'] && 3 === $frequency['words'][0]['count'] && '10.0%' === $frequency['words'][0]['percent'] && true === $frequency['words'][0]['stopword'], 'word repetition rows expose text, count, percentage and the stop-word flag' );
 		expect_true( ! array_key_exists( 'type', $frequency['words'][0] ), 'a plain stop-word row (no xhl class) carries no type/level' );
 		expect_true( 'doubles' === $frequency['words'][1]['type'] && 4 === $frequency['words'][1]['level'] && false === $frequency['words'][1]['stopword'], 'a repeated word row ("xhl doubles4") exposes the same type/level its in-text highlight uses, so the table can be colored to match' );
 		expect_true( 1 === count( $frequency['phrases'] ) && 'fast car' === $frequency['phrases'][0]['text'] && 2 === $frequency['phrases'][0]['count'], 'phrase repetition rows expose text and count, with no percentage' );
@@ -613,6 +643,66 @@ try {
 	expect_exception( static fn() => $client->request( 'delete-account' ), 'Unsupported' );
 	expect_exception( static fn() => $client->analyze( str_repeat( 'a', ApiClient::MAX_TEXT_LENGTH + 1 ) ), 'up to' );
 
+	// The provider's limit counts what a reader sees: the analysis payload's markup never does.
+	$paragraphs = array_fill( 0, 5000, 'абвгдежзи' );
+	$at_limit   = '<h2 class="wp-block-heading">' . implode( '</h2><p>', $paragraphs ) . 'к</p>';
+	respond( fixture_analysis() );
+	$GLOBALS['turgenev_remote_post_calls'] = 0;
+	$client->analyze( $at_limit );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'] && $at_limit === $GLOBALS['turgenev_last_request']['args']['body']['text'], 'a payload of exactly MAX_TEXT_LENGTH visible characters is sent unmodified, however long its markup' );
+	expect_true( strlen( $at_limit ) > ApiClient::MAX_TEXT_LENGTH * 2, 'test fixture: the markup makes the payload far longer than the limit' );
+	$GLOBALS['turgenev_remote_post_calls'] = 0;
+	expect_exception( static fn() => $client->analyze( str_replace( 'к</p>', 'кл</p>', $at_limit ) ), 'up to' );
+	expect_exception( static fn() => $client->analyze( '<p>' . implode( ' ', $paragraphs ) . ' &amp;&nbsp;' . str_repeat( 'x', 11 ) . '</p>' ), 'up to' );
+	expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], 'visible characters include decoded entities, and an oversized payload never reaches the provider' );
+	expect_exception( static fn() => $client->analyze( '<p title="' . str_repeat( 'x', ApiClient::MAX_PAYLOAD_BYTES ) . '">Короткий текст.</p>' ), 'up to' );
+	expect_true( 0 === $GLOBALS['turgenev_remote_post_calls'], 'a payload over MAX_PAYLOAD_BYTES is rejected however little of it is visible' );
+	// A long text takes the provider far longer than a balance check (live: ~28 s to analyze
+	// 45,000 characters, up to ~37 s for its overall report page).
+	respond( fixture_analysis() );
+	$client->analyze( '<p>Текст.</p>' );
+	expect_true( ApiClient::ANALYSIS_TIMEOUT === $GLOBALS['turgenev_last_request']['args']['timeout'] && ApiClient::ANALYSIS_TIMEOUT >= 60, 'an analysis waits long enough for the largest accepted text' );
+	respond( array( 'balance' => '1' ) );
+	$client->balance();
+	expect_true( ApiClient::BALANCE_TIMEOUT === $GLOBALS['turgenev_last_request']['args']['timeout'], 'a balance check keeps its short timeout' );
+	respond_html( '<textarea id="textfield"><p>Текст.</p></textarea>' );
+	try {
+		$client->reportHighlights( 'abc12345', 'Текст.' );
+	} catch ( ApiException $exception ) {
+		unset( $exception ); // DOM-less runs reject parsing; the request itself was still made.
+	}
+	expect_true( ApiClient::ANALYSIS_TIMEOUT === $GLOBALS['turgenev_last_request']['args']['timeout'], 'a report page fetch waits as long as an analysis' );
+	// An overloaded provider's gateway error on the free, read-only report page gets exactly
+	// one retry; a paid analysis never does.
+	$report_page = '<textarea id="textfield"><p>Текст.</p></textarea>';
+	$statuses    = array( 504, 200 );
+	$GLOBALS['turgenev_remote_post_calls'] = 0;
+	$GLOBALS['turgenev_http_handler']      = static function () use ( &$statuses, $report_page ) {
+		$code = array_shift( $statuses ) ?? 200;
+		return array( 'response' => array( 'code' => $code ), 'body' => 200 === $code ? $report_page : 'Gateway Timeout' );
+	};
+	try {
+		$client->reportHighlights( 'abc12345', 'Текст.' );
+	} catch ( ApiException $exception ) {
+		expect_true( str_contains( $exception->getMessage(), 'DOM' ), 'only a DOM-less run may still fail after a successful retry' );
+	}
+	expect_true( 2 === $GLOBALS['turgenev_remote_post_calls'], 'a 504 report page is fetched once more' );
+	$statuses = array( 503, 502 );
+	$GLOBALS['turgenev_remote_post_calls'] = 0;
+	expect_exception( static fn() => $client->reportSectionDetails( 'abc12345', 'overall' ), 'HTTP 502' );
+	expect_true( 2 === $GLOBALS['turgenev_remote_post_calls'], 'a report page is retried once, never more' );
+	$statuses = array( 404 );
+	$GLOBALS['turgenev_remote_post_calls'] = 0;
+	expect_exception( static fn() => $client->reportSectionDetails( 'abc12345', 'overall' ), 'HTTP 404' );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'a non-gateway error is not retried' );
+	$GLOBALS['turgenev_remote_post_calls'] = 0;
+	$GLOBALS['turgenev_http_handler']      = static fn() => array( 'response' => array( 'code' => 504 ), 'body' => '' );
+	expect_exception( static fn() => $client->analyze( '<p>Текст.</p>' ), 'HTTP 504' );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'a paid analysis is never retried' );
+	// Right at the limit the provider may still count a few characters differently.
+	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '{"error":"Слишком длинный текст"}' );
+	expect_exception( static fn() => $client->analyze( '<p>Текст.</p>' ), 'Turgenev accepts up to ' . ApiClient::MAX_TEXT_LENGTH . ' characters' );
+
 	$GLOBALS['turgenev_test_options']['turgenev'] = array();
 	$no_key = new ApiClient( new OptionStore() );
 	expect_exception( static fn() => $no_key->balance(), 'Configure' );
@@ -640,8 +730,29 @@ try {
 
 	$cleared = $settings->sanitizeSettings( array( 'clear_api_key' => '1' ) );
 	expect_true( array() === $cleared, 'explicit clear removes saved key' );
+	$GLOBALS['turgenev_remote_post_calls'] = 0;
+	$cleared_with_candidate = $settings->sanitizeSettings( array( 'api_key' => 'typed-but-deleted', 'clear_api_key' => '1' ) );
+	expect_true( array() === $cleared_with_candidate && 0 === $GLOBALS['turgenev_remote_post_calls'], 'the Delete API Key button wins over a key typed in the field, which is never even validated' );
 
-	expect_true( '••••••••-key' === $store->maskedApiKey(), 'masked key never returns the full secret' );
+	expect_true( '••••••••••••-key' === $store->maskedApiKey(), 'masked key never returns the full secret' );
+
+	// The settings form: a saved key is shown masked under the field, with a hint and a
+	// Delete API Key button beside "Save API key"; no key, no token line and no delete button.
+	$GLOBALS['test_caps'] = array( 'manage_options' );
+	$field = render_to_string( array( $settings, 'renderApiKeyField' ) );
+	$page  = render_to_string( array( $settings, 'renderPage' ) );
+	expect_true( str_contains( $field, 'Saved API key:' ) && str_contains( $field, '<code>••••••••••••-key</code>' ) && ! str_contains( $field, 'working-key' ), 'a saved key is shown under the field only as its masked suffix' );
+	expect_true( str_contains( $field, 'Leave this field empty to keep the currently saved API key.' ) && ! str_contains( $field, 'type="checkbox"' ), 'the hint replaces the old remove checkbox' );
+	expect_true( str_contains( $field, 'value=""' ) && str_contains( $field, 'type="password"' ), 'the key field itself is always rendered empty' );
+	expect_true( str_contains( $page, 'value="Save API key"' ) && ! str_contains( $page, 'Save Changes' ), 'the submit button reads "Save API key"' );
+	expect_true( 1 === preg_match( '~<button type="submit" name="turgenev\[clear_api_key\]" value="1" class="button button-secondary button-link-delete">Delete API Key</button>~', $page ), 'a saved key gets its Delete API Key button' );
+	expect_true( strpos( $page, 'value="Save API key"' ) < strpos( $page, 'Delete API Key' ), 'Save comes first, so Enter in the key field saves rather than deletes' );
+	$GLOBALS['turgenev_test_options']['turgenev'] = array();
+	$empty_field = render_to_string( array( $settings, 'renderApiKeyField' ) );
+	$empty_page  = render_to_string( array( $settings, 'renderPage' ) );
+	expect_true( ! str_contains( $empty_field, 'Saved API key:' ) && ! str_contains( $empty_page, 'clear_api_key' ) && str_contains( $empty_page, 'value="Save API key"' ), 'without a saved key there is nothing to show or delete' );
+	$GLOBALS['test_caps'] = array();
+	$GLOBALS['turgenev_test_options']['turgenev'] = array( 'api_key' => 'working-key' );
 
 	foreach ( array( null, true, array(), 'NaN', 'INF', '1e4', ' 1 ', '1.1.1' ) as $invalid ) {
 		respond( array( 'balance' => $invalid ) );
@@ -949,6 +1060,27 @@ try {
 		expect_true( 4194 === $dense['marks'][699]['start'], 'dense report offsets remain exact through the final fragment' );
 		$sections = $parser->parse( '<textarea id="textfield"><section><span class="xhl slop2">one</span></section><section><span class="xhl slop2">two</span></section></textarea>', 'one two' );
 		expect_true( 4 === $sections['marks'][1]['start'], 'HTML section boundaries match the editor whitespace model' );
+		// Live shape: the provider writes its own HTML serialization into the textarea, text
+		// escaped once (a literal "<" as `&lt;`, a literal "&amp;" as `&amp;amp;`), even in a
+		// tab without a single highlight. It is parsed once, never decoded first.
+		$escaped = $parser->parse( '<textarea id="textfield">Цена &lt; 10 и &gt; 5. Фирма A&amp;B, x&lt;y. Знак &amp;amp; и &amp;lt;тег&amp;gt; тут.</textarea>', 'Цена < 10 и > 5. Фирма A&B, x<y. Знак &amp; и &lt;тег&gt; тут.' );
+		expect_true( array() === $escaped['marks'], 'a report without highlights and with escaped text still matches the document' );
+		$escaped_marks = $parser->parse( "<textarea id='textfield'><p>Цена &lt; 10 и <span class='xhl fog1'>Знак</span> &amp;amp; тут.</p></textarea>", 'Цена < 10 и Знак &amp; тут.' );
+		expect_true( 12 === $escaped_marks['marks'][0]['start'] && 16 === $escaped_marks['marks'][0]['end'], 'escaped text keeps highlight offsets exact' );
+		// Live shape for ordinary HTML input: text escaped twice (the browser undoes one level).
+		$twice = $parser->parse( "<textarea id='textfield'><p>Цена &amp;lt; 100 &amp;amp; A&amp;amp;B, &amp;amp;amp; <span class='xhl fog1'>скидка</span></p></textarea>", 'Цена < 100 & A&B, &amp; скидка' );
+		expect_true( 1 === count( $twice['marks'] ) && 24 === $twice['marks'][0]['start'] && 30 === $twice['marks'][0]['end'], 'a doubly escaped report text matches the document and keeps exact offsets' );
+		// The provider drops invisible format characters: marks land on the document's own words.
+		$shy = $parser->parse( "<textarea id='textfield'><p><span class='xhl fog1'>переносом</span> и <span class='xhl stop1'>ноль</span>ширина</p></textarea>", "пере\u{00AD}носом и ноль\u{200B}ширина" );
+		expect_true( 0 === $shy['marks'][0]['start'] && 10 === $shy['marks'][0]['end'] && 13 === $shy['marks'][1]['start'] && 17 === $shy['marks'][1]['end'], 'a soft hyphen or zero-width space the provider dropped stays inside the document\'s mark' );
+		expect_true( "пере\u{00AD}носом и ноль\u{200B}ширина" === $shy['text'], 'an aligned report returns the document\'s own text' );
+		// Text that only looks like a tag becomes markup there (script content dropped, a <br> a line break).
+		$tags = $parser->parse( "<textarea id='textfield'> Тег <b>жирный</b> и  <span class='xhl stop1'>тоже</span>. Часть<br><span class='xhl fog1'>вторая</span>. </textarea>", 'Тег <b>жирный</b> и <script>alert(1)</script> тоже. Часть<br>вторая.' );
+		expect_true( 2 === count( $tags['marks'] ) && 46 === $tags['marks'][0]['start'] && 50 === $tags['marks'][0]['end'] && 61 === $tags['marks'][1]['start'] && 67 === $tags['marks'][1]['end'], 'literal tags the provider turned into markup are skipped, marks stay on the same words' );
+		// Any other difference is still a mismatch, never a guess.
+		expect_exception( static fn() => $parser->parse( "<textarea id='textfield'><p>другой <span class='xhl fog1'>текст</span></p></textarea>", 'этот текст' ), 'does not match' );
+		expect_exception( static fn() => $parser->parse( "<textarea id='textfield'><p>ab<span class='xhl fog1'>c</span></p></textarea>", 'abXc' ), 'does not match' );
+		expect_exception( static fn() => $parser->parse( "<textarea id='textfield'><p>ab <span class='xhl fog1'>c</span></p></textarea>", 'ab <i> c d' ), 'does not match' );
 		$bom = $parser->parse( "<textarea id=\"textfield\"><p>\u{FEFF}<span class=\"xhl slop2\">😀 слово</span>\u{FEFF}</p></textarea>", '😀 слово' );
 		expect_true( 0 === $bom['marks'][0]['start'] && 8 === $bom['marks'][0]['end'], 'editor zero-width no-break spaces do not shift UTF-16 highlights' );
 
@@ -983,6 +1115,8 @@ try {
 		expect_true( array( 'category' => 'frequency', 'type' => 'top_notstop', 'level' => 2, 'classes' => array( 'top_notstop2', 'doubles5' ), 'xhint' => false, 'stems' => array( 'stm-6-1088D', 'stm-6-EE20' ) ) === $pick( 2 ), 'an over-frequent repeated word is painted as "top_notstop2" and keeps its stems once each' );
 		expect_true( 'fog' === $pick( 3 )['type'] && array( 'doubles9', 'fog1' ) === $pick( 3 )['classes'], 'a class with no color rule never overrides one that has' );
 		expect_true( true === $pick( 4 )['xhint'] && false === $pick( 5 )['xhint'], 'the bare "xhint" class (the provider\'s underline) is reported, a numbered one is not it' );
+		$hex_stem = $parser->parse( "<textarea id='textfield'><span class='xhl top_notstop1 doubles4 stm-5--d180d0bed183d182d0b5d180'>Роутер</span> <span class='xhl doubles4 stm-5-x stm-5---1 stm--1 stm-5-12g'>тут</span></textarea>", 'Роутер тут' );
+		expect_true( array( 'stm-5--d180d0bed183d182d0b5d180' ) === $hex_stem['marks'][0]['stems'] && array() === $hex_stem['marks'][1]['stems'], 'a word keyed by its UTF-8 hex ("stm-5--…") keeps its stem; other malformed stems are still dropped' );
 	} else {
 		// DOM-absent: direct parser construction with no override still resolves the real
 		// (false) capability and rejects gracefully, rather than fatally erroring on a

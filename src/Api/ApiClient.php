@@ -13,10 +13,25 @@ defined( 'ABSPATH' ) || exit;
 
 /** Owns provider transport, size limits and operation validation. */
 final class ApiClient {
-	public const ENDPOINT          = 'https://turgenev.ashmanov.com/';
-	public const REPORT_BASE_URL   = 'https://turgenev.ashmanov.com/?t=';
-	public const MAX_TEXT_LENGTH   = 20000;
+	public const ENDPOINT        = 'https://turgenev.ashmanov.com/';
+	public const REPORT_BASE_URL = 'https://turgenev.ashmanov.com/?t=';
+	/**
+	 * Visible characters per check: the provider's own editor refuses anything longer, and
+	 * its API answers "Слишком длинный текст" from 50,000 on (confirmed live). Markup around
+	 * the text never counts toward it.
+	 */
+	public const MAX_TEXT_LENGTH   = 50000;
 	public const MAX_REPORT_LENGTH = 1048576;
+	/** Upper bound on a raw payload, markup included, independent of its visible length. */
+	public const MAX_PAYLOAD_BYTES = 1048576;
+	/**
+	 * Seconds to wait for an analysis or a report page. Measured live on a 45,000-character
+	 * text: 26-28 s for `risk` and up to 37 s for its "Overall risk" report page; the
+	 * provider's own site waits as long as it takes.
+	 */
+	public const ANALYSIS_TIMEOUT = 90;
+	/** Seconds to wait for the balance, which never depends on a text. */
+	public const BALANCE_TIMEOUT = 20;
 
 	/**
 	 * Maps each analysis section to the provider's report tab identifier.
@@ -87,7 +102,7 @@ final class ApiClient {
 	 * @throws ApiException On invalid content or response.
 	 */
 	public function analyze( string $text, bool $more = true ): array {
-		$text = $this->validateTextPayload( $text );
+		$text = $this->validateTextPayload( $text, true );
 
 		return ResponseValidator::analysis(
 			$this->request(
@@ -111,7 +126,7 @@ final class ApiClient {
 	 */
 	public function reportHighlights( string $report_token, string $expected_text ): array {
 		$report_token  = ResponseValidator::token( $report_token );
-		$expected_text = $this->validateTextPayload( $expected_text );
+		$expected_text = $this->validateTextPayload( $expected_text, false );
 		$markup        = $this->fetchReportMarkup( $report_token );
 
 		return ( new ReportHighlightParser() )->parse( $markup, $expected_text );
@@ -150,29 +165,13 @@ final class ApiClient {
 	 * @return string
 	 */
 	private function fetchReportMarkup( string $report_token, array $extra_body = array() ): string {
-		$response = wp_remote_post(
-			self::ENDPOINT,
-			array(
-				'timeout'             => 20,
-				'redirection'         => 0,
-				'limit_response_size' => self::MAX_REPORT_LENGTH + 1,
-				'httpversion'         => '1.1',
-				'sslverify'           => true,
-				'headers'             => array(
-					'Accept'     => 'text/html',
-					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION,
-				),
-				'body'                => array_merge(
-					array(
-						't'         => $report_token,
-						'keep_isum' => '',
-						'scroll_x'  => '',
-						'scroll_y'  => '',
-					),
-					$extra_body
-				),
-			)
-		);
+		// The report page is a free, read-only view of an analysis already paid for, so a
+		// gateway error the provider answers with while it is overloaded (live: HTTP 504 for
+		// a 45,000-character report requested alongside others) is worth exactly one retry.
+		$response = $this->postReportForm( $report_token, $extra_body );
+		if ( ! is_wp_error( $response ) && in_array( (int) wp_remote_retrieve_response_code( $response ), array( 502, 503, 504 ), true ) ) {
+			$response = $this->postReportForm( $report_token, $extra_body );
+		}
 
 		if ( is_wp_error( $response ) ) {
 			throw new ApiException( __( 'Could not retrieve the Turgenev report. Try again later.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
@@ -195,6 +194,39 @@ final class ApiClient {
 		}
 
 		return $markup;
+	}
+
+	/**
+	 * Submit the provider's read-only report form once.
+	 *
+	 * @param string               $report_token Already-validated opaque report identifier.
+	 * @param array<string, mixed> $extra_body Additional POST fields merged into the request.
+	 * @return array<string, mixed>|\WP_Error
+	 */
+	private function postReportForm( string $report_token, array $extra_body ) {
+		return wp_remote_post(
+			self::ENDPOINT,
+			array(
+				'timeout'             => self::ANALYSIS_TIMEOUT,
+				'redirection'         => 0,
+				'limit_response_size' => self::MAX_REPORT_LENGTH + 1,
+				'httpversion'         => '1.1',
+				'sslverify'           => true,
+				'headers'             => array(
+					'Accept'     => 'text/html',
+					'User-Agent' => 'Turgenev-WordPress/' . TURGENEV_VERSION,
+				),
+				'body'                => array_merge(
+					array(
+						't'         => $report_token,
+						'keep_isum' => '',
+						'scroll_x'  => '',
+						'scroll_y'  => '',
+					),
+					$extra_body
+				),
+			)
+		);
 	}
 
 	/**
@@ -227,7 +259,7 @@ final class ApiClient {
 		$response = wp_remote_post(
 			self::ENDPOINT,
 			array(
-				'timeout'             => 20,
+				'timeout'             => 'balance' === $operation ? self::BALANCE_TIMEOUT : self::ANALYSIS_TIMEOUT,
 				'redirection'         => 0,
 				'limit_response_size' => self::MAX_REPORT_LENGTH + 1,
 				'httpversion'         => '1.1',
@@ -279,6 +311,11 @@ final class ApiClient {
 			if ( preg_match( '/balanc|fund|credit|баланс|средств|денег/iu', $error ) ) {
 				throw new ApiException( __( 'Turgenev reports insufficient balance. Top up your account and try again.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 			}
+			// "Слишком длинный текст": the provider may count a few characters differently
+			// (e.g. whitespace) than validateTextPayload() does right at the limit.
+			if ( preg_match( '/длинн|too long/iu', $error ) ) {
+				throw new ApiException( $this->lengthMessage() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
+			}
 			throw new ApiException( __( 'Turgenev rejected the request. Check the API key and account status in Settings → Turgenev.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
@@ -311,10 +348,12 @@ final class ApiClient {
 	 * (e.g. ASCII) payloads through at up to 4x the intended character limit.
 	 *
 	 * @param string $text Untrusted document text.
+	 * @param bool   $markup Whether `$text` is an analysis payload the provider reads as HTML
+	 *                       (only its visible text counts) rather than already-plain text.
 	 * @throws ApiException On empty content, invalid encoding or an oversized payload.
 	 * @return string Trimmed, validated text.
 	 */
-	private function validateTextPayload( string $text ): string {
+	private function validateTextPayload( string $text, bool $markup ): string {
 		$text = trim( $text );
 
 		if ( '' === $text ) {
@@ -325,16 +364,37 @@ final class ApiClient {
 			throw new ApiException( __( 'The content contains invalid text encoding.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
-		if ( preg_match_all( '/./us', $text ) > self::MAX_TEXT_LENGTH ) {
-			throw new ApiException(
-				sprintf(
-					/* translators: %d: maximum character count. */
-					__( 'Turgenev accepts up to %d characters per check.', 'turgenev' ), // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
-					self::MAX_TEXT_LENGTH // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
-				)
-			);
+		$length = $markup ? self::visibleLength( $text ) : preg_match_all( '/./us', $text );
+		if ( $length > self::MAX_TEXT_LENGTH || strlen( $text ) > self::MAX_PAYLOAD_BYTES ) {
+			throw new ApiException( $this->lengthMessage() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
 		return $text;
+	}
+
+	/**
+	 * Count the characters a reader sees in an HTML payload, with the browser text model's
+	 * rules (client.ts `textModel()`): block elements separate words, whitespace collapses.
+	 *
+	 * @param string $html Payload the provider reads as HTML.
+	 * @return int Unicode characters.
+	 */
+	private static function visibleLength( string $html ): int {
+		$text = (string) preg_replace( '~<!--.*?(?:-->|$)|<(script|style|template|noscript|svg|canvas|iframe)\b.*?(?:</\1\s*>|$)~is', ' ', $html );
+		$text = (string) preg_replace( '~</?(?:' . ReportHighlightParser::BLOCK_ELEMENTS . ')\b(?:[^>"\']|"[^"]*"|\'[^\']*\')*>~i', ' ', $text );
+		$text = (string) preg_replace( '~</?[a-z][^\s/>]*(?:[^>"\']|"[^"]*"|\'[^\']*\')*>~i', '', $text );
+		$text = html_entity_decode( $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$text = trim( (string) preg_replace( ReportHighlightParser::WHITESPACE, ' ', $text ) );
+
+		return (int) preg_match_all( '/./us', $text );
+	}
+
+	/** The one message for every content-size rejection, local or provider-side. */
+	private function lengthMessage(): string {
+		return sprintf(
+			/* translators: %d: maximum character count. */
+			__( 'Turgenev accepts up to %d characters per check.', 'turgenev' ),
+			self::MAX_TEXT_LENGTH
+		);
 	}
 }

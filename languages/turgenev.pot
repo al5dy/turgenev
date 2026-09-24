@@ -13,10 +13,6 @@ msgstr ""
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: manual\n"
 "X-Domain: turgenev\n"
-#: src/Admin/SettingsPage.php:224
-msgid "A key is already configured. Enter a new one only to rotate it."
-msgstr ""
-
 #: assets/build/editor-content.js
 msgid "A synced pattern is not loaded or is unavailable. Load the pattern before analyzing the document."
 msgstr ""
@@ -202,20 +198,12 @@ msgstr ""
 msgid "Refresh balance"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:233
-msgid "Remove the saved API key"
-msgstr ""
-
 #: assets/build/analysis.js
 msgid "Reset view"
 msgstr ""
 
 #: assets/build/client.js
 msgid "Risk"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:193
-msgid "Saved key:"
 msgstr ""
 
 #: src/Api/ReportSectionParser.php:83
@@ -474,4 +462,49 @@ msgstr ""
 #. Author URI of the plugin
 #: turgenev.php
 msgid "https://ziscod.com"
+msgstr ""
+
+#: assets/build/client.js
+msgid "Dismiss this notice."
+msgstr ""
+
+#: assets/build/client.js
+#: assets/build/editor.js
+msgid "More information"
+msgstr ""
+
+#: assets/build/client.js
+msgid "Risk is critical! What to do?"
+msgstr ""
+
+#: assets/build/client.js
+msgid "Risk is high. What to do?"
+msgstr ""
+
+#: assets/build/client.js
+msgid "Stop word"
+msgstr ""
+
+#: assets/build/client.js
+msgid "Words:"
+msgstr ""
+
+#: assets/build/client.js
+msgid "The text is too short. Risk is not assessed."
+msgstr ""
+
+#: src/Admin/SettingsPage.php
+msgid "Saved token:"
+msgstr ""
+
+#: src/Admin/SettingsPage.php
+msgid "Leave this field empty to keep the currently saved API key."
+msgstr ""
+
+#: src/Admin/SettingsPage.php
+msgid "Save API key"
+msgstr ""
+
+#: src/Admin/SettingsPage.php
+msgid "Delete API Key"
 msgstr ""

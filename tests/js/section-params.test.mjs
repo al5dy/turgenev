@@ -485,7 +485,15 @@ test( 'the overall section shows the analyzed word count next to the verdict, wh
 	const wrap = renderSectionContent( 'overall', { params: [], wordCount: 51 }, riskResult );
 	const count = wrap.children.find( ( c ) => c.className === 'turgenev-section-word-count' );
 	assert.ok( count, 'word count element missing' );
-	assert.match( count.textContent, /51/ );
+	assert.equal( count.textContent, 'Words: 51', 'labelled like the provider\'s own counter' );
+} );
+
+test( 'a text too short to assess shows the provider\'s own message instead of a verdict', () => {
+	const { renderSectionContent } = ui();
+	const short = renderSectionContent( 'overall', { params: [], tooShort: true }, { ...riskResult, level: 'минимальный', risk: '0' } );
+	assert.equal( short.children.find( ( c ) => c.className === 'turgenev-section-verdict' ).textContent, 'The text is too short. Risk is not assessed.' );
+	const assessed = renderSectionContent( 'overall', { params: [], tooShort: false }, { ...riskResult, level: 'минимальный', risk: '0' } );
+	assert.equal( assessed.children.find( ( c ) => c.className === 'turgenev-section-verdict' ).textContent, 'Risk минимальный (0)' );
 } );
 
 test( 'no word count element appears when the provider did not supply one', () => {

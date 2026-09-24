@@ -165,8 +165,16 @@ final class SettingsPage {
 				<?php
 				settings_fields( 'turgenev-options' );
 				do_settings_sections( 'turgenev-settings' );
-				submit_button();
 				?>
+				<p class="submit">
+					<?php
+					// First in the form, so pressing Enter in the key field saves rather than deletes.
+					submit_button( __( 'Save API key', 'turgenev' ), 'primary', 'submit', false );
+					?>
+					<?php if ( $this->options->hasApiKey() ) : ?>
+						<button type="submit" name="turgenev[clear_api_key]" value="1" class="button button-secondary button-link-delete"><?php esc_html_e( 'Delete API Key', 'turgenev' ); ?></button>
+					<?php endif; ?>
+				</p>
 			</form>
 		</div>
 		<?php
@@ -189,10 +197,6 @@ final class SettingsPage {
 		if ( $this->options->hasApiKey() ) {
 			?>
 			<div id="turgenev-panel" class="turgenev-status-card" data-turgenev-settings="1">
-				<p>
-					<strong><?php esc_html_e( 'Saved key:', 'turgenev' ); ?></strong>
-					<code><?php echo esc_html( $this->options->maskedApiKey() ); ?></code>
-				</p>
 				<p>
 					<strong><?php esc_html_e( 'Current balance:', 'turgenev' ); ?></strong>
 					<span id="turgenev-balance" aria-live="polite">…</span>
@@ -218,21 +222,21 @@ final class SettingsPage {
 			spellcheck="false"
 			placeholder="<?php echo $has_key ? esc_attr__( 'Leave blank to keep the saved key', 'turgenev' ) : esc_attr__( 'Paste API key', 'turgenev' ); ?>"
 		/>
+		<?php if ( $has_key ) : ?>
+			<p class="turgenev-saved-key">
+				<?php esc_html_e( 'Saved API key:', 'turgenev' ); ?>
+				<code><?php echo esc_html( $this->options->maskedApiKey() ); ?></code>
+			</p>
+		<?php endif; ?>
 		<p class="description">
 			<?php
 			if ( $has_key ) {
-				esc_html_e( 'A key is already configured. Enter a new one only to rotate it.', 'turgenev' );
+				esc_html_e( 'Leave this field empty to keep the currently saved API key.', 'turgenev' );
 			} else {
 				esc_html_e( 'The key is verified with the balance endpoint before it is stored.', 'turgenev' );
 			}
 			?>
 		</p>
-		<?php if ( $has_key ) : ?>
-			<label>
-				<input type="checkbox" name="turgenev[clear_api_key]" value="1" />
-				<?php esc_html_e( 'Remove the saved API key', 'turgenev' ); ?>
-			</label>
-		<?php endif; ?>
 		<?php
 	}
 

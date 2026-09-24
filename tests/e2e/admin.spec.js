@@ -32,11 +32,7 @@ async function submitApiKeyForm( page, { newKey = '', clear = false } = {} ) {
 	if ( newKey ) {
 		await page.locator( '#turgenev-api-key' ).fill( newKey );
 	}
-	const clearCheckbox = page.locator( 'input[name="turgenev[clear_api_key]"]' );
-	if ( clear && ( await clearCheckbox.count() ) > 0 ) {
-		await clearCheckbox.check();
-	}
-	await page.getByRole( 'button', { name: /Save Changes/i } ).click();
+	await page.getByRole( 'button', { name: clear ? /Delete API Key/i : /Save API key/i } ).click();
 	await page.waitForLoadState( 'networkidle' );
 }
 
@@ -72,7 +68,8 @@ test.describe( 'API key save/rotate/clear', () => {
 
 		expect( getSavedApiKey() ).toBe( candidate );
 		expect( await page.content() ).not.toContain( candidate );
-		await expect( page.locator( 'input[name="turgenev[clear_api_key]"]' ) ).toBeVisible();
+		await expect( page.locator( '.turgenev-saved-key' ) ).toContainText( 'Saved API key: ••••••••••••' + candidate.slice( -4 ) );
+		await expect( page.getByRole( 'button', { name: /Delete API Key/i } ) ).toBeVisible();
 	} );
 
 	test( 'a blank field preserves the currently saved key', async ( { page } ) => {
@@ -81,7 +78,7 @@ test.describe( 'API key save/rotate/clear', () => {
 		test.skip( original !== getSavedApiKey(), 'wp-cli is required (set WP_TEST_ROOT).' );
 		await login( page );
 
-		await submitApiKeyForm( page ); // No key typed, checkbox left unchecked.
+		await submitApiKeyForm( page ); // No key typed.
 
 		expect( getSavedApiKey() ).toBe( original );
 		expect( await page.content() ).not.toContain( original );
@@ -129,6 +126,7 @@ test.describe( 'API key save/rotate/clear', () => {
 
 		expect( getSavedApiKey() ?? '' ).toBe( '' );
 		expect( await page.content() ).not.toContain( original );
-		await expect( page.locator( 'input[name="turgenev[clear_api_key]"]' ) ).toHaveCount( 0 );
+		await expect( page.getByRole( 'button', { name: /Delete API Key/i } ) ).toHaveCount( 0 );
+		await expect( page.locator( '.turgenev-saved-key' ) ).toHaveCount( 0 );
 	} );
 } );

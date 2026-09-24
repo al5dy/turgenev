@@ -81,6 +81,24 @@
 	background: #fff;
 }
 
+// WordPress's destructive red: the admin color scheme's `.button-secondary`
+// color otherwise wins over core's `.button-link-delete`, and the delete
+// action would look like any other button.
+.turgenev-settings .button.button-link-delete {
+	border-color: #d63638;
+	color: #d63638;
+
+	&:hover,
+	&:focus {
+		border-color: #b32d2e;
+		color: #b32d2e;
+	}
+}
+
+.turgenev-saved-key {
+	margin: 6px 0 0;
+}
+
 .turgenev-message:empty {
 	display: none;
 }
