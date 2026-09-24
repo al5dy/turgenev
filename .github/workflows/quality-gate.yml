@@ -1,8 +1,5 @@
 name: Quality gate
 
-# Reusable only. ci.yml calls this on every push/PR, and release.yml calls the exact same
-# jobs before a tag push is allowed to publish a GitHub Release, so the two can never
-# silently drift into checking different things.
 on:
   workflow_call:
 
@@ -16,118 +13,282 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: [ '8.1', '8.4' ]
+        php:
+          - '8.1'
+          - '8.2'
+          - '8.3'
+          - '8.4'
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           tools: composer:v2
           coverage: none
-          # dom/xmlwriter/simplexml back ReportHighlightParser's normal (DOM-present) path;
-          # mbstring/zip are used by tooling. All are bundled by default on most PHP builds,
-          # but installed explicitly so CI never silently runs a reduced-capability PHP.
-          extensions: dom, mbstring, zip, xmlwriter, simplexml
-      - run: php tools/check-php-syntax.php
-      - run: php tools/check-version.php
-      - run: php tests/php/run.php
-      # Explicit no-DOM scenario (see Support\Requirements::hasDom()): proves the suite
-      # itself degrades correctly (analysis/balance unaffected, highlight parsing rejects
-      # gracefully) rather than only ever exercising the ext-dom-present branch, without
-      # needing a second PHP build that actually lacks the extension.
-      - run: TURGENEV_FORCE_NO_DOM=1 php tests/php/run.php
-      - run: composer install --no-interaction --prefer-dist --no-progress
-      - run: composer lint
+          extensions: dom, mbstring, zip, xmlreader, xmlwriter, simplexml
+
+      - name: Validate Composer metadata
+        run: composer validate --strict
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Check PHP syntax
+        run: php tools/check-php-syntax.php
+
+      - name: Check version consistency
+        run: php tools/check-version.php
+
+      - name: Run PHP regression tests
+        run: php tests/php/run.php
+
+      - name: Run PHP regression tests without DOM capability
+        run: TURGENEV_FORCE_NO_DOM=1 php tests/php/run.php
+
+      - name: Run PHPCS / WPCS
+        run: composer lint
 
   javascript:
     name: JavaScript / CSS
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: npm ci --no-audit --no-fund
-      # Type-checks resources/ts before testing the committed assets/build output below.
-      - run: npm run lint:js
-      - run: npm run check:syntax
-      - run: npm run test:js
-      - run: npm run test:browser
-      - run: npm run lint:css
-      - run: npm run lint:pkg-json
-      - run: npm run build
-      # Generated-state gate: the working tree must be byte-identical to what was
-      # already committed. Fails on stale/missing committed assets or translation
-      # catalogs, and does not depend on any earlier step being complete or
-      # correct — any file `build` touches at all fails the job.
-      - run: git diff --exit-code -- assets/build languages
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript typecheck
+        run: npm run lint:js
+
+      - name: Check JavaScript syntax
+        run: npm run check:syntax
+
+      - name: Run JavaScript regression tests
+        run: npm run test:js
+
+      - name: Lint CSS
+        run: npm run lint:css
+
+      - name: Validate package.json
+        run: npm run lint:pkg-json
+
+      - name: Build runtime assets
+        run: npm run build
+
+      - name: Verify committed runtime assets are current
+        run: git diff --exit-code -- assets/build languages
 
   wordpress-e2e:
-    name: WordPress E2E (wp-env)
+    name: WordPress E2E
     runs-on: ubuntu-latest
-    needs: [ php, javascript ]
+    needs:
+      - php
+      - javascript
+    timeout-minutes: 20
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: npm ci --no-audit --no-fund
-      - name: Install Playwright browsers
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      # Disposable WordPress via wp-env (Docker), never a production Turgenev account.
-      # .wp-env.json mounts this checkout as the plugin under test and installs
-      # tests/e2e/mu-plugins/turgenev-e2e-support.php as an mu-plugin, which intercepts
-      # every outbound request to the real Turgenev endpoint via `pre_http_request` and
-      # returns canned fixtures — no real provider credentials or network calls are used.
+
+      - name: Install browser-smoke Chromium
+        run: npx playwright-cli install-browser chromium
+
       - name: Start disposable WordPress
         run: npx wp-env start
-      - name: Resolve the wp-env WordPress path for wp-cli
+
+      - name: Resolve WordPress installation path
         id: wp-env-path
-        run: echo "root=$(npx wp-env install-path)/WordPress" >> "$GITHUB_OUTPUT"
-      - name: Run the WordPress E2E suite
+        shell: bash
+        run: |
+          WP_ROOT="$(npx wp-env install-path)/WordPress"
+
+          if [[ ! -f "$WP_ROOT/wp-includes/assets/script-loader-packages.php" ]]; then
+            echo "Invalid wp-env WordPress root: $WP_ROOT"
+            find "$(npx wp-env install-path)" -maxdepth 3 -type f -name 'script-loader-packages.php' -print || true
+            exit 1
+          fi
+
+          echo "root=$WP_ROOT" >> "$GITHUB_OUTPUT"
+          echo "Resolved WordPress root: $WP_ROOT"
+
+      - name: Wait for WordPress
+        shell: bash
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error \
+              --max-time 5 \
+              http://127.0.0.1:8888/wp-login.php >/dev/null; then
+              echo "WordPress is ready."
+              exit 0
+            fi
+
+            echo "Waiting for WordPress ($attempt/30)..."
+            sleep 2
+          done
+
+          echo "WordPress did not become ready in time."
+          npx wp-env logs --watch=false || true
+          exit 1
+
+      - name: Run browser smoke suite
         env:
           WP_TEST_ROOT: ${{ steps.wp-env-path.outputs.root }}
-          # wp-env's own fixed development-environment credentials; not a real account.
+        run: npm run test:browser
+
+      - name: Run real WordPress E2E suite
+        env:
+          WP_TEST_ROOT: ${{ steps.wp-env-path.outputs.root }}
           WP_ADMIN_USER: admin
           WP_ADMIN_PASSWORD: password
-          WP_BASE_URL: http://localhost:8888
+          WP_BASE_URL: http://127.0.0.1:8888
         run: npm run test:e2e
-      - name: Stop WordPress
-        if: always()
-        run: npx wp-env stop
-      - name: Upload Playwright report on failure
+
+      - name: Capture wp-env logs on failure
+        if: failure()
+        run: npx wp-env logs --watch=false > wp-env.log 2>&1 || true
+
+      - name: Upload E2E diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: turgenev-e2e-report
+          name: turgenev-e2e-diagnostics
           path: |
             playwright-report
             test-results
+            output
+            wp-env.log
+            ${{ steps.wp-env-path.outputs.root }}/wp-content/debug.log
           if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Stop WordPress
+        if: always()
+        run: npx wp-env stop
 
   package:
     name: Build release ZIP
     runs-on: ubuntu-latest
-    needs: [ php, javascript, wordpress-e2e ]
+    needs:
+      - php
+      - javascript
+      - wordpress-e2e
+    timeout-minutes: 10
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: shivammathur/setup-php@v2
+          cache: npm
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
           php-version: '8.1'
-      # build-zip.sh rebuilds resources/ via Parcel and diffs the result against
-      # the already-committed assets/build before packaging, so it fails loudly
-      # instead of silently packaging stale or hand-edited output.
-      - run: bash tools/build-zip.sh
-      - run: git diff --exit-code -- assets/build languages
+          coverage: none
+          extensions: zip
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build release ZIP
+        run: bash tools/build-zip.sh
+
+      - name: Verify generated assets remain synchronized
+        run: git diff --exit-code -- assets/build languages
+
+      - name: Resolve release ZIP
+        id: package
+        shell: bash
+        run: |
+          ZIP="$(find dist -maxdepth 1 -type f -name 'turgenev-*.zip' -print -quit)"
+
+          if [[ -z "$ZIP" || ! -f "$ZIP" ]]; then
+            echo "Release ZIP was not created."
+            find dist -maxdepth 1 -type f -print || true
+            exit 1
+          fi
+
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "Release ZIP: $ZIP"
+
       - name: Verify ZIP integrity
-        run: unzip -t dist/*.zip
-      - name: Verify every PHP-enqueued runtime asset is packaged
-        run: node tools/verify-release-assets.mjs dist/*.zip
-      - uses: actions/upload-artifact@v4
+        run: unzip -t "${{ steps.package.outputs.zip }}"
+
+      - name: Verify required runtime assets
+        run: node tools/verify-release-assets.mjs "${{ steps.package.outputs.zip }}"
+
+      - name: Verify release package contents
+        shell: bash
+        run: |
+          ZIP="${{ steps.package.outputs.zip }}"
+          unzip -Z1 "$ZIP" > /tmp/turgenev-release-files.txt
+          cat /tmp/turgenev-release-files.txt
+
+          REQUIRED_FILES=(
+            "turgenev/turgenev.php"
+            "turgenev/readme.txt"
+            "turgenev/uninstall.php"
+            "turgenev/LICENSE"
+          )
+
+          for REQUIRED in "${REQUIRED_FILES[@]}"; do
+            grep -Fxq "$REQUIRED" /tmp/turgenev-release-files.txt || {
+              echo "Missing required release file: $REQUIRED"
+              exit 1
+            }
+          done
+
+          if grep -Eq \
+            '(^|/)(\.git|\.github|\.idea|\.vscode|\.playwright-cli|tests|docs|tools|node_modules|vendor|dist|output|test-results|playwright-report|coverage)(/|$)|(^|/)(composer\.(json|lock)|package(-lock)?\.json|README\.md|phpcs\.xml\.dist|playwright\.config\.(js|mjs|ts)|tsconfig\.json)$' \
+            /tmp/turgenev-release-files.txt; then
+            echo "Development-only files found in release ZIP."
+            exit 1
+          fi
+
+      - name: Verify SHA-256 manifest
+        shell: bash
+        run: |
+          SHA_FILE="${{ steps.package.outputs.zip }}.sha256"
+          test -f "$SHA_FILE"
+          (
+            cd "$(dirname "$SHA_FILE")"
+            sha256sum --check "$(basename "$SHA_FILE")"
+          )
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
         with:
           name: turgenev-release
-          path: dist/*.zip
+          path: |
+            ${{ steps.package.outputs.zip }}
+            ${{ steps.package.outputs.zip }}.sha256
           if-no-files-found: error
+          retention-days: 14

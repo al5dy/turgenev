@@ -1,12 +1,17 @@
 {
-	"core": null,
-	"plugins": [ "." ],
-	"mappings": {
-		"wp-content/mu-plugins/turgenev-e2e-support.php": "./tests/e2e/mu-plugins/turgenev-e2e-support.php"
-	},
-	"config": {
-		"WP_DEBUG": true,
-		"WP_DEBUG_LOG": true
-	},
-	"port": 8888
+  "$schema": "https://schemas.wp.org/trunk/wp-env.json",
+  "core": "https://wordpress.org/wordpress-7.1.1.zip",
+  "phpVersion": "8.2",
+  "plugins": [
+    "."
+  ],
+  "mappings": {
+    "wp-content/mu-plugins/turgenev-e2e-support.php": "./tests/e2e/mu-plugins/turgenev-e2e-support.php"
+  },
+  "config": {
+    "WP_DEBUG": true,
+    "WP_DEBUG_LOG": true,
+    "SCRIPT_DEBUG": false
+  },
+  "port": 8888
 }

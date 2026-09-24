@@ -2,12 +2,19 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - master
   pull_request:
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality-gate:

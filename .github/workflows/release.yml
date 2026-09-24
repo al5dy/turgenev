@@ -9,41 +9,123 @@ permissions:
   contents: read
 
 jobs:
-  # A tag push must clear the exact same quality gate as an ordinary CI run — PHP syntax,
-  # version consistency, PHP tests, PHPCS/WPCS, JS syntax, JS tests, JS/CSS/package.json
-  # lint, generated-asset consistency, build and package build — before a release is even
-  # considered. This calls the same reusable workflow ci.yml calls, not a hand-copied
-  # approximation of it, so the two cannot silently drift apart.
   quality-gate:
     uses: ./.github/workflows/quality-gate.yml
 
   publish:
     name: Publish GitHub Release
-    needs: quality-gate
+    needs:
+      - quality-gate
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Verify tag commit belongs to master
+        shell: bash
+        run: |
+          git fetch origin master
+
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "Release tag must point to a commit contained in master."
+            exit 1
+          fi
+
+      - name: Validate release version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+          php tools/check-version.php
+
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+
+          if [[ "$VERSION" != "$PACKAGE_VERSION" ]]; then
+            echo "Tag version $VERSION != project version $PACKAGE_VERSION"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.1'
-      - uses: actions/download-artifact@v4
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Download tested release artifact
+        uses: actions/download-artifact@v4
         with:
           name: turgenev-release
           path: dist
-      - run: php tools/check-version.php
-      # Re-verify the artifact actually downloaded for this job, not just the one the
-      # quality-gate job happened to build: catches corruption in upload/download and
-      # any gap between what was checked and what is about to be published.
-      - name: Verify ZIP integrity
-        run: unzip -t dist/*.zip
-      - name: Verify every PHP-enqueued runtime asset is packaged
-        run: node tools/verify-release-assets.mjs dist/*.zip
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*.zip
-          generate_release_notes: true
+
+      - name: Verify downloaded release artifact
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ZIP="dist/turgenev-${VERSION}.zip"
+          SHA_FILE="${ZIP}.sha256"
+
+          test -f "$ZIP"
+          test -f "$SHA_FILE"
+
+          unzip -t "$ZIP"
+
+          (
+            cd dist
+            sha256sum --check "$(basename "$SHA_FILE")"
+          )
+
+          node tools/verify-release-assets.mjs "$ZIP"
+
+          unzip -Z1 "$ZIP" > /tmp/turgenev-release-files.txt
+
+          REQUIRED_FILES=(
+            "turgenev/turgenev.php"
+            "turgenev/readme.txt"
+            "turgenev/uninstall.php"
+            "turgenev/LICENSE"
+          )
+
+          for REQUIRED in "${REQUIRED_FILES[@]}"; do
+            grep -Fxq "$REQUIRED" /tmp/turgenev-release-files.txt || {
+              echo "Missing required release file: $REQUIRED"
+              exit 1
+            }
+          done
+
+          if grep -Eq \
+            '(^|/)(\.git|\.github|\.idea|\.vscode|\.playwright-cli|tests|docs|tools|node_modules|vendor|dist|output|test-results|playwright-report|coverage)(/|$)|(^|/)(composer\.(json|lock)|package(-lock)?\.json|README\.md|phpcs\.xml\.dist|playwright\.config\.(js|mjs|ts)|tsconfig\.json)$' \
+            /tmp/turgenev-release-files.txt; then
+            echo "Development-only files found in release ZIP."
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/turgenev-${VERSION}.zip" \
+            "dist/turgenev-${VERSION}.zip.sha256" \
+            --title "Turgenev ${VERSION}" \
+            --generate-notes \
+            --verify-tag
