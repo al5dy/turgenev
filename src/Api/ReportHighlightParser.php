@@ -14,8 +14,8 @@ defined( 'ABSPATH' ) || exit;
 /** Converts untrusted provider markup to validated text offsets, never HTML. */
 final class ReportHighlightParser {
 	private const MAX_MARKS = 20000;
-	/** The provider has only ever been seen tying one span into two fragments; this bounds untrusted markup. */
-	private const MAX_FRAGMENTS = 8;
+	/** Bounds each per-span class list (type classes, fragments, stems); live reports never send more than three of one kind. */
+	private const MAX_CLASS_LIST = 8;
 	/** ECMAScript whitespace: the browser and provider ranges must use the same offsets. */
 	private const WHITESPACE = '/[\x{0009}-\x{000D}\x{0020}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]+/u';
 
@@ -41,7 +41,7 @@ final class ReportHighlightParser {
 	 * @param string $report_html Provider report page.
 	 * @param string $expected_text Current normalized document text.
 	 * @throws ApiException On missing, mismatched or oversized markup.
-	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string, fragments: list<string>}>}
+	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int, classes: list<string>, xhint: bool, sentence: ?string, fragments: list<string>, stems: list<string>}>}
 	 */
 	public function parse( string $report_html, string $expected_text ): array {
 		if ( ! $this->has_dom ) {
@@ -80,8 +80,11 @@ final class ReportHighlightParser {
 				'category'  => $raw_mark['category'],
 				'type'      => $raw_mark['type'],
 				'level'     => $raw_mark['level'],
+				'classes'   => $raw_mark['classes'],
+				'xhint'     => $raw_mark['xhint'],
 				'sentence'  => $raw_mark['sentence'],
 				'fragments' => $raw_mark['fragments'],
+				'stems'     => $raw_mark['stems'],
 			);
 		}
 
@@ -160,9 +163,9 @@ final class ReportHighlightParser {
 	/**
 	 * Collect visible text and byte ranges before UTF-16 conversion.
 	 *
-	 * @param \DOMNode                                                                                                                  $node Current inert node.
-	 * @param string                                                                                                                    $text Accumulated source text.
-	 * @param list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string, fragments: list<string>}> $marks Collected annotations.
+	 * @param \DOMNode                                                                                                                                                                           $node Current inert node.
+	 * @param string                                                                                                                                                                             $text Accumulated source text.
+	 * @param list<array{start: int, end: int, category: string, type: string, level: int, classes: list<string>, xhint: bool, sentence: ?string, fragments: list<string>, stems: list<string>}> $marks Collected annotations.
 	 */
 	private function collect( \DOMNode $node, string &$text, array &$marks ): void {
 		if ( XML_TEXT_NODE === $node->nodeType || XML_CDATA_SECTION_NODE === $node->nodeType ) {
@@ -217,6 +220,59 @@ final class ReportHighlightParser {
 	);
 
 	/**
+	 * Every `<type><level>` class the provider's stylesheet (css/bb_xhl.css) colors, in the
+	 * order it defines those rules. They all share one specificity, so on a span carrying
+	 * several (live reports send `fog1 stop1` and `top_notstop2 doubles5`) the rule defined
+	 * last is the one that paints it, whatever order the classes themselves come in.
+	 *
+	 * @var list<string>
+	 */
+	private const CASCADE = array( 'bb1', 'bb2', 'bb3', 'slop1', 'slop2', 'slop3', 'fog1', 'stop1', 'doubles1', 'doubles2', 'doubles3', 'doubles4', 'doubles5', 'top_and1', 'top_notstop1', 'top_and2', 'top_notstop2', 'queries1', 'cqueries1', 'queries_strict1', 'cqueries2', 'fre1', 'ari1', 'fre2', 'ari2' );
+
+	/**
+	 * Read the provider's highlight classes off one element's class list.
+	 *
+	 * `type`/`level` name the class that actually paints the element (see CASCADE); `classes`
+	 * keeps every recognized one, which the provider still consults on its own, e.g. to
+	 * pick the legend row a hovered span belongs to. Shared with
+	 * {@see ReportSectionParser}, whose legend swatches and word-table rows carry the same
+	 * classes as the text they describe.
+	 *
+	 * @param array<int, string> $class_names Element classes, in document order.
+	 * @return array{type: string, level: int, classes: list<string>}|null Null without a recognized class.
+	 */
+	public static function typeClasses( array $class_names ): ?array {
+		$classes = array();
+		$winner  = null;
+		$rank    = -1;
+		foreach ( $class_names as $class_name ) {
+			if ( count( $classes ) >= self::MAX_CLASS_LIST || in_array( $class_name, $classes, true ) || ! preg_match( '/^([a-z_]+)([1-9]\d*)$/', $class_name, $match ) || ! isset( self::CATEGORIES[ $match[1] ] ) ) {
+				continue;
+			}
+			$classes[] = $class_name;
+			// A class with no color rule of its own never overrides one that has.
+			$class_rank = array_search( $class_name, self::CASCADE, true );
+			$class_rank = false === $class_rank ? -1 : $class_rank;
+			if ( null === $winner || $class_rank > $rank ) {
+				$winner = $match;
+				$rank   = $class_rank;
+			}
+		}
+
+		if ( null === $winner ) {
+			return null;
+		}
+
+		return array(
+			'type'    => $winner[1],
+			// The provider's own scale goes no higher than 5 (doubles1..doubles5); 9 is a
+			// defensive upper bound, not a real value it is expected to send.
+			'level'   => min( 9, (int) $winner[2] ),
+			'classes' => $classes,
+		);
+	}
+
+	/**
 	 * Accept only recognized category/severity classes.
 	 *
 	 * `type` is the exact class prefix (e.g. `doubles`, `queries_strict`), preserved
@@ -228,7 +284,7 @@ final class ReportHighlightParser {
 	 * the provider's own stylesheet happens to reuse them across two different tabs.
 	 *
 	 * @param \DOMElement $element Provider element.
-	 * @return array{category: string, type: string, level: int, sentence: ?string, fragments: list<string>}|null
+	 * @return array{category: string, type: string, level: int, classes: list<string>, xhint: bool, sentence: ?string, fragments: list<string>, stems: list<string>}|null
 	 */
 	private function mark_for_element( \DOMElement $element ): ?array {
 		$class_names = (array) preg_split( '/\s+/', trim( $element->getAttribute( 'class' ) ) );
@@ -236,26 +292,20 @@ final class ReportHighlightParser {
 			return null;
 		}
 
-		$category  = null;
-		$type      = null;
-		$level     = null;
+		$type_classes = self::typeClasses( $class_names );
+		if ( null === $type_classes ) {
+			return null;
+		}
+
 		$sentence  = null;
 		$fragments = array();
+		$stems     = array();
 		foreach ( $class_names as $class_name ) {
-			if ( null === $category && preg_match( '/^([a-z_]+)([1-9]\d*)$/', $class_name, $match ) && isset( self::CATEGORIES[ $match[1] ] ) ) {
-				$category = self::CATEGORIES[ $match[1] ];
-				$type     = $match[1];
-				// The provider's own scale goes no higher than 5 (doubles1..doubles5); 9 is
-				// a defensive upper bound, not a real value it is expected to send.
-				$level = min( 9, (int) $match[2] );
-				continue;
-			}
 			// The "Overall risk" report groups every span within one sentence under a shared
 			// `xhint-<word offset>-<word count>` class, matching a key in that same report's
 			// `XHints` script variable ({@see ReportSectionParser::parseSentenceProblems()}):
-			// the browser needs this to resolve a click anywhere in a highlighted sentence to
-			// its own "problems in this sentence" breakdown. No other section's report
-			// populates `XHints`, so this is harmless, unused data there.
+			// the browser needs this to resolve a hover anywhere in a highlighted sentence to
+			// its own "problems in this sentence" breakdown.
 			if ( null === $sentence && preg_match( '/^xhint-(\d+-\d+)$/', $class_name, $match ) ) {
 				$sentence = $match[1];
 			}
@@ -264,21 +314,26 @@ final class ReportHighlightParser {
 			// (a word can sit in several overlapping fragments). Its report lights up every
 			// span sharing any of these with the hovered one (bb-hl.js `showXHintProcess()`),
 			// so the browser needs all of them to highlight the whole problem, not one word.
-			if ( count( $fragments ) < self::MAX_FRAGMENTS && preg_match( '/^(?:xhint|xhlln)-\d+-\d+$/', $class_name ) && ! in_array( $class_name, $fragments, true ) ) {
+			if ( count( $fragments ) < self::MAX_CLASS_LIST && preg_match( '/^(?:xhint|xhlln)-\d+-\d+$/', $class_name ) && ! in_array( $class_name, $fragments, true ) ) {
 				$fragments[] = $class_name;
+			}
+			// "Frequency" ties every occurrence of a repeated word to its row in the report's
+			// word table through `stm-*` stem classes (bb-hl.js `higlightByStm()`).
+			if ( count( $stems ) < self::MAX_CLASS_LIST && preg_match( '/^stm-\d+-[0-9A-Fa-f]+$/', $class_name ) && ! in_array( $class_name, $stems, true ) ) {
+				$stems[] = $class_name;
 			}
 		}
 
-		if ( null === $category ) {
-			return null;
-		}
-
 		return array(
-			'category'  => $category,
-			'type'      => $type,
-			'level'     => $level,
+			'category'  => self::CATEGORIES[ $type_classes['type'] ],
+			'type'      => $type_classes['type'],
+			'level'     => $type_classes['level'],
+			'classes'   => $type_classes['classes'],
+			// The bare `xhint` class marks a span the provider underlines (bb/slop only).
+			'xhint'     => in_array( 'xhint', $class_names, true ),
 			'sentence'  => $sentence,
 			'fragments' => $fragments,
+			'stems'     => $stems,
 		);
 	}
 

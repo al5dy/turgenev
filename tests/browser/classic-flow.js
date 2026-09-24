@@ -1,11 +1,35 @@
 async page => {
 	const assert = ( value, message ) => { if ( ! value ) throw new Error( message ); };
 	const requests = [];
-	let failure = '', malicious = false, balance = '100', fragments = false;
+	let failure = '', malicious = false, balance = '100', fragments = false, provider = false;
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
 	// Shaped like a live report: one mark per word (trailing space included); the first
 	// sentence's words are tied together only by a shared provider fragment id, the rest
 	// carry none and stand alone.
+	// Shaped like live reports of "Visual test text 😀. Second paragraph.", one per section,
+	// with every class a live report sends for such words (see highlight-flow.js).
+	const providerMarks = ( text, token ) => {
+		const mark = ( word, fields ) => ( { start: text.indexOf( word ), end: text.indexOf( word ) + word.length, sentence: null, ...fields } );
+		if ( token === 'formality12345' ) return [
+			mark( 'Visual', { category: 'formality', type: 'stop', level: 1, classes: [ 'fog1', 'stop1' ], fragments: [ 'xhlln-0-1' ] } ),
+			mark( 'text', { category: 'formality', type: 'fog', level: 1, classes: [ 'fog1' ], fragments: [ 'xhlln-2-1' ] } ),
+		];
+		if ( token === 'frequency12345' ) return [
+			mark( 'test', { category: 'frequency', type: 'doubles', level: 4, classes: [ 'doubles4' ], stems: [ 'stm-6-EE20', 'stm-6-B' ] } ),
+			mark( 'text', { category: 'frequency', type: 'doubles', level: 4, classes: [ 'doubles4' ], stems: [ 'stm-6-B' ] } ),
+			mark( 'Second', { category: 'frequency', type: 'top_notstop', level: 2, classes: [ 'top_notstop2', 'doubles5' ], stems: [ 'stm-6-A' ] } ),
+		];
+		return [
+			mark( 'Visual', { category: 'style', type: 'slop', level: 1, classes: [ 'slop1' ], xhint: true, sentence: '0-1', fragments: [ 'xhint-0-1' ] } ),
+			mark( 'Second ', { category: 'style', type: 'slop', level: 2, classes: [ 'slop2' ], xhint: true, sentence: '4-2', fragments: [ 'xhint-4-2' ] } ),
+			mark( 'paragraph', { category: 'style', type: 'slop', level: 2, classes: [ 'slop2' ], xhint: true, sentence: '4-2', fragments: [ 'xhint-4-2' ] } ),
+		];
+	};
+	const providerDetails = section => ( {
+		frequency: { params: [], words: [ { text: 'test', count: 2, percent: '33.3%', stopword: false, type: 'doubles', level: 4, score: '1', stems: [ 'stm-6-B' ] }, { text: 'second', count: 1, percent: '16.7%', stopword: false, type: 'top_notstop', level: 2, stems: [ 'stm-6-A' ] } ] },
+		style: { params: [], legend: [ { type: 'slop', level: 1, label: 'Потенциальные' }, { type: 'slop', level: 2, label: 'Почти точно' } ], hints: { '4-2': [ { title: 'Second paragraph', text: [ { text: 'Пояснение про ' }, { text: 'second', italic: true }, { text: '.' } ], more: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy' }, { title: 'Second paragraph', text: [ { text: 'Второе пояснение.' } ], seeAlso: [ { label: 'Канцелярит', url: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#kants' } ] } ] } },
+		formality: { params: [], legend: [ { type: 'fog', level: 1, label: 'Общие слова' }, { type: 'stop', level: 1, label: 'Стоп-слова' } ] },
+	}[ section ] ?? { params: [] } );
 	const wordMarks = ( text, mark ) => {
 		const words = [ ...text.matchAll( /\S+ ?/gu ) ];
 		const last = words.findIndex( match => /\. ?$/u.test( match[ 0 ] ) );
@@ -21,14 +45,15 @@ async page => {
 		let data;
 		if ( body.operation === 'balance' ) data = { balance };
 		if ( body.operation === 'risk' ) data = { result: { risk: 0, level: malicious ? '<img src=x onerror="window.leaked=true">' : 'low', link: 'risk12345', details: categories.map( block => ( { block, sum: 0, link: block + '12345' } ) ) } };
-		if ( body.operation === 'details' ) {
+		if ( body.operation === 'details' && provider ) data = { details: providerDetails( body.section ) };
+		else if ( body.operation === 'details' ) {
 			data = { details: { params: body.section === 'frequency' ? [ { name: 'Сверхчастые слова', value: malicious ? '<img src=x onerror="window.leaked=true">' : 'Нет', score: '0', low: false }, { name: 'Доля', value: '12.5%', score: '0', low: false } ] : [] } };
 			if ( body.section === 'overall' ) data.details.sentenceProblems = { '0-2': [ { label: malicious ? '<img src=x onerror="window.leaked=true">' : 'Повторы слов', section: 'frequency' }, { label: 'Без раздела' } ] };
 		}
 		// Only the overall report ('risk' token) ties its marks to a sentence id (XHints).
 		if ( body.operation === 'highlights' ) {
 			const mark = body.report_token === 'risk12345' ? { start: 7, end: 11, category: 'style', type: 'bb', level: 2, sentence: '0-2' } : { start: 7, end: 11, category: 'frequency', type: 'doubles', level: 2, sentence: null };
-			data = { highlights: { text: body.text, marks: fragments ? wordMarks( body.text, mark ) : [ mark ] } };
+			data = { highlights: { text: body.text, marks: provider ? providerMarks( body.text, body.report_token ) : fragments ? wordMarks( body.text, mark ) : [ mark ] } };
 		}
 		await route.fulfill( { json: { success: true, data } } );
 	} );
@@ -77,13 +102,16 @@ async page => {
 	await page.mouse.move( point.x, point.y );
 	const problemLink = page.locator( '.turgenev-section-problem-link', { hasText: 'Повторы слов' } );
 	await problemLink.waitFor();
-	const tinyHover = () => page.evaluate( () => [ ...( tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.get( 'turgenev-hover-on-light' ) || [] ) ].map( range => range.toString() ) );
-	assert( JSON.stringify( await tinyHover() ) === JSON.stringify( [ 'test' ] ), 'Hovering a TinyMCE mark must paint exactly it, with the light-backdrop tint.' );
+	// Every hover highlight's ranges (each in its own class's hover color), and the active one.
+	const tinyHover = () => page.evaluate( () => [ ...tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights ].filter( ( [ key ] ) => key.startsWith( 'turgenev-hover-' ) ).flatMap( ( [ , group ] ) => [ ...group ] ).map( range => range.toString() ) );
+	const tinyActive = () => page.evaluate( () => [ ...( tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.get( 'turgenev-active' ) || [] ) ].map( range => range.toString().trim() ).sort() );
+	assert( JSON.stringify( await tinyHover() ) === JSON.stringify( [ 'test' ] ) && await page.evaluate( () => tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.has( 'turgenev-hover-bb2' ) ), 'Hovering a TinyMCE mark must paint exactly it, in its own class\'s hover color.' );
 	assert( await page.locator( '.turgenev-section-problem-link' ).count() === 1 && await page.getByText( '• Без раздела', { exact: true } ).count() === 1, 'Only a problem with a known section may become a link.' );
 	// Leaving the TinyMCE iframe is the path a reader takes to reach the metabox.
 	await page.mouse.move( 1, 1 );
-	await page.waitForFunction( () => ! tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	await page.waitForFunction( () => ! [ ...tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.keys() ].some( key => key.startsWith( 'turgenev-hover-' ) ) );
 	assert( await problemLink.count() === 1, 'Leaving the sentence must keep its problems reachable.' );
+	assert( JSON.stringify( await tinyActive() ) === JSON.stringify( [ 'test' ] ), 'The sentence left behind stays active (#ececec), as on the provider\'s page.' );
 	await problemLink.click();
 	await idle();
 	assert( await toggles().nth( 1 ).getAttribute( 'aria-expanded' ) === 'true' && await toggles().nth( 0 ).getAttribute( 'aria-expanded' ) === 'false', 'A problem link must close the overall section and open its target.' );
@@ -112,10 +140,65 @@ async page => {
 	assert( JSON.stringify( await tinyWord( 'text' ) ) === firstSentence, 'Hovering a TinyMCE word must light up its whole sentence.' );
 	assert( JSON.stringify( await tinyWord( 'paragraph.' ) ) === JSON.stringify( [ 'paragraph.' ] ), 'A TinyMCE mark with no fragment must light up alone.' );
 	await page.mouse.move( 1, 1 );
-	await page.waitForFunction( () => ! tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	await page.waitForFunction( () => ! [ ...tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights.keys() ].some( key => key.startsWith( 'turgenev-hover-' ) ) );
 	assert( original === await page.evaluate( () => tinymce.get( 'content' ).getContent() ), 'Hovering fragments changed TinyMCE content.' );
 	await page.getByRole( 'button', { name: 'Reset view', exact: true } ).click();
 	checks.push( 'TinyMCE hover lights up the whole flagged sentence, standalone marks alone' );
+
+	// Everything else a live report carries, rendered exactly as in Gutenberg.
+	provider = true;
+	const frame = () => page.evaluate( () => new Promise( resolve => requestAnimationFrame( () => requestAnimationFrame( resolve ) ) ) );
+	const tinyNames = () => page.evaluate( () => Object.fromEntries( [ ...tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights ].filter( ( [ key ] ) => /^turgenev-(?!hover-|active)/.test( key ) ).map( ( [ key, group ] ) => [ key, [ ...group ].map( range => range.toString().trim() ) ] ) ) );
+	const tinyHoverNames = () => page.evaluate( () => Object.fromEntries( [ ...tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights ].filter( ( [ key ] ) => key.startsWith( 'turgenev-hover-' ) ).map( ( [ key, group ] ) => [ key, [ ...group ].map( range => range.toString().trim() ).sort() ] ) ) );
+	const hoverTiny = async word => {
+		const point = await page.evaluate( word => {
+			const frameRect = tinymce.get( 'content' ).iframeElement.getBoundingClientRect();
+			const range = [ ...tinymce.get( 'content' ).getDoc().defaultView.CSS.highlights ].filter( ( [ key ] ) => /^turgenev-(?!hover-|active)/.test( key ) ).flatMap( ( [ , group ] ) => [ ...group ] ).find( candidate => candidate.toString().trim() === word );
+			const rect = range.getClientRects()[ 0 ];
+			return { x: frameRect.left + rect.left + rect.width / 2, y: frameRect.top + rect.top + rect.height / 2 };
+		}, word );
+		await page.mouse.move( point.x, point.y );
+		await frame();
+	};
+	const legendState = () => page.evaluate( () => { const legend = document.querySelector( '.turgenev-section-legend' ); return { dimmed: legend.classList.contains( 'has-active' ), active: [ ...legend.querySelectorAll( '.is-active' ) ].map( row => row.textContent ) }; } );
+
+	await open( 4 ); // Formality
+	assert( JSON.stringify( await tinyNames() ) === JSON.stringify( { 'turgenev-stop1': [ 'Visual' ], 'turgenev-fog1': [ 'text' ] } ), 'A stop word ("fog1 stop1") is painted as "stop1" in TinyMCE too.' );
+	assert( JSON.stringify( await legendState() ) === JSON.stringify( { dimmed: false, active: [] } ), 'The legend is plain until a mark is hovered.' );
+	await hoverTiny( 'Visual' );
+	await page.mouse.move( 1, 1 );
+	await frame();
+	assert( JSON.stringify( await legendState() ) === JSON.stringify( { dimmed: true, active: [ 'Стоп-слова' ] } ), 'The last legend row the span\'s classes name lights up and outlives the hover.' );
+
+	await open( 1 ); // Frequency
+	assert( JSON.stringify( await tinyNames() ) === JSON.stringify( { 'turgenev-doubles4-u': [ 'test', 'text' ], 'turgenev-top_notstop2-u': [ 'Second' ] } ), 'Repeated words carry the underline and the color the provider paints last.' );
+	await hoverTiny( 'test' );
+	assert( JSON.stringify( await tinyHoverNames() ) === JSON.stringify( { 'turgenev-hover-doubles4': [ 'test' ] } ) && JSON.stringify( await tinyActive() ) === JSON.stringify( [ 'text' ] ), 'Hovering a repeated word lights it up and marks the other occurrences of its row active.' );
+	const wordRows = page.locator( '.turgenev-section-words tr' );
+	assert( await wordRows.nth( 0 ).getAttribute( 'aria-pressed' ) === 'true', 'The hovered word picks its table row.' );
+	await page.mouse.move( 1, 1 );
+	await frame();
+	assert( JSON.stringify( await tinyActive() ) === JSON.stringify( [ 'test', 'text' ] ), 'Every occurrence stays active after the hover.' );
+	await wordRows.nth( 0 ).click();
+	assert( ! ( await tinyActive() ).length, 'Picking the picked row releases it.' );
+	await wordRows.nth( 1 ).click();
+	assert( JSON.stringify( await tinyActive() ) === JSON.stringify( [ 'Second' ] ), 'Picking a row lights up its word in TinyMCE.' );
+
+	await open( 2 ); // Style
+	assert( JSON.stringify( await tinyNames() ) === JSON.stringify( { 'turgenev-slop1-u': [ 'Visual' ], 'turgenev-slop2-u': [ 'Second', 'paragraph' ] } ), 'Style marks carrying "xhint" are underlined.' );
+	await hoverTiny( 'paragraph' );
+	assert( JSON.stringify( await tinyHoverNames() ) === JSON.stringify( { 'turgenev-hover-slop2': [ 'Second', 'paragraph' ] } ), 'The whole fragment lights up in its hover color.' );
+	const hintsBox = page.locator( '.turgenev-section-hints' );
+	assert( await hintsBox.locator( '.turgenev-section-hint-title' ).innerText() === 'Second paragraph' && await hintsBox.locator( '.turgenev-section-hint-text i' ).innerText() === 'second' && await hintsBox.locator( '.turgenev-section-hints-info' ).innerText() === '1/2', 'The hints box shows the fragment\'s explainers with a pager.' );
+	await page.mouse.move( 1, 1 );
+	await frame();
+	await hintsBox.getByRole( 'button', { name: 'Next hint' } ).click();
+	assert( await hintsBox.locator( '.turgenev-section-hint-text' ).innerText() === 'Второе пояснение.', 'The box outlives the hover and pages through its explainers.' );
+	assert( JSON.stringify( await tinyActive() ) === JSON.stringify( [ 'Second', 'paragraph' ] ), 'The fragment left behind stays active.' );
+	assert( original === await page.evaluate( () => tinymce.get( 'content' ).getContent() ), 'Nothing here changed TinyMCE content.' );
+	provider = false;
+	await page.getByRole( 'button', { name: 'Reset view', exact: true } ).click();
+	checks.push( 'TinyMCE provider fidelity: class cascade, underlines, sticky legend, frequency stems and row picking, style hints box' );
 
 	await page.evaluate( () => { tinymce.get( 'content' ).getDoc().defaultView.Highlight = undefined; } );
 	await open( 1 );

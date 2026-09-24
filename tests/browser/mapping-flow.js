@@ -81,7 +81,7 @@ async page => {
 		assert( status.missing.length === 0, 'Unmapped Gutenberg text: ' + status.missing.join( ', ' ) );
 		assert( ! status.notices.length, 'Highlight produced a notice: ' + status.notices.join( ', ' ) );
 		const [ category, type, level ] = markTypes[ i ? categories[ i - 1 ] : 'risk' ];
-		assert( status.categories.length && status.categories.every( name => name === 'turgenev-' + type + level ) && status.raw.every( value => value === category ), 'Wrong category: ' + JSON.stringify( { category, visual: status.categories, raw: status.raw } ) );
+		assert( status.categories.length && status.categories.every( name => name === 'turgenev-' + type + level + ( type === 'doubles' ? '-u' : '' ) ) && status.raw.every( value => value === category ), 'Wrong category: ' + JSON.stringify( { category, visual: status.categories, raw: status.raw } ) );
 		assert( status.html === original, 'Mixed block highlighting changed serialized post content.' );
 	}
 	await page.evaluate( () => {
@@ -138,16 +138,16 @@ async page => {
 	await open( 1 );
 	const canvasWord = await page.evaluate( () => {
 		const frame = document.querySelector( 'iframe[name="editor-canvas"]' );
-		const range = [ ...frame.contentWindow.CSS.highlights.get( 'turgenev-doubles2' ) ][ 1 ];
+		const range = [ ...frame.contentWindow.CSS.highlights.get( 'turgenev-doubles2-u' ) ][ 1 ];
 		const rect = range.getClientRects()[ 0 ], offset = frame.getBoundingClientRect();
 		return { x: offset.left + rect.left + rect.width / 2, y: offset.top + rect.top + rect.height / 2, text: range.toString() };
 	} );
-	const canvasHover = () => page.evaluate( () => [ ...( document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.get( 'turgenev-hover-on-light' ) || [] ) ].map( range => range.toString() ) );
+	const canvasHover = () => page.evaluate( () => [ ...( document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.get( 'turgenev-hover-doubles2' ) || [] ) ].map( range => range.toString() ) );
 	await page.mouse.move( canvasWord.x, canvasWord.y );
-	await page.waitForFunction( () => document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	await page.waitForFunction( () => document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.has( 'turgenev-hover-doubles2' ) );
 	assert( JSON.stringify( await canvasHover() ) === JSON.stringify( [ canvasWord.text ] ), 'Hovering a word in the iframe canvas must paint exactly that word.' );
 	await page.mouse.move( 1, 1 );
-	await page.waitForFunction( () => ! document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	await page.waitForFunction( () => ! document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.has( 'turgenev-hover-doubles2' ) );
 	assert( await page.evaluate( () => wp.data.select( 'core/editor' ).getEditedPostContent() ) === iframeOriginal, 'Hovering changed iframe content.' );
 	await reset().click();
 	await page.evaluate( () => window.smokeRegistry.dispatch( 'core/block-editor' ).resetBlocks( [ wp.blocks.createBlock( 'core/paragraph', { content: 'слово '.repeat( 700 ) } ) ] ) );

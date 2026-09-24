@@ -169,6 +169,10 @@ msgid "Loading…"
 msgstr "Загрузка…"
 
 #: assets/build/client.js
+msgid "Next hint"
+msgstr "Следующая подсказка"
+
+#: assets/build/client.js
 msgid "Open report"
 msgstr "Открыть отчёт"
 
@@ -183,6 +187,10 @@ msgstr "Вставьте ключ API"
 #: assets/build/client.js
 msgid "Phrases"
 msgstr "Словосочетания"
+
+#: assets/build/client.js
+msgid "Previous hint"
+msgstr "Предыдущая подсказка"
 
 #: assets/build/client.js
 msgid "Problems in this sentence"
@@ -219,6 +227,10 @@ msgstr "Подробности раздела недоступны на этом
 #: src/Admin/SettingsPage.php:249
 msgid "Settings"
 msgstr "Настройки"
+
+#: assets/build/client.js
+msgid "See also:"
+msgstr "См. также:"
 
 #: assets/build/client.js
 msgid "Show all characteristics"

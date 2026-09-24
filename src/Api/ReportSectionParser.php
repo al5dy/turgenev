@@ -27,31 +27,40 @@ defined( 'ABSPATH' ) || exit;
  */
 final class ReportSectionParser {
 	private const MAX_ITEMS = 200;
+	/** Bounds the explainers per fragment and the "См. также" links per explainer. */
+	private const MAX_HINTS = 20;
 
 	/**
-	 * Extract a recognized `xhl <type><level>` pair out of a `class` attribute value.
+	 * Extract the `xhl <type><level>` class that paints an element out of its `class` value.
 	 *
 	 * Shared by {@see parseLegend()} (an `<em>`'s class) and {@see parseWordStats()} (a
-	 * `<tr>`'s class, e.g. a repeated word row's `xhl doubles4 stmhl-btn stm-6-190E7`),
-	 * both of which need the provider's exact color subtype, not just a generic severity.
+	 * `<tr>`'s class, e.g. a repeated word row's `xhl doubles5 top_notstop2 stmhl-btn
+	 * stm-6-1088D`), both of which need the provider's exact color subtype, resolved the way
+	 * its stylesheet resolves several on one element ({@see ReportHighlightParser::typeClasses()}).
 	 *
 	 * @param string $class_attribute Attribute value.
 	 * @return array{type: string, level: int}|null
 	 */
 	private static function xhlFromClass( string $class_attribute ): ?array {
-		$class_names = preg_split( '/\s+/', trim( $class_attribute ) );
-		if ( ! is_array( $class_names ) || ! in_array( 'xhl', $class_names, true ) ) {
+		$class_names = self::classNames( $class_attribute );
+		if ( ! in_array( 'xhl', $class_names, true ) ) {
 			return null;
 		}
-		foreach ( $class_names as $token ) {
-			if ( preg_match( '/^([a-z_]+)([1-9]\d*)$/', $token, $match ) && isset( ReportHighlightParser::CATEGORIES[ $match[1] ] ) ) {
-				return array(
-					'type'  => $match[1],
-					'level' => min( 9, (int) $match[2] ),
-				);
-			}
-		}
-		return null;
+		$type_classes = ReportHighlightParser::typeClasses( $class_names );
+		return null === $type_classes ? null : array(
+			'type'  => $type_classes['type'],
+			'level' => $type_classes['level'],
+		);
+	}
+
+	/**
+	 * Split a `class` attribute value into its tokens.
+	 *
+	 * @param string $class_attribute Attribute value.
+	 * @return array<int, string>
+	 */
+	private static function classNames( string $class_attribute ): array {
+		return array_values( array_filter( (array) preg_split( '/\s+/', trim( $class_attribute ) ), 'strlen' ) );
 	}
 
 	/**
@@ -119,6 +128,13 @@ final class ReportSectionParser {
 				throw new ApiException( __( 'Unsupported Turgenev report section.', 'turgenev' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- ApiException messages are never echoed directly; ApiController::handle() strips tags before any reaches the browser.
 		}
 
+		if ( 'overall' !== $section ) {
+			$hints = $this->parseHints( $report_html );
+			if ( array() !== $hints ) {
+				$result['hints'] = $hints;
+			}
+		}
+
 		return $result;
 	}
 
@@ -169,7 +185,7 @@ final class ReportSectionParser {
 	 * distinguished only by whether the first cell carries the `xphintblock` wrapper.
 	 *
 	 * @param \DOMXPath $xpath Report document.
-	 * @return list<array{name: string, value: string, score: string, low: bool, hint?: string, hintUrl?: string}>
+	 * @return list<array{name: string, value: string, score: string, low: bool, hint?: string, hintUrl?: string}> `score` is '' when the row shows none.
 	 */
 	private function parseParams( \DOMXPath $xpath ): array {
 		$rows  = $xpath->query( "//table[contains(concat(' ', normalize-space(@class), ' '), ' xprops ')]//tr" );
@@ -192,7 +208,9 @@ final class ReportSectionParser {
 			$item       = array(
 				'name'  => ResponseValidator::label( $label ),
 				'value' => $value_node ? ResponseValidator::label( trim( $value_node->textContent ) ) : '',
-				'score' => $mark_node ? (string) max( 0, (int) trim( $mark_node->textContent ) ) : '0',
+				// Secondary rows carry no score badge at all on the provider's page; '' keeps
+				// that apart from a real score of 0.
+				'score' => $mark_node ? (string) max( 0, (int) trim( $mark_node->textContent ) ) : '',
 				'low'   => (bool) preg_match( '/\blow\b/', (string) $row->getAttribute( 'class' ) ),
 			);
 			$hint       = $this->parseHint( $xpath, $row );
@@ -357,29 +375,15 @@ final class ReportSectionParser {
 	 * class's own anonymous, token-only fetch (unlike the per-document verdict sentence and
 	 * "problems in this sentence" text the class docblock describes, which stayed empty here:
 	 * this object's own `"t"` field is that same always-empty text, so only `"c"` is read).
-	 * Only meaningful for the 'overall' section: every other section's report embeds an empty
-	 * `{}`.
+	 * Only the 'overall' report uses this link-list shape; "Style" fills the same object with
+	 * explainer texts instead ({@see parseHints()}), and every other report embeds `{}`.
 	 *
 	 * @param string $report_html Full report page markup (not the parsed DOM; see below).
 	 * @return array<string, list<array{label: string, section?: string}>>
 	 */
 	private function parseSentenceProblems( string $report_html ): array {
-		/*
-		 * Read off the raw page, the same way report_markup() reads the report's <textarea>
-		 * rather than a parsed DOM node: this script's own JSON embeds real `<a>...</a>`
-		 * markup as string values, and DOMDocument's HTML parser does not treat <script>
-		 * content as inert text — it tries to parse those tags as real HTML, corrupting the
-		 * JSON (dropping every `</a>` close tag) before this ever sees it.
-		 */
-		if ( 1 !== preg_match( '/var\s+XHints\s*=\s*(\{.*?\});/s', $report_html, $match ) ) {
-			return array();
-		}
-		$decoded = json_decode( $match[1], true );
-		if ( ! is_array( $decoded ) ) {
-			return array();
-		}
 		$result = array();
-		foreach ( $decoded as $sentence_id => $entries ) {
+		foreach ( $this->xhints( $report_html ) as $sentence_id => $entries ) {
 			if ( count( $result ) >= self::MAX_ITEMS ) {
 				break;
 			}
@@ -396,6 +400,157 @@ final class ReportSectionParser {
 			}
 		}
 		return $result;
+	}
+
+	/**
+	 * Decode the report's `var XHints = {...}` object (see {@see parseSentenceProblems()}).
+	 *
+	 * Read off the raw page, the same way report_markup() reads the report's <textarea>
+	 * rather than a parsed DOM node: this script's own JSON embeds real `<a>...</a>`
+	 * markup as string values, and DOMDocument's HTML parser does not treat <script>
+	 * content as inert text — it tries to parse those tags as real HTML, corrupting the
+	 * JSON (dropping every `</a>` close tag) before this ever sees it.
+	 *
+	 * @param string $report_html Full report page markup.
+	 * @return array<mixed> Untrusted decoded data; empty when absent or malformed.
+	 */
+	private function xhints( string $report_html ): array {
+		if ( 1 !== preg_match( '/var\s+XHints\s*=\s*(\{.*?\});/s', $report_html, $match ) ) {
+			return array();
+		}
+		$decoded = json_decode( $match[1], true );
+		return is_array( $decoded ) ? $decoded : array();
+	}
+
+	/**
+	 * Parse the per-fragment explainers the provider's "Подсказки" box shows while a
+	 * flagged fragment is hovered (live: the "Style" report; every other one sends `{}`).
+	 *
+	 * Same `XHints` object as {@see parseSentenceProblems()}, keyed by the id each flagged
+	 * span carries as its `xhint-<id>`/`xhlln-<id>` class, but here every entry's `"c"` is a
+	 * list of explainer texts under a `"t"` title (the flagged words). bb-hl.js
+	 * `showCurrentXHint()` turns their light markup into HTML; here it becomes plain,
+	 * validated structure instead (see {@see hint()}), one item per text.
+	 *
+	 * @param string $report_html Full report page markup.
+	 * @return array<string, list<array{title: string, text: list<array{text: string, italic?: bool}>, more?: string, seeAlso?: list<array{label: string, url: string}>}>>
+	 */
+	private function parseHints( string $report_html ): array {
+		$result = array();
+		foreach ( $this->xhints( $report_html ) as $fragment_id => $entries ) {
+			if ( count( $result ) >= self::MAX_ITEMS ) {
+				break;
+			}
+			if ( ! is_string( $fragment_id ) || ! preg_match( '/^\d+-\d+$/D', $fragment_id ) || ! is_array( $entries ) ) {
+				continue;
+			}
+			$hints = array();
+			foreach ( $entries as $entry ) {
+				if ( ! is_array( $entry ) || ! isset( $entry['c'] ) || ! is_array( $entry['c'] ) ) {
+					continue; // The "Overall risk" shape (a single link list), parsed as sentence problems instead.
+				}
+				$title = is_string( $entry['t'] ?? null ) ? self::plainText( $entry['t'] ) : '';
+				foreach ( $entry['c'] as $source ) {
+					$hint = is_string( $source ) && count( $hints ) < self::MAX_HINTS ? self::hint( $title, $source ) : null;
+					if ( null !== $hint ) {
+						$hints[] = $hint;
+					}
+				}
+			}
+			if ( array() !== $hints ) {
+				$result[ $fragment_id ] = $hints;
+			}
+		}
+		return $result;
+	}
+
+	/**
+	 * Convert one explainer text from the provider's light markup into plain structure.
+	 *
+	 * Mirrors bb-hl.js `showCurrentXHint()`: `&page#anchor[label]` becomes a "См. также"
+	 * link, a trailing `&page#anchor` the "Подробнее" link (an empty page defaults to the
+	 * copywriting-errors article, exactly as there), and `_words_` italics. Everything else
+	 * is text: tags are dropped and entities decoded, never interpreted as markup.
+	 *
+	 * @param string $title Plain title (the flagged words), possibly empty.
+	 * @param string $source Untrusted explainer text.
+	 * @return array{title: string, text: list<array{text: string, italic?: bool}>, more?: string, seeAlso?: list<array{label: string, url: string}>}|null
+	 */
+	private static function hint( string $title, string $source ): ?array {
+		if ( strlen( $source ) > 4000 ) {
+			return null;
+		}
+		$see_also = array();
+		$source   = (string) preg_replace_callback(
+			'/&(\w*)(#?\w*)\[([^\[\]]+?)\]\s*/',
+			static function ( array $link ) use ( &$see_also ): string {
+				$label = self::plainText( $link[3] );
+				if ( '' !== $label && count( $see_also ) < self::MAX_HINTS ) {
+					$see_also[] = array(
+						'label' => $label,
+						'url'   => self::helpUrl( $link[1], $link[2] ),
+					);
+				}
+				return '';
+			},
+			$source
+		);
+		$more     = null;
+		if ( preg_match( '/&(\w*)(#?\w*)\s*$/', $source, $match, PREG_OFFSET_CAPTURE ) ) {
+			$more   = self::helpUrl( $match[1][0], $match[2][0] );
+			$source = substr( $source, 0, $match[0][1] );
+		}
+
+		$text  = array();
+		$parts = preg_split( '/\b_([^_]+)_\b/', self::plainText( $source ), -1, PREG_SPLIT_DELIM_CAPTURE );
+		foreach ( (array) $parts as $index => $part ) {
+			if ( '' === $part ) {
+				continue;
+			}
+			// With a capture group, odd indexes are the `_italic_` words themselves.
+			$text[] = 1 === $index % 2 ? array(
+				'text'   => $part,
+				'italic' => true,
+			) : array( 'text' => $part );
+		}
+		if ( array() === $text ) {
+			return null;
+		}
+
+		$hint = array(
+			'title' => $title,
+			'text'  => $text,
+		);
+		if ( null !== $more ) {
+			$hint['more'] = $more;
+		}
+		if ( array() !== $see_also ) {
+			$hint['seeAlso'] = $see_also;
+		}
+		return $hint;
+	}
+
+	/**
+	 * Provider markup fragment as single-spaced plain text; empty when too long to be a label.
+	 *
+	 * @param string $value Untrusted fragment.
+	 * @return string
+	 */
+	private static function plainText( string $value ): string {
+		$text = trim( (string) preg_replace( '/\s+/u', ' ', html_entity_decode( wp_strip_all_tags( $value ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ) );
+		return strlen( $text ) > 2000 ? '' : $text;
+	}
+
+	/**
+	 * Absolute URL of a provider help-wiki article; both parts are ASCII word characters by
+	 * construction (see {@see hint()}'s patterns), so nothing needs escaping.
+	 *
+	 * @param string $page Article name; empty for the default one.
+	 * @param string $anchor Optional `#anchor`.
+	 * @return string
+	 */
+	private static function helpUrl( string $page, string $anchor ): string {
+		return ApiClient::ENDPOINT . '?h=' . ( '' === $page ? 'oshibki_kopirajterov' : $page ) . $anchor;
 	}
 
 	/**
@@ -441,7 +596,7 @@ final class ReportSectionParser {
 	 * @param \DOMXPath $xpath Report document.
 	 * @param string    $container_id Either 'words_frq_stat' or 'bgrms_frq_stat'.
 	 * @param bool      $has_percent Whether rows carry a stop-word flag and a share percentage (words only).
-	 * @return list<array{text: string, count: int, percent?: string, stopword?: bool, type?: string, level?: int}>
+	 * @return list<array{text: string, count: int, percent?: string, stopword?: bool, score?: string, type?: string, level?: int, stems?: list<string>}>
 	 */
 	private function parseWordStats( \DOMXPath $xpath, string $container_id, bool $has_percent ): array {
 		$rows  = $xpath->query( "//*[@id='" . $container_id . "']//table//tr" );
@@ -462,8 +617,9 @@ final class ReportSectionParser {
 			if ( $cells->length <= $count_index ) {
 				continue;
 			}
-			$count_node = $xpath->query( ".//span[contains(concat(' ', normalize-space(@class), ' '), ' value ')]", $cells->item( $count_index ) )->item( 0 );
-			$item       = array(
+			$count_node  = $xpath->query( ".//span[contains(concat(' ', normalize-space(@class), ' '), ' value ')]", $cells->item( $count_index ) )->item( 0 );
+			$class_names = self::classNames( (string) $row->getAttribute( 'class' ) );
+			$item        = array(
 				'text'  => ResponseValidator::label( $text ),
 				'count' => $count_node ? max( 0, (int) trim( $count_node->textContent ) ) : 0,
 			);
@@ -475,13 +631,27 @@ final class ReportSectionParser {
 				$item['type']  = $xhl['type'];
 				$item['level'] = $xhl['level'];
 			}
+			// The same `stm-*` stems its occurrences in the text carry: the provider lights
+			// every one of them up when this row is clicked or one of them is hovered.
+			$stems = array_slice( array_values( preg_grep( '/^stm-\d+-[0-9A-Fa-f]+$/', $class_names ) ), 0, 8 );
+			if ( array() !== $stems ) {
+				$item['stems'] = $stems;
+			}
 			if ( $has_percent ) {
+				// The score an over-frequent word adds, shown as a badge beside it.
+				$mark_node = $xpath->query( ".//span[contains(concat(' ', normalize-space(@class), ' '), ' mark ')]", $cells->item( 1 ) )->item( 0 );
+				if ( $mark_node ) {
+					$item['score'] = (string) max( 0, (int) trim( $mark_node->textContent ) );
+				}
 				$percent_node = $cells->length > 3 ? $xpath->query( ".//span[contains(concat(' ', normalize-space(@class), ' '), ' value ')]", $cells->item( 3 ) )->item( 0 ) : null;
 				$percent      = $percent_node ? trim( $percent_node->textContent ) : '';
 				if ( preg_match( '/^\d{1,3}(?:\.\d{1,2})?%$/', $percent ) ) {
 					$item['percent'] = $percent;
 				}
-				$item['stopword'] = false !== strpos( (string) $row->getAttribute( 'class' ), 'stop' );
+				// A whole `stop` class, never a substring of one (`top_notstop2` is not a stop
+				// word). The title also marks a stop word the provider highlights anyway,
+				// e.g. an over-concentrated "и" (`xhl top_and1`, not greyed).
+				$item['stopword'] = in_array( 'stop', $class_names, true ) || 'Стоп-слово' === trim( $row->getAttribute( 'title' ) );
 			}
 			$items[] = $item;
 		}

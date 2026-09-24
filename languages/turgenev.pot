@@ -167,6 +167,10 @@ msgid "Loading…"
 msgstr ""
 
 #: assets/build/client.js
+msgid "Next hint"
+msgstr ""
+
+#: assets/build/client.js
 msgid "Open report"
 msgstr ""
 
@@ -180,6 +184,10 @@ msgstr ""
 
 #: assets/build/client.js
 msgid "Phrases"
+msgstr ""
+
+#: assets/build/client.js
+msgid "Previous hint"
 msgstr ""
 
 #: assets/build/client.js
@@ -216,6 +224,10 @@ msgstr ""
 
 #: src/Admin/SettingsPage.php:249
 msgid "Settings"
+msgstr ""
+
+#: assets/build/client.js
+msgid "See also:"
 msgstr ""
 
 #: assets/build/client.js

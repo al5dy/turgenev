@@ -220,9 +220,22 @@
 	// A HighlightMark.sentence id: "<word offset>-<word count>", matching a key in
 	// SectionDetails.sentenceProblems (see ReportSectionParser::parseSentenceProblems()).
 	const SENTENCE_ID_PATTERN = /^\d+-\d+$/;
-	// A HighlightMark.fragments entry; both bounds mirror ReportHighlightParser's own.
+	// HighlightMark list entries; the shared bound mirrors ReportHighlightParser's own.
 	const FRAGMENT_ID_PATTERN = /^(?:xhint|xhlln)-\d+-\d+$/;
+	const STEM_ID_PATTERN = /^stm-\d+-[0-9A-Fa-f]+$/;
+	const TYPE_CLASS_PATTERN = /^([a-z_]+)[1-9]\d*$/;
 	const MAX_MARK_FRAGMENTS = 8;
+	function isIdList( value: unknown, valid: ( id: string ) => boolean ): boolean {
+		return (
+			Array.isArray( value ) &&
+			value.length <= MAX_MARK_FRAGMENTS &&
+			value.every( ( id: unknown ) => typeof id === 'string' && valid( id ) )
+		);
+	}
+	function isTypeClass( id: string ): boolean {
+		const match = TYPE_CLASS_PATTERN.exec( id );
+		return Boolean( match && KNOWN_HIGHLIGHT_TYPES.has( match[ 1 ] ) );
+	}
 
 	function highlightColor( mark: { type: string; level: number } ): string {
 		return (
@@ -230,6 +243,34 @@
 			FALLBACK_HIGHLIGHT_COLOR
 		);
 	}
+
+	// The provider's hover backgrounds (`.xhl.<class>.xhint-hover`/`.stm-hover`) are each
+	// class's own text color at 20% alpha, without exception.
+	function hoverColor( mark: { type: string; level: number } ): string {
+		const hex = highlightColor( mark ).slice( 1 );
+		const [ r, g, b ] = [ 0, 2, 4 ].map( ( at ) =>
+			parseInt( hex.slice( at, at + 2 ), 16 )
+		);
+		return `rgba(${ r }, ${ g }, ${ b }, 0.2)`;
+	}
+
+	// Where the provider draws `border-bottom: dotted 1px <color>`: every repeated word
+	// ("doubles"/"top_*"), and "bb"/"slop" marks carrying the bare `xhint` class.
+	const ALWAYS_UNDERLINED_TYPES = new Set< string >( [
+		'doubles',
+		'top_and',
+		'top_notstop',
+	] );
+	const XHINT_UNDERLINED_TYPES = new Set< string >( [ 'bb', 'slop' ] );
+	function isUnderlined( mark: { type: string; xhint?: boolean } ): boolean {
+		return (
+			ALWAYS_UNDERLINED_TYPES.has( mark.type ) ||
+			( Boolean( mark.xhint ) && XHINT_UNDERLINED_TYPES.has( mark.type ) )
+		);
+	}
+
+	// `.xhint-active`/`.stmhl-active`: the last hovered fragment, or the picked word.
+	const ACTIVE_BACKGROUND = '#ececec';
 
 	function legendColor( item: { type: string; level: number } ): string {
 		return LEGEND_COLORS[ item.type + item.level ] || 'transparent';
@@ -278,10 +319,6 @@
 		) } (${ String( data.risk ?? '—' ) })`;
 		return verdict;
 	}
-
-	// Overall risk lists every provider characteristic; only this many show by
-	// default so the panel stays scannable regardless of how many the report has.
-	const OVERALL_VISIBLE_PARAMS = 6;
 
 	/**
 	 * Fallback per-characteristic explainer for a param row's tooltip, in any section, keyed
@@ -521,23 +558,19 @@
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-params';
 		const isOverall = section === 'overall';
-		let visibleCount = 0;
 		let hiddenCount = 0;
 		params.forEach( ( param ) => {
 			const row = document.createElement( 'div' );
 			row.className = 'turgenev-section-param';
-			// The most relevant characteristics show by default; provider-flagged
-			// secondary ones and any overflow past the cap stay behind the toggle
-			// below until the reader asks for the full breakdown.
-			const shouldHide =
-				isOverall &&
-				( param.low || visibleCount >= OVERALL_VISIBLE_PARAMS );
-			if ( shouldHide ) {
+			// As on the provider's own page: secondary characteristics are greyed in every
+			// section, and only "Overall risk" folds them behind the toggle below.
+			if ( param.low ) {
+				row.classList.add( 'is-low' );
+			}
+			if ( isOverall && param.low ) {
 				row.hidden = true;
 				row.classList.add( 'turgenev-section-param-hidden' );
 				hiddenCount++;
-			} else if ( isOverall ) {
-				visibleCount++;
 			}
 			const name = document.createElement( 'span' );
 			name.className = 'turgenev-section-param-name';
@@ -580,13 +613,16 @@
 			}
 			const value = document.createElement( 'span' );
 			value.className = 'turgenev-section-param-value';
-			const scoreBadge = document.createElement( 'span' );
-			scoreBadge.className = 'turgenev-section-param-score';
-			scoreBadge.textContent = param.score;
+			if ( param.score !== '' ) {
+				const scoreBadge = document.createElement( 'span' );
+				scoreBadge.className = 'turgenev-section-param-score';
+				scoreBadge.textContent = param.score;
+				value.appendChild( scoreBadge );
+			}
 			const valueText = document.createElement( 'span' );
 			valueText.className = 'turgenev-section-param-value-text';
 			valueText.textContent = param.value;
-			value.append( scoreBadge, valueText );
+			value.appendChild( valueText );
 			row.append( name, value );
 			wrap.appendChild( row );
 		} );
@@ -612,21 +648,21 @@
 	}
 
 	/**
-	 * `activeKey` (the `<type><level>` of whatever mark the reader is currently hovering in
-	 * the document, matching legendColor()/highlightColorTable's own key shape) lights up
-	 * the one row it names; every other row stays at its dimmed resting opacity (see
-	 * `.turgenev-section-legend-label`). Passed in and rendered fresh each time, like every
+	 * `activeKey` (SessionState.hoveredLegendKey: the `<type><level>` of the row the mark
+	 * last hovered belongs to, '' for none) lights up the one row it names and dims every
+	 * other, exactly like the provider's `legend-active`/`legend-inactive`; null (nothing
+	 * hovered yet) leaves every row plain. Passed in and rendered fresh each time, like every
 	 * other piece of session state, rather than patched onto already-rendered rows: this
-	 * legend is rebuilt on every state change highlighting itself triggers (sentenceProblem
-	 * included), so a DOM patch applied between two such rebuilds would just be discarded by
-	 * the next one.
+	 * legend is rebuilt on every state change highlighting itself triggers, so a DOM patch
+	 * applied between two such rebuilds would just be discarded by the next one.
 	 */
 	function renderLegend(
 		items: SectionLegendItem[],
 		activeKey: string | null = null
 	): HTMLElement {
 		const list = document.createElement( 'div' );
-		list.className = 'turgenev-section-legend';
+		list.className =
+			'turgenev-section-legend' + ( activeKey === null ? '' : ' has-active' );
 		items.forEach( ( item ) => {
 			const row = document.createElement( 'div' );
 			const key = item.type ? item.type + item.level : '';
@@ -647,15 +683,37 @@
 
 	function renderWordStats(
 		items: SectionWordStat[],
-		showPercent: boolean
+		showPercent: boolean,
+		activeRow: number | null = null,
+		onSelect?: ( index: number ) => void
 	): HTMLElement {
 		const table = document.createElement( 'table' );
 		table.className = 'widefat striped turgenev-section-words';
 		const tbody = document.createElement( 'tbody' );
-		items.forEach( ( item ) => {
+		items.forEach( ( item, index ) => {
 			const row = document.createElement( 'tr' );
-			if ( item.stopword ) {
-				row.className = 'turgenev-section-word-stop';
+			// Greyed like the provider's plain `stop` rows; a stop word it highlights
+			// anyway (an over-concentrated "и") keeps its color instead.
+			if ( item.stopword && ! item.type ) {
+				row.classList.add( 'turgenev-section-word-stop' );
+			}
+			// The provider's `stmhl-btn` rows: picking one lights up every occurrence of the
+			// word in the document, and it stays picked (`stmhl-active`) until another is.
+			if ( item.stems?.length && onSelect ) {
+				row.classList.add( 'is-pickable' );
+				row.tabIndex = 0;
+				row.setAttribute( 'aria-pressed', String( index === activeRow ) );
+				row.addEventListener( 'click', () => onSelect( index ) );
+				row.addEventListener( 'keydown', ( event ) => {
+					const key = ( event as KeyboardEvent ).key;
+					if ( key === 'Enter' || key === ' ' ) {
+						event.preventDefault();
+						onSelect( index );
+					}
+				} );
+			}
+			if ( index === activeRow ) {
+				row.classList.add( 'is-active' );
 			}
 			const text = makeCell( 'th', item.text );
 			// Mirrors the provider's own `title="Стоп-слово"` on this same row, the only
@@ -673,6 +731,16 @@
 				} );
 			}
 			row.appendChild( text );
+			if ( showPercent ) {
+				const score = makeCell( 'td', '' );
+				if ( item.score ) {
+					const badge = document.createElement( 'span' );
+					badge.className = 'turgenev-section-param-score';
+					badge.textContent = item.score;
+					score.appendChild( badge );
+				}
+				row.appendChild( score );
+			}
 			row.appendChild( makeCell( 'td', String( item.count ) ) );
 			if ( showPercent ) {
 				row.appendChild( makeCell( 'td', item.percent ?? '—' ) );
@@ -683,7 +751,11 @@
 		return table;
 	}
 
-	function renderFrequencyContent( details: SectionDetails ): HTMLElement {
+	function renderFrequencyContent(
+		details: SectionDetails,
+		activeRow: number | null = null,
+		onSelect?: ( index: number ) => void
+	): HTMLElement {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-frequency';
 		const tabs = document.createElement( 'div' );
@@ -698,7 +770,12 @@
 		phrasesButton.textContent = __( 'Phrases', 'turgenev' );
 		tabs.append( wordsButton, phrasesButton );
 
-		const wordsTable = renderWordStats( details.words ?? [], true );
+		const wordsTable = renderWordStats(
+			details.words ?? [],
+			true,
+			activeRow,
+			onSelect
+		);
 		const phrasesTable = renderWordStats( details.phrases ?? [], false );
 		phrasesTable.hidden = true;
 
@@ -760,6 +837,108 @@
 		return wrap;
 	}
 
+	/**
+	 * The provider's "Подсказки" box for the fragment last hovered ("Style"): one explainer
+	 * at a time with a pager, exactly as bb-hl.js `showCurrentXHint()` lays it out — the
+	 * flagged words in bold, the text with its own italics, "Подробнее", then "См. также".
+	 * Everything here is plain text from SectionHint, never provider HTML.
+	 */
+	function renderHints(
+		hints: SectionHint[],
+		index: number,
+		onPage?: ( index: number ) => void
+	): HTMLElement {
+		const wrap = document.createElement( 'div' );
+		wrap.className = 'turgenev-section-hints';
+		const header = document.createElement( 'div' );
+		header.className = 'turgenev-section-hints-header';
+		const heading = document.createElement( 'h4' );
+		heading.className = 'turgenev-section-heading';
+		heading.textContent = __( 'Hints', 'turgenev' );
+		header.appendChild( heading );
+		const current = Math.min( Math.max( 0, index ), hints.length - 1 );
+		if ( hints.length > 1 ) {
+			const pager = document.createElement( 'span' );
+			pager.className = 'turgenev-section-hints-pager';
+			const button = (
+				label: string,
+				text: string,
+				target: number
+			): HTMLButtonElement => {
+				const element = document.createElement( 'button' );
+				element.type = 'button';
+				element.className = 'button-link turgenev-section-hints-page';
+				element.textContent = text;
+				element.setAttribute( 'aria-label', label );
+				element.disabled = target < 0 || target >= hints.length || ! onPage;
+				element.addEventListener( 'click', () => onPage?.( target ) );
+				return element;
+			};
+			const info = document.createElement( 'span' );
+			info.className = 'turgenev-section-hints-info';
+			info.textContent = `${ current + 1 }/${ hints.length }`;
+			pager.append(
+				button( __( 'Previous hint', 'turgenev' ), '‹', current - 1 ),
+				info,
+				button( __( 'Next hint', 'turgenev' ), '›', current + 1 )
+			);
+			header.appendChild( pager );
+		}
+		wrap.appendChild( header );
+		const hint = hints[ current ];
+		if ( hint ) {
+			const body = document.createElement( 'div' );
+			body.className = 'turgenev-section-hint';
+			if ( hint.title ) {
+				const title = document.createElement( 'strong' );
+				title.className = 'turgenev-section-hint-title';
+				title.textContent = hint.title;
+				body.appendChild( title );
+			}
+			const text = document.createElement( 'p' );
+			text.className = 'turgenev-section-hint-text';
+			hint.text.forEach( ( run ) => {
+				if ( run.italic ) {
+					const emphasis = document.createElement( 'i' );
+					emphasis.textContent = run.text;
+					text.appendChild( emphasis );
+				} else {
+					text.appendChild( document.createTextNode( run.text ) );
+				}
+			} );
+			body.appendChild( text );
+			const helpLink = ( label: string, url: string ): HTMLAnchorElement => {
+				const link = document.createElement( 'a' );
+				link.href = url;
+				link.target = '_blank';
+				link.rel = 'noopener noreferrer';
+				link.textContent = label;
+				return link;
+			};
+			if ( hint.more ) {
+				const more = helpLink( __( 'Подробнее', 'turgenev' ), hint.more );
+				more.className = 'turgenev-section-hint-more';
+				body.appendChild( more );
+			}
+			if ( hint.seeAlso?.length ) {
+				const seeAlso = document.createElement( 'div' );
+				seeAlso.className = 'turgenev-section-hint-see-also';
+				const label = document.createElement( 'span' );
+				label.textContent = __( 'See also:', 'turgenev' );
+				seeAlso.append( label, document.createTextNode( ' ' ) );
+				hint.seeAlso.forEach( ( link, position ) => {
+					if ( position ) {
+						seeAlso.appendChild( document.createTextNode( ', ' ) );
+					}
+					seeAlso.appendChild( helpLink( link.label, link.url ) );
+				} );
+				body.appendChild( seeAlso );
+			}
+			wrap.appendChild( body );
+		}
+		return wrap;
+	}
+
 	function renderBreakdown( items: SectionBreakdownItem[] ): HTMLElement {
 		const list = document.createElement( 'div' );
 		list.className = 'turgenev-section-breakdown';
@@ -782,7 +961,14 @@
 		result: RiskResult,
 		sentenceProblem?: SentenceProblem[] | null,
 		hoveredLegendKey?: string | null,
-		onOpenSection?: ( section: SectionKey ) => void
+		onOpenSection?: ( section: SectionKey ) => void,
+		interaction: {
+			hints?: SectionHint[] | null;
+			hintIndex?: number;
+			onHintPage?: ( index: number ) => void;
+			activeWordRow?: number | null;
+			onSelectWord?: ( index: number ) => void;
+		} = {}
 	): HTMLElement {
 		const wrap = document.createElement( 'div' );
 		wrap.className = 'turgenev-section-content';
@@ -799,16 +985,31 @@
 		}
 		wrap.appendChild( renderSectionParams( section, details.params ) );
 		if ( section === 'frequency' ) {
-			wrap.appendChild( renderFrequencyContent( details ) );
-		}
-		if ( section === 'style' && details.legend?.length ) {
-			const heading = document.createElement( 'h4' );
-			heading.className = 'turgenev-section-heading';
-			heading.textContent = __( 'Hints', 'turgenev' );
-			wrap.append(
-				heading,
-				renderLegend( details.legend, hoveredLegendKey ?? null )
+			wrap.appendChild(
+				renderFrequencyContent(
+					details,
+					interaction.activeWordRow ?? null,
+					interaction.onSelectWord
+				)
 			);
+		}
+		if ( section === 'style' ) {
+			// Like the provider's own box: absent until a fragment is hovered, then kept
+			// (possibly empty) for whatever was hovered last.
+			if ( interaction.hints ) {
+				wrap.appendChild(
+					renderHints(
+						interaction.hints,
+						interaction.hintIndex ?? 0,
+						interaction.onHintPage
+					)
+				);
+			}
+			if ( details.legend?.length ) {
+				wrap.appendChild(
+					renderLegend( details.legend, hoveredLegendKey ?? null )
+				);
+			}
 		}
 		if ( section === 'keywords' ) {
 			if ( details.breakdown?.length ) {
@@ -855,6 +1056,11 @@
 			sectionError?: string;
 			sentenceProblem?: SentenceProblem[] | null;
 			hoveredLegendKey?: string | null;
+			hints?: SectionHint[] | null;
+			hintIndex?: number;
+			onHintPage?: ( index: number ) => void;
+			activeWordRow?: number | null;
+			onSelectWord?: ( index: number ) => void;
 		} = {}
 	): void {
 		if ( ! container ) {
@@ -940,7 +1146,14 @@
 							data,
 							options.sentenceProblem,
 							options.hoveredLegendKey,
-							openSection
+							openSection,
+							{
+								hints: options.hints,
+								hintIndex: options.hintIndex,
+								onHintPage: options.onHintPage,
+								activeWordRow: options.activeWordRow,
+								onSelectWord: options.onSelectWord,
+							}
 						)
 					);
 					// Only once this panel's own content has actually finished loading,
@@ -974,6 +1187,9 @@
 					level?: unknown;
 					sentence?: unknown;
 					fragments?: unknown;
+					classes?: unknown;
+					xhint?: unknown;
+					stems?: unknown;
 				};
 				return ! (
 					Number.isInteger( candidate.start ) &&
@@ -991,13 +1207,17 @@
 						( typeof candidate.sentence === 'string' &&
 							SENTENCE_ID_PATTERN.test( candidate.sentence ) ) ) &&
 					( candidate.fragments === undefined ||
-						( Array.isArray( candidate.fragments ) &&
-							candidate.fragments.length <= MAX_MARK_FRAGMENTS &&
-							candidate.fragments.every(
-								( id: unknown ) =>
-									typeof id === 'string' &&
-									FRAGMENT_ID_PATTERN.test( id )
-							) ) )
+						isIdList( candidate.fragments, ( id ) =>
+							FRAGMENT_ID_PATTERN.test( id )
+						) ) &&
+					( candidate.classes === undefined ||
+						isIdList( candidate.classes, isTypeClass ) ) &&
+					( candidate.xhint === undefined ||
+						typeof candidate.xhint === 'boolean' ) &&
+					( candidate.stems === undefined ||
+						isIdList( candidate.stems, ( id ) =>
+							STEM_ID_PATTERN.test( id )
+						) )
 				);
 			} )
 		) {
@@ -1049,6 +1269,11 @@
 				typeof candidate.percent === 'string' ) &&
 			( candidate.stopword === undefined ||
 				typeof candidate.stopword === 'boolean' ) &&
+			( candidate.score === undefined ||
+				( typeof candidate.score === 'string' &&
+					/^\d{1,3}$/.test( candidate.score ) ) ) &&
+			( candidate.stems === undefined ||
+				isIdList( candidate.stems, ( id ) => STEM_ID_PATTERN.test( id ) ) ) &&
 			( candidate.type === undefined ||
 				( typeof candidate.type === 'string' &&
 					KNOWN_HIGHLIGHT_TYPES.has( candidate.type ) ) ) &&
@@ -1120,6 +1345,67 @@
 		);
 	}
 
+	// Every provider help link is built server-side from ASCII word characters only.
+	const HELP_URL_PATTERN =
+		/^https:\/\/turgenev\.ashmanov\.com\/\?h=\w+(?:#\w*)?$/;
+
+	function isSectionHint( value: unknown ): value is SectionHint {
+		if ( ! value || typeof value !== 'object' ) {
+			return false;
+		}
+		const candidate = value as Record< string, unknown >;
+		return (
+			typeof candidate.title === 'string' &&
+			Array.isArray( candidate.text ) &&
+			candidate.text.length > 0 &&
+			candidate.text.length <= 200 &&
+			candidate.text.every( ( run: unknown ) => {
+				const part = run as Record< string, unknown > | null;
+				return (
+					!! part &&
+					typeof part === 'object' &&
+					typeof part.text === 'string' &&
+					( part.italic === undefined || part.italic === true )
+				);
+			} ) &&
+			( candidate.more === undefined ||
+				( typeof candidate.more === 'string' &&
+					HELP_URL_PATTERN.test( candidate.more ) ) ) &&
+			( candidate.seeAlso === undefined ||
+				( Array.isArray( candidate.seeAlso ) &&
+					candidate.seeAlso.length <= 20 &&
+					candidate.seeAlso.every( ( link: unknown ) => {
+						const item = link as Record< string, unknown > | null;
+						return (
+							!! item &&
+							typeof item === 'object' &&
+							typeof item.label === 'string' &&
+							typeof item.url === 'string' &&
+							HELP_URL_PATTERN.test( item.url )
+						);
+					} ) ) )
+		);
+	}
+
+	function isSectionHints(
+		value: unknown
+	): value is Record< string, SectionHint[] > {
+		if ( ! value || typeof value !== 'object' || Array.isArray( value ) ) {
+			return false;
+		}
+		const entries = Object.entries( value as Record< string, unknown > );
+		return (
+			entries.length <= 200 &&
+			entries.every(
+				( [ key, hints ] ) =>
+					SENTENCE_ID_PATTERN.test( key ) &&
+					Array.isArray( hints ) &&
+					hints.length <= 20 &&
+					hints.every( isSectionHint )
+			)
+		);
+	}
+
 	function validSectionDetails( data: unknown ): SectionDetails {
 		const invalid = (): never => {
 			throw new Error(
@@ -1163,6 +1449,12 @@
 				return invalid();
 			}
 			result.sentenceProblems = raw.sentenceProblems;
+		}
+		if ( raw.hints !== undefined ) {
+			if ( ! isSectionHints( raw.hints ) ) {
+				return invalid();
+			}
+			result.hints = raw.hints;
 		}
 		if ( raw.wordCount !== undefined ) {
 			if (
@@ -1559,6 +1851,11 @@
 					// default yellow <mark> background.
 					mark.style.background = 'none';
 					mark.style.color = highlightColor( winner );
+					if ( isUnderlined( winner ) ) {
+						mark.style.borderBottom = `1px dotted ${ highlightColor(
+							winner
+						) }`;
+					}
 					mark.textContent = value;
 					container.appendChild( mark );
 				} else {
@@ -1581,6 +1878,9 @@
 	window.TurgenevClient = Object.freeze( {
 		highlightLevel,
 		highlightColor,
+		hoverColor,
+		isUnderlined,
+		activeBackground: ACTIVE_BACKGROUND,
 		legendColor,
 		highlightColorTable: HIGHLIGHT_COLORS,
 		normalizedTextOffsets,

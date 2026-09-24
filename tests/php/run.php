@@ -341,6 +341,8 @@ try {
 		$style = $client->reportSectionDetails( 'abc12345', 'style' );
 		expect_true( 'Metric' === $style['params'][0]['name'] && '0.42' === $style['params'][0]['value'] && '2' === $style['params'][0]['score'] && false === $style['params'][0]['low'], 'section params expose name/value/score and a secondary flag' );
 		expect_true( 'Secondary' === $style['params'][1]['name'] && true === $style['params'][1]['low'], 'a "low"/"tghidden" characteristic row is flagged secondary' );
+		expect_true( '' === $style['params'][1]['score'], 'a row the provider shows no score badge for has an empty score, never a made-up 0' );
+		expect_true( ! array_key_exists( 'hints', $style ), 'a report with no XHints explainers exposes no hints at all' );
 		expect_true( array() === $style['legend'], 'style legend is empty when the report has no #legend block' );
 		expect_true( 'slop_words' === $GLOBALS['turgenev_last_request']['args']['body']['coverdict'], 'the style section requests the provider\'s slop_words report tab' );
 		expect_true( 'abc12345' === $GLOBALS['turgenev_last_request']['args']['body']['t'], 'section details reuse the overall report token, not a separate per-block one' );
@@ -433,6 +435,48 @@ try {
 
 		$style_never_gets_sentence_problems = $client->reportSectionDetails( 'abc12345', 'style' );
 		expect_true( ! array_key_exists( 'sentenceProblems', $style_never_gets_sentence_problems ), 'only the overall section parses sentenceProblems' );
+		expect_true( ! array_key_exists( 'hints', $overall_with_xhints ) && ! array_key_exists( 'hints', $style_never_gets_sentence_problems ), 'the overall link-list shape is never mistaken for explainer hints' );
+
+		// The "Style" report's own XHints: per-fragment explainers in the provider's light
+		// markup (shaped like a live report, including its `_italics_` and anchors).
+		$hints_markup = $section_markup(
+			'<script>var XHints = {"68-3":[{"c":["Слово «процесс» замедляет _процесс повествования_. &#heavy","Избегайте отглагольных — _злоупотребление_ <b>их</b> _использованием_. &#kants[Канцелярит] &glossary#heavy[«Утяжеление» &amp; текст]"],"t":"в процессе… <i>осуществления</i>"}],'
+			. '"48-2":[{"c":["Вредный совет без ссылки."],"t":"высококвалифицированные специалисты"}],'
+			. '"1-1":[{"c":["<img src=x onerror=alert(1)>"],"t":""}],"bad":[{"c":["ignored"],"t":""}],"2-2":[{"c":"a link list","t":""}]};</script>'
+		);
+		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $hints_markup );
+		$style_hints = $client->reportSectionDetails( 'abc12345', 'style' )['hints'];
+		expect_true( array( '68-3', '48-2' ) === array_keys( $style_hints ), 'only well-formed fragment ids with explainer lists come through; empty (tag-only) texts and link lists are dropped' );
+		expect_true(
+			array(
+				'title' => 'в процессе… осуществления',
+				'text'  => array(
+					array( 'text' => 'Слово «процесс» замедляет ' ),
+					array(
+						'text'   => 'процесс повествования',
+						'italic' => true,
+					),
+					array( 'text' => '.' ),
+				),
+				'more'  => 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy',
+			) === $style_hints['68-3'][0],
+			'a trailing &#anchor becomes the "Подробнее" help link (default article, as in bb-hl.js) and _words_ become italic runs'
+		);
+		expect_true(
+			array(
+				array(
+					'label' => 'Канцелярит',
+					'url'   => 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#kants',
+				),
+				array(
+					'label' => '«Утяжеление» & текст',
+					'url'   => 'https://turgenev.ashmanov.com/?h=glossary#heavy',
+				),
+			) === $style_hints['68-3'][1]['seeAlso'] && ! isset( $style_hints['68-3'][1]['more'] ),
+			'&page#anchor[label] links become "См. также" entries with decoded plain labels, in order'
+		);
+		expect_true( 'Избегайте отглагольных — ' === $style_hints['68-3'][1]['text'][0]['text'] && ' их ' === $style_hints['68-3'][1]['text'][2]['text'], 'provider tags inside a text are dropped, never passed on as markup' );
+		expect_true( array( array( 'text' => 'Вредный совет без ссылки.' ) ) === $style_hints['48-2'][0]['text'] && ! isset( $style_hints['48-2'][0]['more'] ), 'a text without anchors has no links' );
 
 		$legend_markup = $section_markup( "<div id='legend'><table><tr><td><em class='xhl slop1'>&nbsp;</em></td><td>Potential issue.</td></tr><tr class='legend-active'><td><em class='xhl bb3'>&nbsp;</em></td><td>Never surfaces as a category legend row.</td></tr></table></div>" );
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $legend_markup );
@@ -460,15 +504,22 @@ try {
 			. "<div id='words_frq_stat'><table class='wstat'>"
 			. "<tr class='stop'><td>and</td><td>&nbsp;</td><td>&nbsp;<span class='value'>3</span></td><td align=right>&nbsp;<span class='value'>10.0%</span></td></tr>"
 			. "<tr class='xhl doubles4 stmhl-btn stm-6-190E7'><td>house</td><td>&nbsp;</td><td>&nbsp;<span class='value'>5</span></td><td align=right>&nbsp;<span class='value'>3.3%</span></td></tr>"
+			. "<tr class='xhl doubles5 top_notstop2 stmhl-btn stm-6-1088D'><td>ремонт</td><td><span class=mark>2</span></td><td>&nbsp;<span class='value'>13</span></td><td align=right>&nbsp;<span class='value'>12.9%</span></td></tr>"
+			. "<tr class='xhl top_and1 stmhl-btn stm-6-22906' title='Стоп-слово'><td>и</td><td><span class=mark>1</span></td><td>&nbsp;<span class='value'>10</span></td><td align=right>&nbsp;<span class='value'>9.9%</span></td></tr>"
 			. '</table></div>'
 			. "<div id='bgrms_frq_stat'><table class='wstat'><tr><td>fast car</td><td><span class='value'>2</span></td></tr></table></div>"
 			. '</div></body></html>';
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => $words_markup );
 		$frequency = $client->reportSectionDetails( 'abc12345', 'frequency' );
-		expect_true( 2 === count( $frequency['words'] ) && 'and' === $frequency['words'][0]['text'] && 3 === $frequency['words'][0]['count'] && '10.0%' === $frequency['words'][0]['percent'] && true === $frequency['words'][0]['stopword'], 'word repetition rows expose text, count, percentage and the stop-word flag' );
+		expect_true( 4 === count( $frequency['words'] ) && 'and' === $frequency['words'][0]['text'] && 3 === $frequency['words'][0]['count'] && '10.0%' === $frequency['words'][0]['percent'] && true === $frequency['words'][0]['stopword'], 'word repetition rows expose text, count, percentage and the stop-word flag' );
 		expect_true( ! array_key_exists( 'type', $frequency['words'][0] ), 'a plain stop-word row (no xhl class) carries no type/level' );
 		expect_true( 'doubles' === $frequency['words'][1]['type'] && 4 === $frequency['words'][1]['level'] && false === $frequency['words'][1]['stopword'], 'a repeated word row ("xhl doubles4") exposes the same type/level its in-text highlight uses, so the table can be colored to match' );
 		expect_true( 1 === count( $frequency['phrases'] ) && 'fast car' === $frequency['phrases'][0]['text'] && 2 === $frequency['phrases'][0]['count'], 'phrase repetition rows expose text and count, with no percentage' );
+		expect_true( array( 'stm-6-190E7' ) === $frequency['words'][1]['stems'] && ! array_key_exists( 'stems', $frequency['words'][0] ), 'a word row exposes the stems tying it to its occurrences in the text' );
+		expect_true( 'top_notstop' === $frequency['words'][2]['type'] && 2 === $frequency['words'][2]['level'], 'a row with several classes takes the one the provider stylesheet paints it with ("top_notstop2" over "doubles5")' );
+		expect_true( false === $frequency['words'][2]['stopword'], '"top_notstop2" merely contains "stop": the row is not a stop word' );
+		expect_true( '2' === $frequency['words'][2]['score'] && ! array_key_exists( 'score', $frequency['words'][1] ), 'an over-frequent word exposes its score badge; others none' );
+		expect_true( true === $frequency['words'][3]['stopword'] && 'top_and' === $frequency['words'][3]['type'], 'a stop word the provider highlights anyway ("и") is flagged by its title and keeps its type' );
 
 		$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '<html><body>No report panel here.</body></html>' );
 		expect_exception( static fn() => $client->reportSectionDetails( 'abc12345', 'overall' ), 'did not contain section details' );
@@ -917,6 +968,21 @@ try {
 		expect_true( array() === $fragments_of( 5 ), 'a repeated word\'s stm-* class is no fragment: it stands alone, as in the provider\'s own report' );
 		expect_true( array() === $fragments_of( 6 ), 'malformed or differently cased fragment-like classes are ignored' );
 		expect_true( array_map( static fn( int $i ): string => 'xhint-' . $i . '-1', range( 1, 8 ) ) === $fragments_of( 7 ), 'fragments per span are bounded' );
+
+		// Several color classes on one span: the provider's stylesheet rule defined last
+		// paints it (live: "fog1 stop1", "top_notstop2 doubles5"), whatever their order.
+		$cascade = $parser->parse(
+			"<textarea id='textfield'><span class='xhl fog1 stop1 xhlln-0-1'>и</span> <span class='xhl stop1 fog1'>в</span> "
+			. "<span class='xhl top_notstop2 doubles5 stm-6-1088D stm-6-1088D stm-6-EE20'>ремонт</span> <span class='xhl doubles9 fog1'>дом</span> "
+			. "<span class='xhl bb1 xhint xhint-0-2'>фраза</span> <span class='xhl slop1 xhint-3-1'>слово</span></textarea>",
+			'и в ремонт дом фраза слово'
+		);
+		$pick = static fn( int $index ): array => array_intersect_key( $cascade['marks'][ $index ], array_flip( array( 'category', 'type', 'level', 'classes', 'xhint', 'stems' ) ) );
+		expect_true( array( 'category' => 'formality', 'type' => 'stop', 'level' => 1, 'classes' => array( 'fog1', 'stop1' ), 'xhint' => false, 'stems' => array() ) === $pick( 0 ), 'a stop word is painted as "stop1", not the "fog1" listed before it, and keeps both classes' );
+		expect_true( 'stop' === $pick( 1 )['type'], 'class order never decides the paint' );
+		expect_true( array( 'category' => 'frequency', 'type' => 'top_notstop', 'level' => 2, 'classes' => array( 'top_notstop2', 'doubles5' ), 'xhint' => false, 'stems' => array( 'stm-6-1088D', 'stm-6-EE20' ) ) === $pick( 2 ), 'an over-frequent repeated word is painted as "top_notstop2" and keeps its stems once each' );
+		expect_true( 'fog' === $pick( 3 )['type'] && array( 'doubles9', 'fog1' ) === $pick( 3 )['classes'], 'a class with no color rule never overrides one that has' );
+		expect_true( true === $pick( 4 )['xhint'] && false === $pick( 5 )['xhint'], 'the bare "xhint" class (the provider\'s underline) is reported, a numbered one is not it' );
 	} else {
 		// DOM-absent: direct parser construction with no override still resolves the real
 		// (false) capability and rejects gracefully, rather than fatally erroring on a

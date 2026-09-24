@@ -154,16 +154,24 @@ test( 'six or fewer overall characteristics all show with no toggle', () => {
 	assert.equal( wrap.children.some( ( c ) => c.tagName === 'button' ), false );
 } );
 
-test( 'overflow past the sixth non-low characteristic is hidden behind a toggle, even with no low-flagged rows', () => {
+test( 'like the provider, overall folds only its low characteristics, never a scored one past some count', () => {
 	const renderSectionParams = fixture();
 	const params = [ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' ].map( ( n ) => param( n ) );
 	const wrap = renderSectionParams( 'overall', params );
 	const rows = wrap.children.filter( ( c ) => c.tagName === 'div' );
-	assert.equal( rows.filter( ( c ) => ! c.hidden ).length, 6 );
-	assert.equal( rows.filter( ( c ) => c.hidden ).length, 2 );
-	const toggle = wrap.children.find( ( c ) => c.tagName === 'button' );
-	assert.ok( toggle, 'toggle must appear once more than 6 characteristics exist' );
-	assert.equal( toggle.textContent, 'Show all characteristics' );
+	assert.equal( rows.filter( ( c ) => ! c.hidden ).length, 8 );
+	assert.equal( wrap.children.some( ( c ) => c.tagName === 'button' ), false, 'nothing to show, so no toggle' );
+} );
+
+test( 'low characteristics are greyed in every section, and a row the provider scores nothing shows no badge', () => {
+	const renderSectionParams = fixture();
+	const wrap = renderSectionParams( 'frequency', [ { name: 'a', value: '2.24', score: '', low: true }, { name: 'b', value: '13.18', score: '2', low: false } ] );
+	const [ low, scored ] = wrap.children;
+	assert.equal( low.hidden, false );
+	assert.equal( low.classList.contains( 'is-low' ), true );
+	assert.equal( low.children[ 1 ].children.map( ( c ) => c.className ).join(), 'turgenev-section-param-value-text', 'no score badge without a score' );
+	assert.equal( scored.classList.contains( 'is-low' ), false );
+	assert.equal( scored.children[ 1 ].children[ 0 ].textContent, '2' );
 } );
 
 test( 'provider-flagged low characteristics stay hidden even when fewer than 6 non-low ones exist', () => {
@@ -379,6 +387,87 @@ test( 'a non-overall section still shows nothing for an unrecognized characteris
 	const name = paramNameEl( wrap );
 	assert.equal( name.className.includes( 'has-tooltip' ), false );
 	assert.equal( name.children.length, 0 );
+} );
+
+test( 'the word table mirrors the provider: score badges, colors from the painting class, grey only for plain stop words', () => {
+	const { renderWordStats } = ui();
+	const table = renderWordStats( [
+		{ text: 'ремонт', count: 13, percent: '12.9%', stopword: false, score: '2', type: 'top_notstop', level: 2, stems: [ 'stm-6-1088D' ] },
+		{ text: 'и', count: 10, percent: '9.9%', stopword: true, score: '1', type: 'top_and', level: 1, stems: [ 'stm-6-22906' ] },
+		{ text: 'мы', count: 3, percent: '3.0%', stopword: true },
+	], true );
+	const [ word, highlightedStop, plainStop ] = table.children[ 0 ].children;
+	assert.equal( word.children[ 0 ].style.color, '#ff0000' );
+	assert.equal( word.children[ 1 ].children[ 0 ].textContent, '2', 'score badge in its own column' );
+	assert.equal( word.children[ 2 ].textContent, '13' );
+	assert.equal( highlightedStop.classList.contains( 'turgenev-section-word-stop' ), false, 'a highlighted stop word keeps its color' );
+	assert.equal( highlightedStop.children[ 0 ].title, 'Stop word' );
+	assert.equal( plainStop.classList.contains( 'turgenev-section-word-stop' ), true );
+	assert.equal( plainStop.children[ 1 ].children.length, 0, 'no badge without a score' );
+} );
+
+test( 'a word row with stems is pickable by click or keyboard and shows which one is picked', () => {
+	const { renderWordStats } = ui();
+	const picked = [];
+	const words = [ { text: 'дом', count: 4, stems: [ 'stm-6-1A612' ] }, { text: 'брус', count: 3 } ];
+	const table = renderWordStats( words, true, 0, ( index ) => picked.push( index ) );
+	const [ pickable, plain ] = table.children[ 0 ].children;
+	assert.equal( pickable.classList.contains( 'is-pickable' ), true );
+	assert.equal( pickable.classList.contains( 'is-active' ), true );
+	assert.equal( pickable.getAttribute( 'aria-pressed' ), 'true' );
+	pickable.click();
+	let prevented = false;
+	pickable.fire( 'keydown', { key: 'Enter', preventDefault: () => { prevented = true; } } );
+	assert.deepEqual( picked, [ 0, 0 ] );
+	assert.equal( prevented, true );
+	assert.equal( plain.classList.contains( 'is-pickable' ), false, 'a row the provider does not link to the text is not pickable' );
+	plain.click();
+	assert.deepEqual( picked, [ 0, 0 ] );
+} );
+
+test( 'the legend is plain until a mark is hovered, then dims every row but the one it belongs to', () => {
+	const { renderSectionContent } = ui();
+	const legend = [ { type: 'fog', level: 1, label: 'Общие слова' }, { type: 'stop', level: 1, label: 'Стоп-слова' } ];
+	const legendOf = ( key ) => renderSectionContent( 'formality', { params: [], legend }, riskResult, null, key ).children.find( ( c ) => c.className.includes( 'turgenev-section-legend' ) );
+	assert.equal( legendOf( null ).classList.contains( 'has-active' ), false );
+	const none = legendOf( '' );
+	assert.equal( none.classList.contains( 'has-active' ), true );
+	assert.equal( none.children.some( ( row ) => row.classList.contains( 'is-active' ) ), false );
+	const stop = legendOf( 'stop1' );
+	assert.deepEqual( stop.children.map( ( row ) => row.classList.contains( 'is-active' ) ), [ false, true ] );
+} );
+
+test( 'the style hints box shows one explainer at a time with its pager, links and italics, as plain text only', () => {
+	const { renderSectionContent } = ui();
+	const hints = [
+		{ title: 'в процессе… осуществления', text: [ { text: 'Слово «процесс» замедляет ' }, { text: 'процесс', italic: true }, { text: ' <img src=x onerror=alert(1)>.' } ], more: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy' },
+		{ title: '', text: [ { text: 'Второе.' } ], seeAlso: [ { label: 'Канцелярит', url: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#kants' }, { label: 'Утяжеление', url: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy' } ] },
+	];
+	const pages = [];
+	const box = ( index ) => renderSectionContent( 'style', { params: [] }, riskResult, null, null, undefined, { hints, hintIndex: index, onHintPage: ( i ) => pages.push( i ) } ).children.find( ( c ) => c.className === 'turgenev-section-hints' );
+	assert.equal( renderSectionContent( 'style', { params: [] }, riskResult ).children.some( ( c ) => c.className === 'turgenev-section-hints' ), false, 'absent until a fragment is hovered' );
+	const first = box( 0 );
+	const [ header, body ] = first.children;
+	const [ heading, pager ] = header.children;
+	assert.equal( heading.textContent, 'Hints' );
+	const [ previous, info, next ] = pager.children;
+	assert.equal( info.textContent, '1/2' );
+	assert.equal( previous.disabled, true );
+	next.click();
+	assert.deepEqual( pages, [ 1 ] );
+	const [ title, text, more ] = body.children;
+	assert.equal( title.textContent, 'в процессе… осуществления' );
+	assert.equal( text.children[ 1 ].tagName, 'i' );
+	assert.equal( text.children[ 2 ].nodeType, 3, 'provider text never becomes markup' );
+	assert.equal( more.href, hints[ 0 ].more );
+	assert.equal( more.rel, 'noopener noreferrer' );
+	const second = box( 1 ).children[ 1 ];
+	assert.equal( second.children[ 0 ].className, 'turgenev-section-hint-text', 'no title element without a title' );
+	const seeAlso = second.children[ 1 ];
+	assert.equal( seeAlso.children[ 0 ].textContent, 'See also:' );
+	assert.deepEqual( seeAlso.children.filter( ( c ) => c.tagName === 'a' ).map( ( a ) => a.textContent ), [ 'Канцелярит', 'Утяжеление' ] );
+	const empty = renderSectionContent( 'style', { params: [] }, riskResult, null, null, undefined, { hints: [] } ).children.find( ( c ) => c.className === 'turgenev-section-hints' );
+	assert.equal( empty.children.length, 1, 'a hovered fragment without explainers keeps the box, empty' );
 } );
 
 test( 'a stop-word row gets a native "Stop word" tooltip, mirroring the provider\'s own title attribute', () => {

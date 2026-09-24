@@ -63,7 +63,7 @@ async page => {
 			assert( result.ranges.length === original.text.match( /\S+/gu ).length, 'Every body word must be highlighted once.' );
 			assert( result.ranges.every( range => range.inPost ), 'A highlight escaped into navigation, the template, a query or another entity.' );
 			const [ , type, level ] = markTypes[ index ? categories[ index - 1 ] : 'risk' ];
-			assert( result.ranges.every( range => range.key === 'turgenev-' + type + level ), 'Previous category survived a new selection.' );
+			assert( result.ranges.every( range => range.key === 'turgenev-' + type + level + ( type === 'doubles' ? '-u' : '' ) ), 'Previous category survived a new selection.' );
 			for ( const key of [ 'html', 'template', 'postBlocks', 'edits' ] ) assert( result[ key ] === original[ key ], 'Highlight changed ' + key );
 			await reset().click();
 			assert( !( await state() ).ranges.length, 'Template reset left highlights.' );

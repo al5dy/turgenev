@@ -32,6 +32,9 @@
 			sectionError: '',
 			sentenceProblem: null,
 			hoveredLegendKey: null,
+			hints: null,
+			hintIndex: 0,
+			activeWordRow: null,
 		};
 		let source: SourceSnapshot | null = null;
 		let pending: AbortController | null = null;
@@ -75,6 +78,9 @@
 				sectionError: '',
 				sentenceProblem: null,
 				hoveredLegendKey: null,
+				hints: null,
+				hintIndex: 0,
+				activeWordRow: null,
 			} );
 		}
 		function reset(): void {
@@ -289,6 +295,9 @@
 				notice: '',
 				sentenceProblem: null,
 				hoveredLegendKey: null,
+				hints: null,
+				hintIndex: 0,
+				activeWordRow: null,
 			} );
 			try {
 				contentReset?.capture();
@@ -310,24 +319,7 @@
 				const counts = decorations.apply(
 					source as SourceSnapshot,
 					response.highlights,
-					( hover ) => {
-						// The problem list outlives the hover on purpose: its entries link
-						// to other sections, and the cursor has to leave the sentence to
-						// reach them. Only hovering a different sentence replaces it.
-						update( {
-							hoveredLegendKey: hover
-								? hover.type + hover.level
-								: null,
-							...( hover?.sentence
-								? {
-										sentenceProblem:
-											state.sectionData?.sentenceProblems?.[
-												hover.sentence
-											] ?? null,
-								  }
-								: {} ),
-						} );
-					}
+					onHover
 				);
 				let notice = '';
 				if ( ! counts.total ) {
@@ -355,6 +347,93 @@
 					update( { highlighting: false } );
 				}
 			}
+		}
+		/**
+		 * What the provider's own report page does as the cursor enters a mark (bb-hl.js
+		 * `showXHintProcess()`/`showXDoublesProcess()`). Everything it sets outlives the hover
+		 * on purpose, as there: the problem list and hints link elsewhere, and the cursor has
+		 * to leave the text to reach them. Only hovering another mark replaces them.
+		 */
+		function onHover( hover: MarkHover | null ): void {
+			if ( ! hover ) {
+				return;
+			}
+			const details = state.sectionData;
+			const changes: Partial< SessionState > = {
+				hoveredLegendKey: legendKeyFor( details?.legend ?? [], hover ),
+			};
+			if ( hover.sentence ) {
+				changes.sentenceProblem =
+					details?.sentenceProblems?.[ hover.sentence ] ?? null;
+			}
+			if ( state.openSection === 'style' ) {
+				changes.hints = hintsFor( details?.hints ?? {}, hover );
+				changes.hintIndex = 0;
+			}
+			const row = wordRowFor( details?.words ?? [], hover );
+			if ( row !== null ) {
+				changes.activeWordRow = row;
+				decorations?.setActiveStems(
+					details?.words?.[ row ]?.stems ?? null
+				);
+			}
+			update( changes );
+		}
+		/** The last legend row any of the hovered span's classes names; '' when none does. */
+		function legendKeyFor(
+			legend: SectionLegendItem[],
+			hover: MarkHover
+		): string {
+			let active = '';
+			for ( const item of legend ) {
+				const key = item.type ? item.type + item.level : '';
+				if ( key && hover.classes.includes( key ) ) {
+					active = key;
+				}
+			}
+			return active;
+		}
+		/**
+		 * Every explainer of every fragment the hovered span is in, in class order; one text
+		 * shared by several fragments is listed once, under all their titles.
+		 */
+		function hintsFor(
+			hints: Record< string, SectionHint[] >,
+			hover: MarkHover
+		): SectionHint[] {
+			const result: SectionHint[] = [];
+			const byText = new Map< string, { hint: SectionHint; titles: Set< string > } >();
+			for ( const fragment of hover.fragments ) {
+				// `xhint-` and `xhlln-` are both six characters, as the provider relies on.
+				for ( const hint of hints[ fragment.slice( 6 ) ] ?? [] ) {
+					const key = JSON.stringify( [ hint.text, hint.more, hint.seeAlso ] );
+					const seen = byText.get( key );
+					if ( ! seen ) {
+						const copy = { ...hint };
+						result.push( copy );
+						byText.set( key, { hint: copy, titles: new Set( [ hint.title ] ) } );
+					} else if ( ! seen.titles.has( hint.title ) ) {
+						seen.titles.add( hint.title );
+						seen.hint.title += ', ' + hint.title;
+					}
+				}
+			}
+			return result;
+		}
+		/** The "Frequency" row of the first of the hovered word's stems that has one. */
+		function wordRowFor(
+			words: SectionWordStat[],
+			hover: MarkHover
+		): number | null {
+			for ( const stem of hover.stems ) {
+				const index = words.findIndex( ( word ) =>
+					word.stems?.includes( stem )
+				);
+				if ( index >= 0 ) {
+					return index;
+				}
+			}
+			return null;
 		}
 		async function toggleSection(
 			section: SectionKey,
@@ -434,6 +513,19 @@
 			balance,
 			highlight,
 			toggleSection,
+			selectWord( index: number ) {
+				// Picking the picked row again releases it, like the provider's own table.
+				const next = state.activeWordRow === index ? null : index;
+				decorations?.setActiveStems(
+					next === null ? null : state.sectionData?.words?.[ next ]?.stems ?? null
+				);
+				update( { activeWordRow: next } );
+			},
+			showHint( index: number ) {
+				if ( state.hints && index >= 0 && index < state.hints.length ) {
+					update( { hintIndex: index } );
+				}
+			},
 			reset,
 			invalidate,
 			setHtmlMode( htmlMode: boolean ) {
@@ -687,6 +779,11 @@
 										sectionError: state.sectionError,
 										sentenceProblem: state.sentenceProblem,
 										hoveredLegendKey: state.hoveredLegendKey,
+										hints: state.hints,
+										hintIndex: state.hintIndex,
+										onHintPage: session.showHint,
+										activeWordRow: state.activeWordRow,
+										onSelectWord: session.selectWord,
 								  }
 								: {}
 						);

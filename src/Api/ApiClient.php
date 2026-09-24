@@ -107,7 +107,7 @@ final class ApiClient {
 	 * @param string $expected_text Current document text.
 	 * @throws ApiException On invalid or mismatched report data.
 	 *
-	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string, fragments: list<string>}>}
+	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int, classes: list<string>, xhint: bool, sentence: ?string, fragments: list<string>, stems: list<string>}>}
 	 */
 	public function reportHighlights( string $report_token, string $expected_text ): array {
 		$report_token  = ResponseValidator::token( $report_token );

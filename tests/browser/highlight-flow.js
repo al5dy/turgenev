@@ -8,7 +8,8 @@ async page => {
 	// Accordion order: 'risk' is the overall report's own token. Each maps to the provider
 	// class a real report of that section paints with (see ReportHighlightParser::CATEGORIES).
 	const markTypes = { risk: [ 'style', 'bb', 2 ], frequency: [ 'frequency', 'doubles', 2 ], style: [ 'style', 'slop', 2 ], keywords: [ 'keywords', 'queries', 1 ], formality: [ 'formality', 'fog', 1 ], readability: [ 'readability', 'fre', 2 ] };
-	const keyOf = index => { const [ , type, level ] = markTypes[ index ? categories[ index - 1 ] : 'risk' ]; return 'turgenev-' + type + level; };
+	// Repeated words carry the provider's dotted underline: their own `-u` highlight.
+	const keyOf = index => { const [ , type, level ] = markTypes[ index ? categories[ index - 1 ] : 'risk' ]; return 'turgenev-' + type + level + ( type === 'doubles' ? '-u' : '' ); };
 	// Shaped like a live report: one mark per word (trailing space included), a flagged
 	// sentence or phrase tied together only by the provider fragment ids its words share. For
 	// "<sentence>. Первый абзац. Второй абзац.": the sentence is one fragment, "Первый абзац."
@@ -19,6 +20,31 @@ async page => {
 		const tail = [ [ 'xhlln-8-2' ], [ 'xhlln-8-2', 'xhlln-9-2' ], [ 'xhlln-9-2' ], [] ];
 		return words.map( ( match, index ) => ( { start: match.index, end: match.index + match[ 0 ].length, category: 'style', type: 'bb', level: 1, sentence: index <= last ? '0-2' : null, fragments: index <= last ? [ 'xhint-0-' + ( last + 1 ) ] : tail[ index - last - 1 ] } ) );
 	};
+	// Shaped like live reports of "Совсем другой документ. Первый абзац. Второй абзац.",
+	// one per section, with every class a live report sends for such words.
+	const providerMarks = ( text, token ) => {
+		const at = ( word, nth = 0 ) => { let index = -1; for ( let i = 0; i <= nth; i++ ) index = text.indexOf( word, index + 1 ); return { start: index, end: index + word.length }; };
+		const mark = ( word, fields, nth = 0 ) => ( { ...at( word, nth ), sentence: null, ...fields } );
+		if ( token === 'formality' ) return [
+			mark( 'Совсем', { category: 'formality', type: 'stop', level: 1, classes: [ 'fog1', 'stop1' ], fragments: [ 'xhlln-0-1' ] } ),
+			mark( 'другой', { category: 'formality', type: 'fog', level: 1, classes: [ 'fog1' ], fragments: [ 'xhlln-1-1' ] } ),
+		];
+		if ( token === 'frequency' ) return [
+			mark( 'Первый', { category: 'frequency', type: 'top_notstop', level: 2, classes: [ 'top_notstop2', 'doubles5' ], stems: [ 'stm-6-A' ] } ),
+			mark( 'абзац', { category: 'frequency', type: 'doubles', level: 4, classes: [ 'doubles4' ], stems: [ 'stm-6-EE20', 'stm-6-B' ] } ),
+			mark( 'абзац', { category: 'frequency', type: 'doubles', level: 4, classes: [ 'doubles4' ], stems: [ 'stm-6-B' ] }, 1 ),
+		];
+		return [
+			mark( 'документ', { category: 'style', type: 'slop', level: 1, classes: [ 'slop1' ], xhint: true, sentence: '2-1', fragments: [ 'xhint-2-1' ] } ),
+			mark( 'Первый ', { category: 'style', type: 'slop', level: 2, classes: [ 'slop2' ], xhint: true, sentence: '3-2', fragments: [ 'xhint-3-2' ] } ),
+			mark( 'абзац', { category: 'style', type: 'slop', level: 2, classes: [ 'slop2' ], xhint: true, sentence: '3-2', fragments: [ 'xhint-3-2' ] } ),
+		];
+	};
+	const providerDetails = section => ( {
+		frequency: { params: [], words: [ { text: 'абзац', count: 2, percent: '25.0%', stopword: false, type: 'doubles', level: 4, score: '1', stems: [ 'stm-6-B' ] }, { text: 'первый', count: 1, percent: '12.5%', stopword: false, type: 'top_notstop', level: 2, stems: [ 'stm-6-A' ] } ] },
+		style: { params: [], legend: [ { type: 'slop', level: 1, label: 'Потенциальные' }, { type: 'slop', level: 2, label: 'Почти точно' } ], hints: { '3-2': [ { title: 'Первый абзац', text: [ { text: 'Пояснение про ' }, { text: 'первый', italic: true }, { text: '.' } ], more: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy' }, { title: 'Первый абзац', text: [ { text: 'Второе пояснение.' } ], seeAlso: [ { label: 'Канцелярит', url: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#kants' } ] } ] } },
+		formality: { params: [], legend: [ { type: 'fog', level: 1, label: 'Общие слова' }, { type: 'stop', level: 1, label: 'Стоп-слова' } ] },
+	}[ section ] ?? { params: [] } );
 	await page.unroute( '**/analysis' );
 	await page.route( '**/analysis', async route => {
 		const body = Object.fromEntries( route.request().postData().split( '&' ).map( part => part.split( '=' ).map( value => decodeURIComponent( value.replace( /\+/g, ' ' ) ) ) ) );
@@ -29,7 +55,8 @@ async page => {
 		let data;
 		if ( body.operation === 'balance' ) data = { balance: '100' };
 		if ( body.operation === 'risk' ) data = { result: { link: 'risk12345', risk: '3', level: 'low', details: categories.map( block => ( { block, sum: '1', link: block + '12345' } ) ) } };
-		if ( body.operation === 'details' ) {
+		if ( body.operation === 'details' && mode === 'provider' ) data = { details: providerDetails( body.section ) };
+		else if ( body.operation === 'details' ) {
 			data = { details: { params: body.section === 'frequency' ? [ { name: 'Сверхчастые слова', value: 'Нет', score: '0', low: false }, { name: 'Доля', value: '12.5%', score: '0', low: false } ] : [] } };
 			if ( body.section === 'overall' ) data.details.sentenceProblems = { '0-2': [ { label: 'Повторы слов', section: 'frequency' }, { label: 'Без раздела' } ] };
 		}
@@ -37,12 +64,20 @@ async page => {
 			const token = body.report_token.replace( '12345', '' );
 			const [ category, type, level ] = markTypes[ token ];
 			// Only the overall report ties its marks to a sentence (XHints); every other section's are null.
-			const marks = mode === 'fragments' ? fragmentMarks( body.text ) : [ ...body.text.matchAll( /тестовый|абзац|😀/gu ) ].map( match => ( { start: match.index, end: match.index + match[ 0 ].length, category, type, level, sentence: token === 'risk' ? '0-2' : null } ) );
+			const marks = mode === 'provider' ? providerMarks( body.text, token ) : mode === 'fragments' ? fragmentMarks( body.text ) : [ ...body.text.matchAll( /тестовый|абзац|😀/gu ) ].map( match => ( { start: match.index, end: match.index + match[ 0 ].length, category, type, level, sentence: token === 'risk' ? '0-2' : null } ) );
 			data = { highlights: { text: body.text, marks: mode === 'empty' ? [] : marks } };
 		}
 		await route.fulfill( { json: { success: true, data } } );
 	} );
-	const highlights = async () => page.evaluate( () => [ ...CSS.highlights ].filter( ( [ key ] ) => key.startsWith( 'turgenev-' ) ).flatMap( ( [ key, ranges ] ) => [ ...ranges ].map( range => ( { key, text: range.toString() } ) ) ) );
+	// Resting marks only: hover and active backgrounds are separate highlights of their own.
+	const highlights = async () => page.evaluate( () => [ ...CSS.highlights ].filter( ( [ key ] ) => key.startsWith( 'turgenev-' ) && ! key.startsWith( 'turgenev-hover-' ) && key !== 'turgenev-active' ).flatMap( ( [ key, ranges ] ) => [ ...ranges ].map( range => ( { key, text: range.toString() } ) ) ) );
+	// Every hover highlight by name, plus the active one, as trimmed text.
+	const hoverState = () => page.evaluate( () => {
+		const texts = name => [ ...( CSS.highlights.get( name ) || [] ) ].map( range => range.toString().trim() ).sort();
+		const hover = Object.fromEntries( [ ...CSS.highlights.keys() ].filter( key => key.startsWith( 'turgenev-hover-' ) ).map( key => [ key, texts( key ) ] ) );
+		return { hover, lit: Object.values( hover ).flat().sort(), active: texts( 'turgenev-active' ) };
+	} );
+	const hovering = () => page.evaluate( () => [ ...CSS.highlights.keys() ].some( key => key.startsWith( 'turgenev-hover-' ) ) );
 	const serialized = () => page.evaluate( () => wp.data.select( 'core/editor' ).getEditedPostContent() );
 	const analyze = () => page.getByRole( 'button', { name: 'Analyze document', exact: true } );
 	const reset = () => page.getByRole( 'button', { name: 'Reset view', exact: true } );
@@ -173,11 +208,12 @@ async page => {
 	await page.mouse.move( point.x, point.y );
 	const problemLink = page.locator( '.turgenev-section-problem-link', { hasText: 'Повторы слов' } );
 	await problemLink.waitFor();
-	assert( await page.evaluate( () => CSS.highlights.has( 'turgenev-hover-on-light' ) ), 'Hovering a sentence must paint its hover background.' );
+	assert( await page.evaluate( () => CSS.highlights.has( 'turgenev-hover-bb2' ) ), 'Hovering a sentence must paint its own class\'s hover background.' );
 	assert( await page.locator( '.turgenev-section-problem-link' ).count() === 1 && await page.getByText( '• Без раздела', { exact: true } ).count() === 1, 'Only a problem with a known section may become a link.' );
 	await page.mouse.move( 1, 1 );
-	await page.waitForFunction( () => ! CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	await page.waitForFunction( () => ! [ ...CSS.highlights.keys() ].some( key => key.startsWith( 'turgenev-hover-' ) ) );
 	assert( await problemLink.count() === 1, 'Leaving the sentence must keep its problems reachable.' );
+	assert( ( await hoverState() ).active.length === 1, 'The sentence left behind stays marked active (#ececec), as on the provider\'s page.' );
 	await problemLink.click();
 	await idle();
 	assert( await toggles().nth( 1 ).getAttribute( 'aria-expanded' ) === 'true' && await toggles().nth( 0 ).getAttribute( 'aria-expanded' ) === 'false', 'A problem link must close the overall section and open its target.' );
@@ -185,26 +221,35 @@ async page => {
 	assert( ( await highlights() ).every( m => m.key.startsWith( 'turgenev-doubles' ) ), 'The target section\'s highlights must replace the overall ones.' );
 	checks.push( 'hovered sentence problems stay after leaving it; a problem link opens its section like the toggle' );
 
-	// Hover background, now in any section (Frequency is open): exactly the hovered mark,
-	// kept through the sidebar re-render and repaints, gone once the cursor leaves it.
-	const hoverRanges = () => page.evaluate( () => Object.fromEntries( [ 'turgenev-hover-on-light', 'turgenev-hover-on-dark' ].map( name => [ name, [ ...( CSS.highlights.get( name ) || [] ) ].map( range => range.toString() ) ] ) ) );
+	// Hover background, now in any section (Frequency is open): exactly the hovered mark in
+	// its own class's hover color, kept through the sidebar re-render and repaints, and
+	// replaced by the provider's #ececec "active" background once the cursor leaves it.
 	const frame = () => page.evaluate( () => new Promise( resolve => requestAnimationFrame( () => requestAnimationFrame( resolve ) ) ) );
 	const beforeHover = await serialized();
 	const wordPoint = await page.evaluate( () => {
-		const range = [ ...CSS.highlights.get( 'turgenev-doubles2' ) ][ 0 ];
+		const range = [ ...CSS.highlights.get( 'turgenev-doubles2-u' ) ][ 0 ];
 		const rect = range.getClientRects()[ 0 ];
 		return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, text: range.toString() };
 	} );
-	assert( await page.evaluate( () => [ ...document.querySelectorAll( 'style' ) ].some( node => node.textContent.includes( '::highlight(turgenev-hover-on-light){background-color:rgba(0, 0, 0, 0.2);}' ) && node.textContent.includes( '::highlight(turgenev-hover-on-dark){background-color:rgba(255, 255, 255, 0.2);}' ) ) ), 'Hover tints must be 20% toward black on light backdrops (#ccc on white) and toward white on dark ones.' );
+	const stylesheet = await page.evaluate( () => [ ...document.querySelectorAll( 'style' ) ].map( node => node.textContent ).join( '\n' ) );
+	for ( const rule of [
+		'::highlight(turgenev-doubles2-u){color:#8767a6;text-decoration:underline dotted #8767a6 1px;}',
+		'::highlight(turgenev-hover-doubles2){background-color:rgba(135, 103, 166, 0.2);}',
+		'::highlight(turgenev-stop1){color:#7687e2;}',
+		'::highlight(turgenev-hover-cqueries2){background-color:rgba(236, 0, 140, 0.2);}',
+		'::highlight(turgenev-active){background-color:#ececec;}',
+	] ) assert( stylesheet.includes( rule ), 'Missing the provider\'s own rule: ' + rule );
 	await page.mouse.move( wordPoint.x, wordPoint.y );
-	await page.waitForFunction( () => CSS.highlights.has( 'turgenev-hover-on-light' ) );
-	assert( JSON.stringify( await hoverRanges() ) === JSON.stringify( { 'turgenev-hover-on-light': [ wordPoint.text ], 'turgenev-hover-on-dark': [] } ), 'Hover must paint exactly the hovered word, with the light-backdrop tint.' );
+	await page.waitForFunction( () => CSS.highlights.has( 'turgenev-hover-doubles2' ) );
+	assert( JSON.stringify( ( await hoverState() ).hover ) === JSON.stringify( { 'turgenev-hover-doubles2': [ wordPoint.text ] } ), 'Hover must paint exactly the hovered word, in its own class\'s hover color.' );
+	assert( ! ( await hoverState() ).active.includes( wordPoint.text ), 'The hover background replaces the active one rather than stacking on it.' );
 	await frame();
 	await page.evaluate( () => window.dispatchEvent( new Event( 'resize' ) ) );
 	await frame();
-	assert( ( await hoverRanges() )[ 'turgenev-hover-on-light' ].length === 1, 'A sidebar re-render or repaint under a still cursor must keep the hover background.' );
+	assert( ( await hoverState() ).lit.length === 1, 'A sidebar re-render or repaint under a still cursor must keep the hover background.' );
 	await page.mouse.move( 1, 1 );
-	await page.waitForFunction( () => ! CSS.highlights.has( 'turgenev-hover-on-light' ) && ! CSS.highlights.has( 'turgenev-hover-on-dark' ) );
+	await page.waitForFunction( () => ! [ ...CSS.highlights.keys() ].some( key => key.startsWith( 'turgenev-hover-' ) ) );
+	assert( JSON.stringify( ( await hoverState() ).active ) === JSON.stringify( [ wordPoint.text ] ), 'The word left behind stays active; the previously active sentence is released.' );
 	await page.evaluate( ( { x, y } ) => {
 		const cover = document.createElement( 'div' );
 		cover.id = 'smoke-cover';
@@ -213,18 +258,11 @@ async page => {
 	}, wordPoint );
 	await page.mouse.move( wordPoint.x, wordPoint.y );
 	await frame();
-	assert( ! ( await hoverRanges() )[ 'turgenev-hover-on-light' ].length, 'UI floating over a mark must not light it up.' );
+	assert( ! await hovering(), 'UI floating over a mark must not light it up.' );
 	await page.evaluate( () => document.getElementById( 'smoke-cover' ).remove() );
 	await page.mouse.move( 1, 1 );
-	await page.evaluate( () => { document.querySelector( '.editor-styles-wrapper' ).style.background = '#111'; } );
-	await frame();
-	await page.mouse.move( wordPoint.x, wordPoint.y );
-	await page.waitForFunction( () => CSS.highlights.has( 'turgenev-hover-on-dark' ) );
-	assert( ( await hoverRanges() )[ 'turgenev-hover-on-light' ].length === 0, 'A dark backdrop must switch to the light tint.' );
-	await page.mouse.move( 1, 1 );
-	await page.evaluate( () => { document.querySelector( '.editor-styles-wrapper' ).style.background = ''; } );
 	assert( await serialized() === beforeHover, 'Hovering changed the document.' );
-	checks.push( 'hover background in any section: exact mark, contrast-aware tint, survives repaints, ignores covering UI, clears on leave' );
+	checks.push( 'hover background in any section: exact mark in its own hover color, active #ececec after leaving, survives repaints, ignores covering UI' );
 
 	// Hovering one word lights up the whole flagged sentence or phrase it belongs to (every
 	// fragment it is in), never that word alone; a mark with no fragment stays alone.
@@ -239,7 +277,7 @@ async page => {
 		}, { word, nth } );
 		await page.mouse.move( point.x, point.y );
 		await frame();
-		return ( await hoverRanges() )[ 'turgenev-hover-on-light' ].map( text => text.trim() ).sort();
+		return ( await hoverState() ).lit;
 	};
 	const same = ( actual, expected ) => JSON.stringify( actual ) === JSON.stringify( [ ...expected ].sort() );
 	const sentence = [ 'Совсем', 'другой', 'документ.' ];
@@ -250,14 +288,67 @@ async page => {
 	} );
 	assert( same( await hoverWord( 'Совсем' ), sentence ) && await page.evaluate( () => window.smokePanelRenders ) === 0, 'Moving between words of one sentence must keep its background and never re-render the sidebar.' );
 	await page.mouse.move( 1, 1 );
-	await page.waitForFunction( () => ! CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	await page.waitForFunction( () => ! [ ...CSS.highlights.keys() ].some( key => key.startsWith( 'turgenev-hover-' ) ) );
 	assert( same( await hoverWord( 'Первый' ), [ 'Первый', 'абзац.' ] ), 'Hovering a word must light up its whole phrase and nothing past it.' );
 	assert( same( await hoverWord( 'абзац.' ), [ 'Первый', 'абзац.', 'Второй' ] ), 'A word in two overlapping fragments must light up both of them.' );
 	assert( same( await hoverWord( 'абзац.', 1 ), [ 'абзац.' ] ), 'A mark with no fragment must light up alone.' );
 	await page.mouse.move( 1, 1 );
-	await page.waitForFunction( () => ! CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	await page.waitForFunction( () => ! [ ...CSS.highlights.keys() ].some( key => key.startsWith( 'turgenev-hover-' ) ) );
 	assert( await serialized() === beforeHover, 'Hovering fragments changed the document.' );
 	mode = 'success';
 	checks.push( 'hover lights up the whole flagged sentence/phrase (union of overlapping fragments), standalone marks alone, no sidebar re-render within one sentence' );
+
+	// Everything else a live report carries, rendered as the provider's own page does.
+	mode = 'provider';
+	const names = () => page.evaluate( () => Object.fromEntries( [ ...CSS.highlights ].filter( ( [ key ] ) => /^turgenev-(?!hover-|active)/.test( key ) ).map( ( [ key, group ] ) => [ key, [ ...group ].map( range => range.toString().trim() ) ] ) ) );
+	const pointOf = ( word, nth = 0 ) => page.evaluate( ( { word, nth } ) => {
+		const range = [ ...CSS.highlights ].filter( ( [ key ] ) => ! key.startsWith( 'turgenev-hover-' ) && key !== 'turgenev-active' ).flatMap( ( [ , group ] ) => [ ...group ] ).filter( candidate => candidate.toString().trim() === word )[ nth ];
+		const rect = range.getClientRects()[ 0 ];
+		return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+	}, { word, nth } );
+	const hover = async ( word, nth = 0 ) => { const point = await pointOf( word, nth ); await page.mouse.move( point.x, point.y ); await frame(); };
+	const legendState = () => page.evaluate( () => { const legend = document.querySelector( '.turgenev-section-legend' ); return { dimmed: legend.classList.contains( 'has-active' ), active: [ ...legend.querySelectorAll( '.is-active' ) ].map( row => row.textContent ) }; } );
+
+	await open( 4 ); // Formality
+	assert( JSON.stringify( await names() ) === JSON.stringify( { 'turgenev-stop1': [ 'Совсем' ], 'turgenev-fog1': [ 'другой' ] } ), 'A stop word ("fog1 stop1") is painted as "stop1", the rule the provider\'s stylesheet defines last.' );
+	assert( JSON.stringify( await legendState() ) === JSON.stringify( { dimmed: false, active: [] } ), 'The legend is plain until a mark is hovered.' );
+	await hover( 'Совсем' );
+	await page.mouse.move( 1, 1 );
+	await frame();
+	assert( JSON.stringify( await legendState() ) === JSON.stringify( { dimmed: true, active: [ 'Стоп-слова' ] } ), 'A span with several classes lights up the last legend row they name, and it outlives the hover.' );
+
+	await open( 1 ); // Frequency
+	assert( JSON.stringify( await names() ) === JSON.stringify( { 'turgenev-top_notstop2-u': [ 'Первый' ], 'turgenev-doubles4-u': [ 'абзац', 'абзац' ] } ), 'Repeated words carry the provider\'s underline and the color its stylesheet paints last.' );
+	await hover( 'абзац' );
+	let state = await hoverState();
+	assert( JSON.stringify( state.hover ) === JSON.stringify( { 'turgenev-hover-doubles4': [ 'абзац' ] } ) && JSON.stringify( state.active ) === JSON.stringify( [ 'абзац' ] ), 'Hovering a repeated word lights it up and marks every other occurrence of its table row active.' );
+	const wordRows = page.locator( '.turgenev-section-words tr' );
+	assert( await wordRows.nth( 0 ).getAttribute( 'aria-pressed' ) === 'true', 'The hovered word\'s first stem with a row picks that row.' );
+	await page.mouse.move( 1, 1 );
+	await frame();
+	assert( JSON.stringify( ( await hoverState() ).active ) === JSON.stringify( [ 'абзац', 'абзац' ] ), 'Every occurrence stays active after the hover.' );
+	await wordRows.nth( 0 ).click();
+	assert( ! ( await hoverState() ).active.length && await wordRows.nth( 0 ).getAttribute( 'aria-pressed' ) === 'false', 'Picking the picked row releases it.' );
+	await wordRows.nth( 1 ).click();
+	assert( JSON.stringify( ( await hoverState() ).active ) === JSON.stringify( [ 'Первый' ] ) && await wordRows.nth( 1 ).getAttribute( 'aria-pressed' ) === 'true', 'Picking a row lights up its word in the document.' );
+	assert( await wordRows.nth( 0 ).locator( '.turgenev-section-param-score' ).innerText() === '1', 'An over-frequent word shows its score badge.' );
+
+	await open( 2 ); // Style
+	assert( JSON.stringify( await names() ) === JSON.stringify( { 'turgenev-slop1-u': [ 'документ' ], 'turgenev-slop2-u': [ 'Первый', 'абзац' ] } ), 'Style marks carrying "xhint" are underlined.' );
+	assert( ! await page.locator( '.turgenev-section-hints' ).count(), 'No hints box until a fragment is hovered.' );
+	await hover( 'абзац' );
+	assert( JSON.stringify( ( await hoverState() ).hover ) === JSON.stringify( { 'turgenev-hover-slop2': [ 'Первый', 'абзац' ] } ), 'The whole fragment lights up in its hover color.' );
+	const hintsBox = page.locator( '.turgenev-section-hints' );
+	assert( await hintsBox.locator( '.turgenev-section-hint-title' ).innerText() === 'Первый абзац' && await hintsBox.locator( '.turgenev-section-hint-text i' ).innerText() === 'первый', 'The box shows the fragment\'s first explainer with its italics.' );
+	assert( await hintsBox.locator( '.turgenev-section-hint-more' ).getAttribute( 'href' ) === 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy', 'The "Подробнее" link goes to the provider\'s help article.' );
+	assert( await hintsBox.locator( '.turgenev-section-hints-info' ).innerText() === '1/2', 'Several explainers get a pager.' );
+	await page.mouse.move( 1, 1 );
+	await frame();
+	await hintsBox.getByRole( 'button', { name: 'Next hint' } ).click();
+	assert( await hintsBox.locator( '.turgenev-section-hints-info' ).innerText() === '2/2' && await hintsBox.locator( '.turgenev-section-hint-text' ).innerText() === 'Второе пояснение.' && await hintsBox.locator( '.turgenev-section-hint-see-also a' ).innerText() === 'Канцелярит', 'The box outlives the hover and pages through its explainers.' );
+	assert( JSON.stringify( ( await hoverState() ).active ) === JSON.stringify( [ 'Первый', 'абзац' ] ), 'The fragment left behind stays active.' );
+	assert( await serialized() === beforeHover, 'Nothing here changed the document.' );
+	mode = 'success';
+	checks.push( 'provider fidelity: class cascade, underlines, sticky legend, frequency stems and row picking, style hints box with pager' );
 	await page.evaluate( results => { window.smokeResults = results; }, checks );
 }

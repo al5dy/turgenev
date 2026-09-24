@@ -75,7 +75,7 @@ async page => {
 				assert( ! state.notices.length, 'Fresh saved post highlight failed: ' + state.notices.join( '; ' ) );
 				assert( JSON.stringify( state.fragments ) === JSON.stringify( expected ), 'Every reported word, sentence and whole-paragraph range must map exactly.' );
 				const [ , type, level ] = markTypes[ categoryIndex ? categories[ categoryIndex - 1 ] : 'risk' ];
-				assert( state.categories.length && state.categories.every( key => key === 'turgenev-' + type + level ), 'A category retained unrelated highlights.' );
+				assert( state.categories.length && state.categories.every( key => key === 'turgenev-' + type + level + ( type === 'doubles' ? '-u' : '' ) ), 'A category retained unrelated highlights.' );
 				assert( state.unedited === before.unedited && state.html === before.html && state.blocks === before.blocks, 'Highlight introduced a save/autosave edit or changed block attributes.' );
 				if ( categoryIndex === 2 ) await page.screenshot( { path: 'output/playwright/saved-post-' + index + ( iframe ? '-iframe' : '' ) + '.png' } );
 				await page.getByRole( 'button', { name: 'Reset view', exact: true } ).click();

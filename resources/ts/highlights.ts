@@ -10,6 +10,8 @@ interface HoverTarget {
 	hover: MarkHover;
 	/** HighlightMark.fragments: hovering this mark lights up every target sharing one. */
 	fragments: string[];
+	/** HighlightMark.stems: a picked "Frequency" word marks every target sharing one active. */
+	stems: string[];
 	/**
 	 * Viewport rectangles (already clipped to what is actually visible) that count as
 	 * "over this mark", each with the element the pointer must be over for it to count.
@@ -49,6 +51,8 @@ interface DecorationSurface {
 	hovered: HoverTarget | null;
 	/** What is painted as hovered: `hovered` plus every target sharing a fragment with it. */
 	lit: Set< HoverTarget >;
+	/** Hover highlight names currently registered (one per mark class in `lit`). */
+	hoverNames: Set< string >;
 	/**
 	 * Identity (see hoverIdentity()) last reported through the hover callback. Survives
 	 * repaints (unlike `hovered`), so re-hovering the same mark after one is not reported
@@ -65,15 +69,19 @@ interface DecorationSurface {
 ( function ( window: Window & typeof globalThis ): void {
 	'use strict';
 	const client = window.TurgenevClient as TurgenevClientApi;
-	// Shared highlight names for "whichever mark is under the cursor right now", one per
-	// backdrop brightness — registered fresh on every hover change, painted with only a
-	// background (see the stylesheet below), layered on top of the mark's own
-	// color-only `turgenev-<type><level>` highlight for the same range.
-	const HOVER_ON_LIGHT = 'turgenev-hover-on-light';
-	const HOVER_ON_DARK = 'turgenev-hover-on-dark';
-	// The hover background is the text's own backdrop moved this far toward black (on a
-	// light backdrop) or white (on a dark one): exactly #ccc on white, #333 on black, and
-	// always a visible, same-strength step on any color in between.
+	// Highlight API path, exactly the provider's own classes: a mark's text color (plus its
+	// dotted underline, `-u`) at rest; `turgenev-hover-<type><level>` (its color at 20%,
+	// `xhint-hover`/`stm-hover`) while hovered; and one shared `turgenev-active` (#ececec,
+	// `xhint-active`/`stmhl-active`) for the last hovered fragment or the picked word. The
+	// hover and active names only paint a background, layered over the resting color.
+	const HOVER_PREFIX = 'turgenev-hover-';
+	const ACTIVE_NAME = 'turgenev-active';
+	const ACTIVE_PRIORITY = 1;
+	const HOVER_PRIORITY = 2;
+	// The overlay paths can't color text, so their resting paint already is a background;
+	// hovering instead moves it this far toward black (on a light backdrop) or white (on a
+	// dark one): exactly #ccc on white, #333 on black, and always a visible, same-strength
+	// step on any color in between.
 	const HOVER_TINT = 0.2;
 	const TEXTAREA_OVERLAY_OPACITY = 0.5;
 	const FALLBACK_OVERLAY_OPACITY = 0.45;
@@ -158,6 +166,33 @@ interface DecorationSurface {
 		// WCAG relative luminance; below ~0.179 white contrasts more than black does.
 		return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.179;
 	}
+	/**
+	 * The provider's own stylesheet (css/bb_xhl.css) as `::highlight()` rules: each class's
+	 * text color, the same plus its dotted underline (`-u`, standing in for the provider's
+	 * `border-bottom: dotted 1px`), its hover background, and the shared active background.
+	 */
+	function highlightStylesheet(): string {
+		const rules: string[] = [];
+		for ( const [ key, color ] of Object.entries( client.highlightColorTable ) ) {
+			const match = /^([a-z_]+)(\d+)$/.exec( key );
+			if ( ! match ) {
+				continue;
+			}
+			const hover = client.hoverColor( {
+				type: match[ 1 ],
+				level: Number( match[ 2 ] ),
+			} );
+			rules.push(
+				`::highlight(turgenev-${ key }){color:${ color };}`,
+				`::highlight(turgenev-${ key }-u){color:${ color };text-decoration:underline dotted ${ color } 1px;}`,
+				`::highlight(${ HOVER_PREFIX }${ key }){background-color:${ hover };}`
+			);
+		}
+		rules.push(
+			`::highlight(${ ACTIVE_NAME }){background-color:${ client.activeBackground };}`
+		);
+		return rules.join( '\n' );
+	}
 	// Used only to pick a winner when highlight ranges overlap; the actual paint color
 	// always comes from client.highlightColor(), never from this number.
 	function severity( mark: HighlightMark ): number {
@@ -187,8 +222,14 @@ interface DecorationSurface {
 					sentence: mark.sentence ?? null,
 					type: mark.type,
 					level: mark.level,
+					classes: mark.classes?.length
+						? mark.classes
+						: [ mark.type + mark.level ],
+					fragments: mark.fragments ?? [],
+					stems: mark.stems ?? [],
 				},
 				fragments: mark.fragments ?? [],
+				stems: mark.stems ?? [],
 				rects: [],
 				ranges: [],
 				overlays: [],
@@ -228,7 +269,14 @@ interface DecorationSurface {
 	}
 	/** Everything the sidebar reacts to (see MarkHover), so only a change of it is reported. */
 	function hoverIdentity( hover: MarkHover ): string {
-		return JSON.stringify( [ hover.sentence, hover.type, hover.level ] );
+		return JSON.stringify( [
+			hover.sentence,
+			hover.type,
+			hover.level,
+			hover.classes,
+			hover.fragments,
+			hover.stems,
+		] );
 	}
 	function addRects(
 		target: HoverTarget,
@@ -447,6 +495,10 @@ interface DecorationSurface {
 		let active: { source: SourceSnapshot; marks: HighlightMark[] } | null =
 			null;
 		let hoverCallback: ( ( hover: MarkHover | null ) => void ) | null = null;
+		// Survive repaints, keyed like HoverTarget.key, as the provider's classes survive
+		// the pointer leaving: the last hovered fragment, and the picked word's stems.
+		let activeKeys = new Set< number >();
+		let activeStems: Set< string > | null = null;
 		let frame = 0;
 		const surfaces = new Map< Document, DecorationSurface >();
 		function surfaceWindow( surface: DecorationSurface ): ( Window & {
@@ -456,19 +508,66 @@ interface DecorationSurface {
 					set: ( name: string, value: unknown ) => void;
 				};
 			};
-			Highlight?: new ( ...ranges: Range[] ) => unknown;
+			Highlight?: new ( ...ranges: Range[] ) => { priority: number };
 		} ) | null {
 			return surface.doc.defaultView as ReturnType< typeof surfaceWindow >;
+		}
+		function setHighlight(
+			surface: DecorationSurface,
+			name: string,
+			ranges: Range[],
+			priority: number
+		): void {
+			const win = surfaceWindow( surface );
+			if ( ! win?.CSS?.highlights || ! win.Highlight ) {
+				return;
+			}
+			if ( ! ranges.length ) {
+				win.CSS.highlights.delete( name );
+				return;
+			}
+			const highlight = new win.Highlight( ...ranges );
+			highlight.priority = priority;
+			win.CSS.highlights.set( name, highlight );
+		}
+		/**
+		 * Repaints `turgenev-active` on one surface: the last hovered fragment and every
+		 * occurrence of the picked word, minus whatever is hovered right now — there, as on
+		 * the provider's page, the hover background replaces the active one rather than
+		 * stacking on it.
+		 */
+		function refreshActive( surface: DecorationSurface ): void {
+			const ranges: Range[] = [];
+			for ( const target of surface.targets.values() ) {
+				if (
+					! surface.lit.has( target ) &&
+					( activeKeys.has( target.key ) ||
+						target.stems.some( ( stem ) => activeStems?.has( stem ) ) )
+				) {
+					ranges.push( ...target.ranges );
+				}
+			}
+			setHighlight( surface, ACTIVE_NAME, ranges, ACTIVE_PRIORITY );
 		}
 		function showHover(
 			surface: DecorationSurface,
 			unit: Set< HoverTarget >,
 			hovered: HoverTarget
 		): void {
-			const light: Range[] = [];
-			const dark: Range[] = [];
+			const byName = new Map< string, Range[] >();
 			const backdrops = new Map< Element, boolean >();
 			for ( const target of unit ) {
+				if ( target.ranges.length ) {
+					// Each span of the fragment in its own class's hover color, as there.
+					const name = HOVER_PREFIX + target.hover.type + target.hover.level;
+					byName.set( name, [
+						...( byName.get( name ) ?? [] ),
+						...target.ranges,
+					] );
+				}
+				if ( ! target.overlays.length ) {
+					continue;
+				}
 				// A fragment member scrolled out of a textarea's view has no rectangle of its
 				// own; it still sits on the same backdrop as the rest of its fragment.
 				const anchor = ( target.rects[ 0 ] ?? hovered.rects[ 0 ] ).anchor;
@@ -477,7 +576,6 @@ interface DecorationSurface {
 					onDark = isDarkBackdrop( anchor );
 					backdrops.set( anchor, onDark );
 				}
-				( onDark ? dark : light ).push( ...target.ranges );
 				for ( const overlay of target.overlays ) {
 					overlay.element.style.backgroundColor = hoverTint(
 						onDark,
@@ -485,20 +583,9 @@ interface DecorationSurface {
 					);
 				}
 			}
-			const win = surfaceWindow( surface );
-			if ( win?.CSS?.highlights && win.Highlight ) {
-				if ( light.length ) {
-					win.CSS.highlights.set(
-						HOVER_ON_LIGHT,
-						new win.Highlight( ...light )
-					);
-				}
-				if ( dark.length ) {
-					win.CSS.highlights.set(
-						HOVER_ON_DARK,
-						new win.Highlight( ...dark )
-					);
-				}
+			for ( const [ name, ranges ] of byName ) {
+				setHighlight( surface, name, ranges, HOVER_PRIORITY );
+				surface.hoverNames.add( name );
 			}
 		}
 		function hideHover(
@@ -506,8 +593,10 @@ interface DecorationSurface {
 			unit: Set< HoverTarget >
 		): void {
 			const win = surfaceWindow( surface );
-			win?.CSS?.highlights?.delete( HOVER_ON_LIGHT );
-			win?.CSS?.highlights?.delete( HOVER_ON_DARK );
+			for ( const name of surface.hoverNames ) {
+				win?.CSS?.highlights?.delete( name );
+			}
+			surface.hoverNames.clear();
 			for ( const target of unit ) {
 				for ( const overlay of target.overlays ) {
 					overlay.element.style.backgroundColor = overlay.rest;
@@ -536,6 +625,12 @@ interface DecorationSurface {
 					showHover( surface, unit, hit );
 				}
 			}
+			// A "Frequency" word marks its stems active through setActiveStems() instead
+			// (the report's word table decides which), as the provider's doubles hover does.
+			if ( hit && ! hit.stems.length ) {
+				activeKeys = new Set( [ ...unit ].map( ( target ) => target.key ) );
+			}
+			surfaces.forEach( refreshActive );
 			const key = hit ? hoverIdentity( hit.hover ) : null;
 			if ( key !== surface.hoverKey ) {
 				surface.hoverKey = key;
@@ -626,6 +721,7 @@ interface DecorationSurface {
 			// Visual only: `hoverKey` is kept so restoreHover() can tell a repaint of the
 			// same hovered mark from a real change.
 			hideHover( surface, surface.lit );
+			win?.CSS?.highlights?.delete( ACTIVE_NAME );
 			surface.hovered = null;
 			surface.lit = new Set();
 			surface.names.clear();
@@ -680,6 +776,7 @@ interface DecorationSurface {
 				fragments: new Map(),
 				hovered: null,
 				lit: new Set(),
+				hoverNames: new Set(),
 				hoverKey: null,
 				pointer: null,
 				handleMove: ( event ) => handleSurfaceMove( surface, event ),
@@ -770,7 +867,11 @@ interface DecorationSurface {
 					if ( anchor ) {
 						addRects( hoverTarget, range.getClientRects(), anchor, null );
 					}
-					const name = 'turgenev-' + mark.type + mark.level;
+					const name =
+						'turgenev-' +
+						mark.type +
+						mark.level +
+						( client.isUnderlined( mark ) ? '-u' : '' );
 					if ( win?.CSS?.highlights && win.Highlight ) {
 						if ( ! surface.style ) {
 							surface.style =
@@ -783,22 +884,7 @@ interface DecorationSurface {
 							// fallback draws a separate overlay box that never touches the
 							// real text), both of which stay background-based out of
 							// necessity, not choice.
-							surface.style.textContent =
-								Object.entries( client.highlightColorTable )
-									.map(
-										( [ key, color ] ) =>
-											'::highlight(turgenev-' +
-											key +
-											'){color:' +
-											color +
-											';}'
-									)
-									.join( '\n' ) +
-								// Layered on top of a mark's own color-only rule above (never
-								// registered together on overlapping text otherwise), so
-								// hovering shows severity color and a background at once.
-								`\n::highlight(${ HOVER_ON_LIGHT }){background-color:${ hoverTint( false ) };}` +
-								`\n::highlight(${ HOVER_ON_DARK }){background-color:${ hoverTint( true ) };}`;
+							surface.style.textContent = highlightStylesheet();
 							target.document.head.appendChild( surface.style );
 						}
 						if ( ! surface.names.has( name ) ) {
@@ -849,6 +935,7 @@ interface DecorationSurface {
 			for ( const surface of surfaces.values() ) {
 				restoreHover( surface );
 			}
+			surfaces.forEach( refreshActive );
 			const missing = new Uint32Array( coverage.length + 1 );
 			for ( let i = 0; i < coverage.length; i++ ) {
 				missing[ i + 1 ] =
@@ -870,6 +957,8 @@ interface DecorationSurface {
 		function clear(): void {
 			active = null;
 			hoverCallback = null;
+			activeKeys = new Set();
+			activeStems = null;
 			window.cancelAnimationFrame( frame );
 			frame = 0;
 			for ( const surface of surfaces.values() ) {
@@ -909,6 +998,10 @@ interface DecorationSurface {
 				// Non-rendered third-party fields use the session's read-only text view.
 				// Keep every valid in-place decoration; malformed provider data still fails above.
 				return { visible, total: active.marks.length };
+			},
+			setActiveStems( stems: string[] | null ) {
+				activeStems = stems?.length ? new Set( stems ) : null;
+				surfaces.forEach( refreshActive );
 			},
 			clear,
 			dispose() {

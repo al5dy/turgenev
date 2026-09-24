@@ -13,10 +13,13 @@ function fixture( configured = true, highlightsAvailable = true ) {
 	sandbox.window.wp = sandbox.wp;
 	vm.createContext( sandbox );
 	scripts.forEach( script => vm.runInContext( script, sandbox ) );
-	const session = sandbox.window.TurgenevAnalysis.create( () => source, { clear: () => cleared++, dispose() {}, apply: ( _source, _data, hover ) => { applied++; onHover = hover ?? null; return counts; } } );
+	const activeStems = [];
+	const session = sandbox.window.TurgenevAnalysis.create( () => source, { clear: () => cleared++, dispose() {}, setActiveStems: stems => activeStems.push( stems ), apply: ( _source, _data, hover ) => { applied++; onHover = hover ?? null; return counts; } } );
 	session.subscribe( value => { state = value; } );
 	function respond( index, data, ok = true ) { requests[ index ].resolve( { ok, json: async () => ( { success: ok, data } ) } ); }
-	return { session, requests, respond, client: sandbox.window.TurgenevClient, setCounts: value => { counts = value; }, setSource: value => { source = value; }, get state() { return state; }, hover: value => onHover( value ), get applied() { return applied; }, get cleared() { return cleared; } };
+	// A MarkHover as highlights.ts reports it.
+	const hover = value => onHover( value && { sentence: null, classes: [ value.type + value.level ], fragments: [], stems: [], ...value } );
+	return { session, requests, respond, client: sandbox.window.TurgenevClient, setCounts: value => { counts = value; }, setSource: value => { source = value; }, get state() { return state; }, hover, activeStems, get applied() { return applied; }, get cleared() { return cleared; } };
 }
 
 test( 'decimal balances use exact string checks, never float thresholds', () => {
@@ -118,6 +121,8 @@ test( 'highlight validation accepts dense reports and rejects malformed ranges a
 	for ( const fragments of [ [], [ 'xhint-0-19' ], [ 'xhlln-24-6', 'xhlln-24-3' ], Array( 8 ).fill( 'xhint-1-1' ) ] ) {
 		assert.equal( client.validHighlights( 'text', [ { ...mark, fragments } ] ).length, 1 );
 	}
+	// Every class the span carried, its underline flag and its "Frequency" stems.
+	assert.equal( client.validHighlights( 'text', [ { ...mark, classes: [ 'fog1', 'stop1' ], xhint: true, stems: [ 'stm-6-190E7' ] } ] ).length, 1 );
 	for ( const invalid of [
 		null,
 		{},
@@ -136,6 +141,11 @@ test( 'highlight validation accepts dense reports and rejects malformed ranges a
 		[ { ...mark, fragments: [ 'xhint-0-19 xhint-1-1' ] } ],
 		[ { ...mark, fragments: [ 42 ] } ],
 		[ { ...mark, fragments: Array( 9 ).fill( 'xhint-1-1' ) } ],
+		[ { ...mark, classes: [ 'misprints1' ] } ], // not a class the provider colors
+		[ { ...mark, classes: 'fog1' } ],
+		[ { ...mark, xhint: 'yes' } ],
+		[ { ...mark, stems: [ 'stm-6-19OE7' ] } ], // not hex
+		[ { ...mark, stems: [ 'xhint-0-1' ] } ],
 		Array( 20001 ).fill( mark ),
 	] ) {
 		assert.throws( () => client.validHighlights( 'text', invalid ), /invalid highlight/ );
@@ -182,14 +192,16 @@ test( 'section details validation accepts the full shape and rejects malformed p
 	const { client } = fixture();
 	const full = {
 		params: [ { name: 'Metric', value: '0.42', score: '2', low: false, hint: 'What this measures.', hintUrl: 'https://turgenev.ashmanov.com/?h=vkladki#metric' } ],
-		words: [ { text: 'and', count: 3, percent: '5.0%', stopword: true, type: 'doubles', level: 4 } ],
+		words: [ { text: 'and', count: 3, percent: '5.0%', stopword: true, type: 'doubles', level: 4, score: '2', stems: [ 'stm-6-190E7' ] } ],
 		phrases: [ { text: 'fast car', count: 2 } ],
 		legend: [ { type: 'slop', level: 1, label: 'Potential issue.' } ],
 		breakdown: [ { label: 'query coverage', value: '0.2' } ],
 		sentenceProblems: { '107-33': [ { label: 'Стилистические ошибки', section: 'style' }, { label: 'Запросы', section: 'keywords' }, { label: 'Без раздела' } ] },
+		hints: { '68-3': [ { title: 'в процессе', text: [ { text: 'Слово ' }, { text: 'процесс', italic: true } ], more: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy', seeAlso: [ { label: 'Канцелярит', url: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#kants' } ] }, { title: '', text: [ { text: 'x' } ] } ] },
 		wordCount: 51,
 	};
 	assertSameShape( client.validSectionDetails( full ), full );
+	assertSameShape( client.validSectionDetails( { params: [ { name: 'Водность', value: '0.46', score: '', low: true } ] } ).params[ 0 ].score, '' );
 	assertSameShape( client.validSectionDetails( { params: [] } ), { params: [] } );
 	// A legend row with no recognized `xhl` class comes through as type: '', level: 0.
 	assertSameShape(
@@ -214,6 +226,15 @@ test( 'section details validation accepts the full shape and rejects malformed p
 		{ params: [], sentenceProblems: { '0-5': [ { label: 'x', section: 'overall' } ] } }, // never a jump target
 		{ params: [], sentenceProblems: { '0-5': [ { label: 'x', section: 'unknown' } ] } },
 		{ params: [], sentenceProblems: { '0-5': [ { section: 'style' } ] } }, // missing "label"
+		{ params: [], words: [ { text: 'and', count: 1, score: 'high' } ] },
+		{ params: [], words: [ { text: 'and', count: 1, stems: [ 'stem' ] } ] },
+		{ params: [], hints: [] }, // a list, not the id-keyed object
+		{ params: [], hints: { 'xhint-68-3': [ { title: '', text: [ { text: 'x' } ] } ] } }, // ids are bare
+		{ params: [], hints: { '68-3': [ { title: '', text: [] } ] } }, // nothing to show
+		{ params: [], hints: { '68-3': [ { title: '', text: [ { text: 'x', italic: 'yes' } ] } ] } },
+		{ params: [], hints: { '68-3': [ { title: '', text: [ { text: 'x' } ], more: 'javascript:alert(1)' } ] } },
+		{ params: [], hints: { '68-3': [ { title: '', text: [ { text: 'x' } ], more: 'https://evil.example/?h=x' } ] } },
+		{ params: [], hints: { '68-3': [ { title: '', text: [ { text: 'x' } ], seeAlso: [ { label: 'x', url: 'https://turgenev.ashmanov.com/?h=a"onclick' } ] } ] } },
 		{ params: [], wordCount: 'not-a-number' },
 		{ params: [], wordCount: -1 },
 		{ params: [], wordCount: 1.5 },
@@ -341,24 +362,86 @@ test( 'reset clears accordion section state, and dispose stops any further secti
 	await f.session.toggleSection( 'style', 'style12345' );
 	assert.equal( f.requests.length, requestsBefore );
 } );
-test( 'a hovered sentence\'s problems outlive the hover so their section links stay reachable, while the legend highlight follows the cursor', async () => {
+test( 'a hovered sentence\'s problems and its legend row outlive the hover, as on the provider\'s page', async () => {
 	const f = fixture();
 	const pending = f.session.analyze();
 	f.respond( 0, { result } );
 	await pending;
 	const problems = { '0-2': [ { label: 'Word repetition', section: 'frequency' } ], '2-1': [ { label: 'Style errors', section: 'style' } ] };
+	const legend = [ { type: 'bb', level: 1, label: 'Some' }, { type: 'bb', level: 3, label: 'Many' } ];
 	f.respond( 2, { highlights: { text: 'Original text', marks: [] } } );
-	f.respond( 3, { details: { params: [], sentenceProblems: problems } } );
+	f.respond( 3, { details: { params: [], sentenceProblems: problems, legend } } );
 	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+	assert.equal( f.state.hoveredLegendKey, null, 'plain until a mark is hovered' );
 
-	f.hover( { sentence: '0-2', type: 'doubles', level: 3 } );
+	f.hover( { sentence: '0-2', type: 'bb', level: 3 } );
 	assertSameShape( f.state.sentenceProblem, problems[ '0-2' ] );
-	assert.equal( f.state.hoveredLegendKey, 'doubles3' );
+	assert.equal( f.state.hoveredLegendKey, 'bb3' );
 
 	f.hover( null );
 	assertSameShape( f.state.sentenceProblem, problems[ '0-2' ], 'leaving the sentence keeps its problem list' );
-	assert.equal( f.state.hoveredLegendKey, null, 'the legend highlight still follows the cursor' );
+	assert.equal( f.state.hoveredLegendKey, 'bb3', 'and its legend row' );
 
-	f.hover( { sentence: '2-1', type: 'slop', level: 1 } );
+	f.hover( { sentence: '2-1', type: 'bb', level: 2 } );
 	assertSameShape( f.state.sentenceProblem, problems[ '2-1' ], 'only hovering another sentence replaces it' );
+	assert.equal( f.state.hoveredLegendKey, '', 'a mark no legend row names dims them all' );
+} );
+async function openSection( section, details ) {
+	const f = fixture();
+	let pending = f.session.analyze();
+	f.respond( 0, { result } );
+	await pending;
+	// The auto-opened "overall" section, then the one under test.
+	f.respond( 2, { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( 3, { details: { params: [] } } );
+	await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+	pending = f.session.toggleSection( section, section + '12345' );
+	f.respond( f.requests.length - 2, { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( f.requests.length - 1, { details } );
+	await pending;
+	return f;
+}
+test( 'the legend row of a span with several classes is the last one any of them names, like the provider\'s', async () => {
+	const f = await openSection( 'formality', { params: [], legend: [ { type: 'fog', level: 1, label: 'Общие' }, { type: 'stop', level: 1, label: 'Стоп' } ] } );
+	f.hover( { type: 'stop', level: 1, classes: [ 'fog1', 'stop1' ] } );
+	assert.equal( f.state.hoveredLegendKey, 'stop1' );
+	f.hover( { type: 'fog', level: 1, classes: [ 'fog1' ] } );
+	assert.equal( f.state.hoveredLegendKey, 'fog1' );
+} );
+test( 'style hints merge every fragment the hovered span is in: one text listed once under all its titles', async () => {
+	const shared = { text: [ { text: 'Процесс.' } ], more: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#heavy' };
+	const hints = {
+		'68-3': [ { title: 'в процессе… осуществления', ...shared }, { title: 'в процессе… осуществления', text: [ { text: 'Отглагольные.' } ] } ],
+		'68-4': [ { title: 'в процессе… ремонта', ...shared } ],
+	};
+	const f = await openSection( 'style', { params: [], hints } );
+	assert.equal( f.state.hints, null, 'no box until a fragment is hovered' );
+	f.hover( { type: 'slop', level: 1, fragments: [ 'xhint-68-3', 'xhint-68-4' ] } );
+	assertSameShape( f.state.hints.map( ( hint ) => hint.title ), [ 'в процессе… осуществления, в процессе… ремонта', 'в процессе… осуществления' ] );
+	assert.equal( f.state.hintIndex, 0 );
+	f.session.showHint( 1 );
+	assert.equal( f.state.hintIndex, 1 );
+	f.session.showHint( 2 );
+	assert.equal( f.state.hintIndex, 1, 'no page past the last one' );
+	assert.equal( hints[ '68-3' ][ 0 ].title, 'в процессе… осуществления', 'merging never mutates the section data' );
+	f.hover( null );
+	assert.equal( f.state.hints.length, 2, 'the box outlives the hover' );
+	f.hover( { type: 'slop', level: 2, fragments: [ 'xhint-1-1' ] } );
+	assertSameShape( f.state.hints, [], 'a fragment without explainers empties the box' );
+} );
+test( 'hovering a repeated word picks the table row of its first stem that has one, and a row can be picked or released by hand', async () => {
+	const words = [ { text: 'проживание', count: 5, stems: [ 'stm-6-190E7' ] }, { text: 'дом', count: 4, stems: [ 'stm-6-1A612' ] } ];
+	const f = await openSection( 'frequency', { params: [], words } );
+	f.hover( { type: 'doubles', level: 4, stems: [ 'stm-6-EE20', 'stm-6-1A612' ] } );
+	assert.equal( f.state.activeWordRow, 1 );
+	assertSameShape( f.activeStems.at( -1 ), [ 'stm-6-1A612' ] );
+	f.hover( null );
+	f.hover( { type: 'doubles', level: 4, stems: [ 'stm-6-FFFF' ] } );
+	assert.equal( f.state.activeWordRow, 1, 'a word with no row leaves the picked one alone' );
+	f.session.selectWord( 0 );
+	assert.equal( f.state.activeWordRow, 0 );
+	assertSameShape( f.activeStems.at( -1 ), [ 'stm-6-190E7' ] );
+	f.session.selectWord( 0 );
+	assert.equal( f.state.activeWordRow, null, 'picking the picked row releases it' );
+	assert.equal( f.activeStems.at( -1 ), null );
 } );

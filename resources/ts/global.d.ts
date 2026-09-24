@@ -54,6 +54,16 @@ interface HighlightMark {
 	 * (e.g. a repeated word in "Frequency").
 	 */
 	fragments?: string[];
+	/**
+	 * Every recognized `<type><level>` class on the span, e.g. ["fog1", "stop1"]; `type`/
+	 * `level` name the one the provider's stylesheet paints it with. The provider still
+	 * consults the others, e.g. to pick the legend row a hovered span belongs to.
+	 */
+	classes?: string[];
+	/** The span carries the provider's bare `xhint` class, which underlines "bb"/"slop" marks. */
+	xhint?: boolean;
+	/** "Frequency" stem ids (`stm-*`) tying each occurrence of a word to its table row. */
+	stems?: string[];
 }
 
 /** The result panel's six accordion sections: the overall score plus one per report block. */
@@ -62,6 +72,7 @@ type SectionKey = 'overall' | HighlightCategory;
 interface SectionParam {
 	name: string;
 	value: string;
+	/** '' when the provider shows no score badge for this row. */
 	score: string;
 	low: boolean;
 	/** The provider's own explainer for this characteristic, confirmed live in every section. */
@@ -78,6 +89,10 @@ interface SectionWordStat {
 	/** Present when this word/phrase is also highlighted in the document text (see HighlightMark). */
 	type?: HighlightType;
 	level?: number;
+	/** The score badge an over-frequent word adds. */
+	score?: string;
+	/** HighlightMark.stems of this word's occurrences: the row lights them all up. */
+	stems?: string[];
 }
 
 interface SectionLegendItem {
@@ -92,6 +107,21 @@ interface SentenceProblem {
 	label: string;
 	/** The report section this problem is explained in, when the provider's link names one. */
 	section?: HighlightCategory;
+}
+
+/**
+ * One explainer from the provider's "Подсказки" box for a hovered fragment (see
+ * SectionDetails.hints), already reduced to plain, validated structure.
+ */
+interface SectionHint {
+	/** The flagged words; may be empty. */
+	title: string;
+	/** Plain text runs; `italic` marks the provider's own `_word_` emphasis. */
+	text: { text: string; italic?: boolean }[];
+	/** Absolute provider help URL behind "Подробнее". */
+	more?: string;
+	/** "См. также" links. */
+	seeAlso?: { label: string; url: string }[];
 }
 
 interface SectionBreakdownItem {
@@ -111,6 +141,11 @@ interface SectionDetails {
 	 * for that sentence's risk, shown when the reader hovers it.
 	 */
 	sentenceProblems?: Record< string, SentenceProblem[] >;
+	/**
+	 * Fragment id (a HighlightMark.fragments entry without its `xhint-`/`xhlln-` prefix) →
+	 * the explainers the provider shows while that fragment is hovered ("Style" only, live).
+	 */
+	hints?: Record< string, SectionHint[] >;
 	/** The analyzed document's word count, the same figure every report tab shows. */
 	wordCount?: number;
 }
@@ -185,10 +220,16 @@ type AnalysisTarget = RangeAnalysisTarget | TextareaAnalysisTarget;
 
 /** The mark under the reader's cursor (see Decorations.apply()'s `onHover`). */
 interface MarkHover {
-	/** HighlightMark.sentence: set only for the "Overall risk" section's marks. */
+	/** HighlightMark.sentence: set only for "xhint" sections' marks ("Overall risk", "Style"). */
 	sentence: string | null;
 	type: string;
 	level: number;
+	/** HighlightMark.classes (at least `type` + `level`). */
+	classes: string[];
+	/** HighlightMark.fragments. */
+	fragments: string[];
+	/** HighlightMark.stems. */
+	stems: string[];
 }
 
 interface Decorations {
@@ -202,6 +243,11 @@ interface Decorations {
 		 */
 		onHover?: ( hover: MarkHover | null ) => void
 	): { visible: number; total: number };
+	/**
+	 * Marks every occurrence carrying one of these stems as the provider's "active" word
+	 * (a "Frequency" table row the reader picked); null clears it.
+	 */
+	setActiveStems( stems: string[] | null ): void;
 	clear(): void;
 	dispose(): void;
 }
@@ -247,6 +293,12 @@ interface TurgenevClientApi {
 	highlightLevel( mark: HighlightMark ): number;
 	/** The provider's own exact color for this mark (see HighlightType), not an approximation. */
 	highlightColor( mark: HighlightMark ): string;
+	/** The provider's own hover background for this mark: its color at 20% alpha. */
+	hoverColor( mark: { type: string; level: number } ): string;
+	/** Whether the provider underlines this mark (a dotted line in its own color). */
+	isUnderlined( mark: { type: string; xhint?: boolean } ): boolean;
+	/** The provider's background for the last hovered fragment or picked word (`xhint-active`). */
+	activeBackground: string;
 	/** The provider's own exact swatch color for this legend entry; 'transparent' when unknown. */
 	legendColor( item: SectionLegendItem ): string;
 	/** Every known `<type><level>` → hex color pair, for pre-building a highlight stylesheet. */
@@ -305,6 +357,13 @@ interface TurgenevUIApi {
 			sentenceProblem?: SentenceProblem[] | null;
 			/** `<type><level>` (see SectionLegendItem) of the mark last hovered, or null. */
 			hoveredLegendKey?: string | null;
+			/** "Style" only: explainers of the fragment last hovered; null until one is. */
+			hints?: SectionHint[] | null;
+			hintIndex?: number;
+			onHintPage?: ( index: number ) => void;
+			/** "Frequency" only: index into sectionData.words of the picked word, or null. */
+			activeWordRow?: number | null;
+			onSelectWord?: ( index: number ) => void;
 		}
 	): void;
 	setBusy( panel: HTMLElement | null, busy: unknown ): void;
@@ -335,8 +394,18 @@ interface SessionState {
 	sectionError: string;
 	/** 'overall' only: problems of the sentence last hovered in the editor, or null until one is. */
 	sentenceProblem: SentenceProblem[] | null;
-	/** `<type><level>` of the mark last hovered in the editor, or null while hovering nothing. */
+	/**
+	 * `<type><level>` of the legend row the mark last hovered in the editor belongs to; ''
+	 * when it belongs to none, null until a mark is hovered. Outlives the hover, like the
+	 * provider's own legend.
+	 */
 	hoveredLegendKey: string | null;
+	/** "Style" only: explainers of the fragment last hovered, or null until one is. */
+	hints: SectionHint[] | null;
+	/** Which of `hints` is shown. */
+	hintIndex: number;
+	/** "Frequency" only: index into sectionData.words of the picked word, or null. */
+	activeWordRow: number | null;
 }
 
 interface AnalysisSession {
@@ -344,6 +413,10 @@ interface AnalysisSession {
 	balance(): Promise< void >;
 	highlight( token: string ): Promise< void >;
 	toggleSection( section: SectionKey, token: string ): Promise< void >;
+	/** Picks (or, when already picked, releases) a "Frequency" table row. */
+	selectWord( index: number ): void;
+	/** Shows another of the current hints. */
+	showHint( index: number ): void;
 	reset(): void;
 	invalidate(): void;
 	setHtmlMode( htmlMode: boolean ): void;

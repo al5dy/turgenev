@@ -299,6 +299,12 @@
 	color: #50575e;
 }
 
+// The provider greys its secondary characteristics (`.xprops .low td`).
+.turgenev-section-param.is-low .turgenev-section-param-name,
+.turgenev-section-param.is-low .turgenev-section-param-value {
+	color: #a0a0a0;
+}
+
 .turgenev-section-param-name.has-tooltip {
 	border-bottom: 1px dotted #787c82;
 	cursor: help;
@@ -366,7 +372,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
-  margin-top: 12px;
+	margin-top: 12px;
 }
 
 .turgenev-section-legend-item {
@@ -383,15 +389,26 @@
 	border-radius: 2px;
 }
 
-// Dimmed by default; renderLegend()'s `is-active` (client.ts) lights up the one row
-// matching whatever mark the reader is currently hovering over in the document.
-.turgenev-section-legend-label {
-	opacity: 0.5;
-	transition: opacity 0.15s ease;
+// The provider's own legend states: plain until a mark is hovered, then every
+// row dimmed (`legend-inactive`) but the one the last hovered mark belongs to
+// (`legend-active`).
+.turgenev-section-legend-item {
+	margin: 0 -4px;
+	padding: 2px 4px;
+	color: #6f6f6f;
+	transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.turgenev-section-legend-item.is-active .turgenev-section-legend-label {
-	opacity: 1;
+.turgenev-section-legend.has-active .turgenev-section-legend-item {
+	color: #a0a0a0;
+}
+
+.turgenev-section-legend.has-active {
+
+	.turgenev-section-legend-item.is-active {
+		color: #292929;
+		background-color: #f8f8f8;
+	}
 }
 
 .turgenev-section-heading {
@@ -424,8 +441,96 @@
 	padding: 6px;
 }
 
-.turgenev-section-word-stop {
-	opacity: 0.6;
+// The provider's plain stop-word rows (`.infoblock .stop`).
+.turgenev-section-words .turgenev-section-word-stop th,
+.turgenev-section-words .turgenev-section-word-stop td {
+	color: #a0a0a0;
+}
+
+// `stmhl-btn`: picking a row lights up the word in the document; it stays
+// picked (`stmhl-active`, the same #ececec as there) until another row is.
+.turgenev-section-words tr.is-pickable {
+	cursor: pointer;
+}
+
+.turgenev-section-words tr.is-active th,
+.turgenev-section-words tr.is-active td {
+	background-color: #ececec;
+}
+
+// The provider's "Подсказки" box.
+.turgenev-section-hints {
+	padding: 8px;
+	background: #f5f5f5;
+}
+
+.turgenev-section-hints-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.turgenev-section-hints-pager {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	user-select: none;
+}
+
+.turgenev-section-hints-page {
+	padding: 0 4px;
+	font-size: 14px;
+	text-decoration: none;
+}
+
+.turgenev-section-hints-page:disabled {
+	color: #a0a0a0;
+	cursor: default;
+}
+
+.turgenev-section-hint-title {
+	display: inline-block;
+	margin-bottom: 5px;
+}
+
+.turgenev-section-hint-text {
+	margin: 0;
+	line-height: 20px;
+}
+
+.turgenev-section-hint-text i {
+	font-family: Georgia, "Times New Roman", serif;
+}
+
+// The provider's own red help links (`a.goto`, `div.seealso a`).
+.turgenev-section-hint-more,
+.turgenev-section-hint-see-also a {
+	color: #c4262e;
+	text-decoration: none;
+
+	&:hover,
+	&:focus {
+		color: #a31c23;
+		text-decoration: underline;
+	}
+}
+
+.turgenev-section-hint-more {
+	display: block;
+	margin-top: 5px;
+	font-weight: 600;
+}
+
+.turgenev-section-hint-see-also {
+	margin-top: 8px;
+
+	span {
+		font-weight: 600;
+	}
 }
 
 .turgenev-section-breakdown {
