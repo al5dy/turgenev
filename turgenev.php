@@ -1,13 +1,11 @@
 <?php
 /**
  * Plugin Name: Turgenev
- * Plugin URI: https://wordpress.org/plugins/turgenev/
  * Description: Analyze WordPress content with the official Turgenev API for SEO over-optimization, readability, style, keyword stuffing and Baden-Baden risk.
  * Version: 2.0.0
  * Requires at least: 6.6
  * Requires PHP: 8.1
  * Author: al5dy
- * Author URI: https://ziscod.com
  * License: GPLv2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: turgenev
