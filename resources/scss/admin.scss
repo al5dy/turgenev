@@ -19,8 +19,8 @@
 	color: #fff;
 }
 
-// Independent of the Block Editor's own settings sidebar: fixed on top of
-// it, matching its width, rather than joining its layout or tab set.
+// Fixed on top of the Block Editor's own settings sidebar, matching its width,
+// rather than joining its tab set; editor.ts opens and closes the two together.
 .turgenev-sidebar {
 	position: fixed;
 	top: 0;
@@ -29,6 +29,8 @@
 	z-index: 100000;
 	display: flex;
 	flex-direction: column;
+	// The measured width is the sidebar's outer width, border included.
+	box-sizing: border-box;
 	max-width: 100vw;
 	background: #fff;
 	border-left: 1px solid #dcdcde;

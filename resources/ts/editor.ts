@@ -91,14 +91,149 @@
 	}
 
 	// The independent sidebar stands in for this region visually (same width, same
-	// vertical offset) but never joins its layout or its tab set.
+	// vertical offset) and keeps it open while shown, but never joins its tab set.
 	// Portalling into the document-tools group (rather than the wider toolbar region)
 	// places the button after Gutenberg's own tools, since createPortal appends.
 	const TOOLBAR_SELECTOR = '.editor-document-tools.edit-post-header-toolbar';
 	const SIDEBAR_SELECTOR = '.interface-interface-skeleton__sidebar';
+	// ComplementaryAreaFill's content: unlike the sidebar around it, whose width animates
+	// open and shut, it always has the sidebar's final width.
+	const SIDEBAR_CONTENT_SELECTOR = '.interface-complementary-area__fill > *';
 	const HEADER_SELECTOR = '.editor-header.edit-post-header';
 	// Gutenberg's own settings-sidebar width, used only until the real sidebar can be measured.
 	const DEFAULT_SIDEBAR_WIDTH = 280;
+
+	// Gutenberg's settings sidebar is the `core` complementary area. Its Settings button and
+	// Ctrl+Shift+comma treat either of these tabs as "open", and it switches between them by
+	// itself on block selection (useAutoSwitchEditorSidebars).
+	const INTERFACE_STORE = 'core/interface';
+	const SIDEBAR_SCOPE = 'core';
+	const DOCUMENT_AREA = 'edit-post/document';
+	const BLOCK_AREA = 'edit-post/block';
+
+	type InterfaceSelectors = {
+		getActiveComplementaryArea?: ( scope: string ) => string | null | undefined;
+	};
+	type InterfaceActions = {
+		enableComplementaryArea?: ( scope: string, area: string ) => void;
+		disableComplementaryArea?: ( scope: string ) => void;
+	};
+
+	/** The sidebar's open area; null while it is closed or its preferences are still loading. */
+	function activeArea( registry: WPDataRegistry ): string | null {
+		const selectors = registry.select( INTERFACE_STORE ) as InterfaceSelectors | undefined;
+		return selectors?.getActiveComplementaryArea?.( SIDEBAR_SCOPE ) ?? null;
+	}
+
+	function isSettingsArea( area: string | null ): boolean {
+		return area === DOCUMENT_AREA || area === BLOCK_AREA;
+	}
+
+	function sidebarActions( registry: WPDataRegistry ): InterfaceActions {
+		return ( registry.dispatch( INTERFACE_STORE ) as InterfaceActions | undefined ) ?? {};
+	}
+
+	/** Distraction-free mode keeps the sidebar "open" in the store but does not render it. */
+	function isDistractionFree( registry: WPDataRegistry ): boolean {
+		const preferences = registry.select( 'core/preferences' ) as
+			| { get?: ( scope: string, name: string ) => unknown }
+			| undefined;
+		return Boolean( preferences?.get?.( 'core', 'distractionFree' ) );
+	}
+
+	/**
+	 * Shows and hides this panel together with the settings sidebar it covers:
+	 * - showing it over a closed sidebar opens that sidebar too, on the tab its own Settings
+	 *   shortcut would pick, so the canvas makes room instead of being covered;
+	 * - hiding it closes the sidebar again only if showing it was what opened the sidebar;
+	 * - closing the sidebar by any means (its Settings button, Ctrl+Shift+comma, a viewport
+	 *   too narrow for it), hiding it in distraction-free mode or switching it to another
+	 *   plugin's panel hides this one too, because the reader asked to see something else.
+	 *   Gutenberg's own "Post"/"Block" tab switch on block selection is neither.
+	 */
+	function usePanelVisibility( registry: WPDataRegistry ): {
+		open: boolean;
+		mounted: boolean;
+		toggle: () => void;
+		hide: () => void;
+		onExited: () => void;
+	} {
+		const [ open, setOpen ] = useState( false );
+		// Outlives `open` by the slide-out so the panel can animate away before unmounting.
+		const [ mounted, setMounted ] = useState( false );
+		// State setters are stable, so one controller serves every render and the store
+		// listener reads the current visibility without waiting for a re-render.
+		const controller = useMemo( () => {
+			let visible = false;
+			let openedSidebar = false;
+			function setVisible( value: boolean ): void {
+				visible = value;
+				if ( value ) {
+					setMounted( true );
+				}
+				setOpen( value );
+			}
+			function show(): void {
+				if ( activeArea( registry ) === null ) {
+					const blockEditor = registry.select( 'core/block-editor' ) as {
+						getBlockSelectionStart?: () => string | null;
+					};
+					sidebarActions( registry ).enableComplementaryArea?.(
+						SIDEBAR_SCOPE,
+						blockEditor.getBlockSelectionStart?.() ? BLOCK_AREA : DOCUMENT_AREA
+					);
+					openedSidebar = activeArea( registry ) !== null;
+				}
+				setVisible( true );
+			}
+			function hide(): void {
+				const restore = openedSidebar;
+				openedSidebar = false;
+				// Before the dispatch below, so the listener does not take it for the reader's.
+				setVisible( false );
+				if ( restore && isSettingsArea( activeArea( registry ) ) ) {
+					sidebarActions( registry ).disableComplementaryArea?.( SIDEBAR_SCOPE );
+				}
+			}
+			function listen(): () => void {
+				let area = activeArea( registry );
+				let distractionFree = isDistractionFree( registry );
+				return registry.subscribe( () => {
+					const before = area;
+					const wasDistractionFree = distractionFree;
+					area = activeArea( registry );
+					distractionFree = isDistractionFree( registry );
+					if ( ! visible ) {
+						return;
+					}
+					if ( distractionFree && ! wasDistractionFree ) {
+						hide();
+					} else if (
+						area !== before &&
+						before !== null &&
+						! ( isSettingsArea( before ) && isSettingsArea( area ) )
+					) {
+						// The reader closed or replaced the sidebar: it is theirs now.
+						openedSidebar = false;
+						setVisible( false );
+					}
+				} );
+			}
+			return {
+				listen,
+				hide,
+				toggle: () => ( visible ? hide() : show() ),
+			};
+		}, [ registry ] );
+		useEffect( () => controller.listen(), [ controller ] );
+		return {
+			open,
+			mounted,
+			toggle: controller.toggle,
+			hide: controller.hide,
+			onExited: () => setMounted( false ),
+		};
+	}
 
 	function PanelContent( { session }: { session: AnalysisSession } ): unknown {
 		const host = useRef< HTMLElement >( null );
@@ -137,20 +272,34 @@
 		return node;
 	}
 
-	type OverlayMetrics = { width: number; top: number };
+	type OverlayMetrics = { width: number | string; top: number };
+
+	/**
+	 * The settings sidebar's final width, never a frame of its open/close animation: the
+	 * panel slides in and out at that width with the same duration and easing, so its edge
+	 * moves in step with the sidebar's. Until the sidebar has rendered, Gutenberg's own rule
+	 * (ComplementaryAreaFill): the full viewport below its "medium" breakpoint, 280px above.
+	 */
+	function sidebarWidth(): number | string {
+		const content = window.document.querySelector( SIDEBAR_CONTENT_SELECTOR );
+		const width = content ? content.getBoundingClientRect().width : 0;
+		if ( width > 0 ) {
+			return width;
+		}
+		const viewport = dataModule.select( 'core/viewport' ) as
+			| { isViewportMatch?: ( query: string ) => boolean }
+			| undefined;
+		return viewport?.isViewportMatch?.( '< medium' )
+			? '100vw'
+			: DEFAULT_SIDEBAR_WIDTH;
+	}
 
 	function measureOverlay(): OverlayMetrics {
-		const sidebar = window.document.querySelector(
-			SIDEBAR_SELECTOR
-		) as HTMLElement | null;
 		const header = window.document.querySelector(
 			HEADER_SELECTOR
 		) as HTMLElement | null;
-		// A closed settings sidebar stays in the DOM collapsed to zero width, so
-		// only a rendered, non-empty sidebar is a usable measurement.
-		const sidebarWidth = sidebar ? sidebar.getBoundingClientRect().width : 0;
 		return {
-			width: sidebarWidth > 0 ? sidebarWidth : DEFAULT_SIDEBAR_WIDTH,
+			width: sidebarWidth(),
 			top: header ? header.getBoundingClientRect().bottom : 0,
 		};
 	}
@@ -162,6 +311,8 @@
 	 */
 	function useOverlayMetrics(): OverlayMetrics {
 		const [ metrics, setMetrics ] = useState< OverlayMetrics >( measureOverlay );
+		// Remeasured as the sidebar comes and goes: a theme or plugin may give it another width.
+		const sidebar = useLiveNode( SIDEBAR_SELECTOR );
 		useLayoutEffect( () => {
 			function measure(): void {
 				const next = measureOverlay();
@@ -174,12 +325,15 @@
 			measure();
 			const observer = new window.ResizeObserver( measure );
 			observer.observe( window.document.body );
+			if ( sidebar ) {
+				observer.observe( sidebar );
+			}
 			window.addEventListener( 'resize', measure );
 			return () => {
 				observer.disconnect();
 				window.removeEventListener( 'resize', measure );
 			};
-		}, [] );
+		}, [ sidebar ] );
 		return metrics;
 	}
 
@@ -363,10 +517,8 @@
 	}
 
 	function App(): unknown {
-		const [ open, setOpen ] = useState( false );
-		// Outlives `open` by the slide-out so the panel can animate away before unmounting.
-		const [ mounted, setMounted ] = useState( false );
 		const registry = dataModule.useRegistry();
+		const { open, mounted, toggle, hide, onExited } = usePanelVisibility( registry );
 		const session = useMemo(
 			() =>
 				analysisApi.create(
@@ -396,10 +548,7 @@
 				? createPortal(
 						el( ToolbarButton, {
 							open,
-							onClick: () => {
-								setMounted( true );
-								setOpen( ( value ) => ! value );
-							},
+							onClick: toggle,
 							toolbar,
 						} ),
 						toolbar
@@ -414,8 +563,8 @@
 						el( Overlay, {
 							session,
 							open,
-							onClose: () => setOpen( false ),
-							onExited: () => setMounted( false ),
+							onClose: hide,
+							onExited,
 						} ),
 						window.document.body
 				  )

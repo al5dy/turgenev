@@ -67,6 +67,38 @@ test.describe( 'Gutenberg independent Turgenev overlay', () => {
 		await expect( panel.getByRole( 'heading', { name: /Turgenev/i } ) ).toBeVisible();
 	} );
 
+	test( 'opens and closes together with the editor\'s settings sidebar', async ( { page } ) => {
+		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
+		await loginAsAdmin( page );
+		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
+		const settings = page
+			.locator( '.editor-header' )
+			.getByRole( 'button', { name: 'Settings', exact: true } );
+		if ( ( await settings.getAttribute( 'aria-expanded' ) ) === 'true' ) {
+			await settings.click();
+		}
+		await expect( settings ).toHaveAttribute( 'aria-expanded', 'false' );
+
+		// Opened over a closed sidebar, the panel brings the sidebar with it...
+		const panel = await openTurgenevPanel( page );
+		await expect( settings ).toHaveAttribute( 'aria-expanded', 'true' );
+		// ...which takes the panel with it when the Settings button closes it.
+		await settings.click();
+		await expect( panel ).toHaveCount( 0 );
+		await expect( settings ).toHaveAttribute( 'aria-expanded', 'false' );
+
+		// Closing the panel closes the sidebar it opened, and only that one.
+		await openTurgenevPanel( page );
+		await page.locator( '.turgenev-sidebar__close' ).click();
+		await expect( page.locator( '.turgenev-sidebar' ) ).toHaveCount( 0 );
+		await expect( settings ).toHaveAttribute( 'aria-expanded', 'false' );
+		await settings.click();
+		await openTurgenevPanel( page );
+		await page.locator( '.turgenev-sidebar__close' ).click();
+		await expect( page.locator( '.turgenev-sidebar' ) ).toHaveCount( 0 );
+		await expect( settings ).toHaveAttribute( 'aria-expanded', 'true' );
+	} );
+
 	test( 'analyzes unsaved document content without requiring a prior save', async ( { page } ) => {
 		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );

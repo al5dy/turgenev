@@ -355,6 +355,77 @@ async page => {
 	mode = 'success';
 	checks.push( 'provider fidelity: class cascade, underlines, sticky legend, frequency stems and row picking, style hints box with pager' );
 
+	// The panel and the editor's settings sidebar open and close together; here the store
+	// actions stand in for the Settings button, Ctrl+Shift+comma and other plugins' panels.
+	const sidebarArea = () => page.evaluate( () => wp.data.select( 'core/interface' ).getActiveComplementaryArea( 'core' ) ?? null );
+	const setSidebarArea = area => page.evaluate( area => {
+		const actions = wp.data.dispatch( 'core/interface' );
+		if ( area ) actions.enableComplementaryArea( 'core', area ); else actions.disableComplementaryArea( 'core' );
+	}, area );
+	const panelButton = () => page.locator( '.turgenev-toolbar-button' );
+	const panelShown = async () => await panelButton().getAttribute( 'aria-expanded' ) === 'true';
+	const panelGone = () => page.locator( '.turgenev-sidebar' ).waitFor( { state: 'detached' } );
+	if ( await panelShown() ) { await panelButton().click(); await panelGone(); }
+	await page.evaluate( () => window.smokeRegistry.dispatch( 'core/block-editor' ).clearSelectedBlock() );
+	await setSidebarArea( null );
+	await panelButton().click();
+	assert( await panelShown() && await sidebarArea() === 'edit-post/document', 'Opening the panel over a closed sidebar opens the sidebar on its "Post" tab.' );
+	await setSidebarArea( 'edit-post/block' );
+	assert( await panelShown(), 'Gutenberg\'s own "Post"/"Block" tab switch keeps the panel open.' );
+	await panelButton().click(); await panelGone();
+	assert( await sidebarArea() === null, 'Closing the panel closes the sidebar it opened.' );
+
+	await setSidebarArea( 'edit-post/document' );
+	await panelButton().click();
+	assert( await panelShown() && await sidebarArea() === 'edit-post/document', 'An open sidebar is left as it is.' );
+	await page.locator( '.turgenev-sidebar__close' ).click(); await panelGone();
+	assert( await sidebarArea() === 'edit-post/document', 'Closing the panel leaves open a sidebar it did not open.' );
+
+	await panelButton().click();
+	await setSidebarArea( null );
+	await panelGone();
+	assert( ! await panelShown(), 'Closing the sidebar (Settings button, shortcut) closes the panel too.' );
+
+	await panelButton().click();
+	assert( await sidebarArea() === 'edit-post/document', 'The sidebar reopens with the panel.' );
+	await setSidebarArea( 'smoke-plugin/panel' );
+	await panelGone();
+	assert( ! await panelShown() && await sidebarArea() === 'smoke-plugin/panel', 'Switching the sidebar to another plugin\'s panel reveals it.' );
+	await panelButton().click();
+	assert( await panelShown() && await sidebarArea() === 'smoke-plugin/panel', 'Over another plugin\'s panel the sidebar is left as it is.' );
+	await panelButton().click(); await panelGone();
+	assert( await sidebarArea() === 'smoke-plugin/panel', 'Closing the panel leaves another plugin\'s panel open.' );
+
+	// Distraction-free mode keeps the sidebar "open" in the store but no longer renders it.
+	const toggleDistractionFree = () => page.evaluate( () => wp.data.dispatch( 'core/editor' ).toggleDistractionFree( { createNotice: false } ) );
+	await setSidebarArea( null );
+	await panelButton().click();
+	await toggleDistractionFree();
+	await panelGone();
+	assert( ! await panelShown() && await sidebarArea() === null, 'Distraction-free mode hides the panel and puts back the sidebar it opened.' );
+	await panelButton().click();
+	assert( await panelShown() && await sidebarArea() === 'edit-post/document', 'The panel still opens in distraction-free mode.' );
+	await toggleDistractionFree();
+	assert( await panelShown() && await sidebarArea() === 'edit-post/document', 'Leaving distraction-free mode keeps it, now over the sidebar.' );
+	await panelButton().click(); await panelGone();
+
+	await setSidebarArea( null );
+	await page.evaluate( () => {
+		const registry = window.smokeRegistry;
+		registry.dispatch( 'core/block-editor' ).selectBlock( registry.select( 'core/block-editor' ).getBlocks()[ 0 ].clientId );
+	} );
+	await panelButton().click();
+	assert( await sidebarArea() === 'edit-post/block', 'With a block selected the sidebar opens on its "Block" tab, as Gutenberg\'s own shortcut does.' );
+	const panelWidth = () => page.evaluate( () => document.querySelector( '.turgenev-sidebar' ).getBoundingClientRect().width );
+	assert( await panelWidth() === 280, 'The panel has the settings sidebar\'s width, border included.' );
+	const viewport = page.viewportSize();
+	await page.setViewportSize( { width: 600, height: viewport.height } );
+	await page.waitForFunction( () => document.querySelector( '.turgenev-sidebar' ).getBoundingClientRect().width === window.innerWidth );
+	await page.setViewportSize( viewport );
+	await page.waitForFunction( () => document.querySelector( '.turgenev-sidebar' ).getBoundingClientRect().width === 280 );
+	await page.evaluate( () => window.smokeRegistry.dispatch( 'core/block-editor' ).clearSelectedBlock() );
+	checks.push( 'panel and settings sidebar open and close together: restore on close, Settings/shortcut close, other plugin panels, Post/Block tabs, distraction-free mode, full width on narrow screens' );
+
 	// The critical-risk notice waits for the whole result, as on the provider's own page.
 	const riskNotices = () => page.evaluate( () => wp.data.select( 'core/notices' ).getNotices().filter( notice => notice.id === 'turgenev-risk-warning' ).map( notice => notice.content ) );
 	riskLevel = 'критический'; mode = 'delay'; operationMode = 'details'; release = null;
