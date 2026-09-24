@@ -347,6 +347,26 @@
 		return message ? { message, url: RISK_HELP_URL } : null;
 	}
 
+	/**
+	 * riskWarning() for what the session shows: only once "Overall risk" is open and has
+	 * finished loading. The verdict arrives with the `risk` response, before the auto-opened
+	 * section's highlights and details, and the warning must not appear while "Analyzing
+	 * document…" is still loading them; the provider, too, shows it with the loaded tab.
+	 * Both editors decide the warning here, so they cannot drift apart.
+	 */
+	function sessionRiskWarning(
+		state: SessionState
+	): { message: string; url: string } | null {
+		if (
+			state.openSection !== 'overall' ||
+			state.analyzing ||
+			state.sectionLoading
+		) {
+			return null;
+		}
+		return riskWarning( state.result?.level, state.sectionData?.tooShort );
+	}
+
 	function sectionEntries(
 		data: RiskResult
 	): { key: SectionKey; label: string; score: unknown; link?: string }[] {
@@ -2083,6 +2103,7 @@
 		toAnalysisHTML,
 		wordCount,
 		riskWarning,
+		sessionRiskWarning,
 		maxTextLength: Number( config.maxTextLength ) || 50000,
 		isConfigured: Boolean( config.isConfigured ),
 		settingsUrl:

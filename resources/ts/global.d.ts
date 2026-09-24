@@ -340,6 +340,13 @@ interface TurgenevClientApi {
 		level: unknown,
 		tooShort?: boolean
 	): { message: string; url: string } | null;
+	/**
+	 * riskWarning() as the editors show it: only while "Overall risk" is open and fully
+	 * loaded, never while "Analyzing document…" is still in progress.
+	 */
+	sessionRiskWarning(
+		state: SessionState
+	): { message: string; url: string } | null;
 	/** Maximum visible characters per check (the payload's markup is not counted). */
 	maxTextLength: number;
 	isConfigured: boolean;

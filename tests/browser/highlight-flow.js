@@ -6,7 +6,7 @@ async page => {
 	// reads it as HTML and ends sentences at block elements): these read it back.
 	const visible = html => html.replace( /<[^>]*>/g, ' ' ).replace( /&nbsp;/g, ' ' ).replace( /&lt;/g, '<' ).replace( /&gt;/g, '>' ).replace( /&amp;/g, '&' ).replace( /\s+/g, ' ' ).trim();
 	const onlyBlocks = html => ! /<!--|<(?!\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul)>)/.test( html );
-	let mode = 'success', operationMode = 'highlights', release;
+	let mode = 'success', operationMode = 'highlights', release, riskLevel = 'low';
 	const requests = [];
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
 	// Accordion order: 'risk' is the overall report's own token. Each maps to the provider
@@ -58,7 +58,7 @@ async page => {
 		if ( mode === 'json' && body.operation === operationMode ) { await route.fulfill( { body: '{broken', contentType: 'application/json' } ); return; }
 		let data;
 		if ( body.operation === 'balance' ) data = { balance: '100' };
-		if ( body.operation === 'risk' ) data = { result: { link: 'risk12345', risk: '3', level: 'low', details: categories.map( block => ( { block, sum: '1', link: block + '12345' } ) ) } };
+		if ( body.operation === 'risk' ) data = { result: { link: 'risk12345', risk: '3', level: riskLevel, details: categories.map( block => ( { block, sum: '1', link: block + '12345' } ) ) } };
 		if ( body.operation === 'details' && mode === 'provider' ) data = { details: providerDetails( body.section ) };
 		else if ( body.operation === 'details' ) {
 			data = { details: { params: body.section === 'frequency' ? [ { name: 'Сверхчастые слова', value: 'Нет', score: '0', low: false }, { name: 'Доля', value: '12.5%', score: '0', low: false } ] : [] } };
@@ -354,5 +354,22 @@ async page => {
 	assert( await serialized() === beforeHover, 'Nothing here changed the document.' );
 	mode = 'success';
 	checks.push( 'provider fidelity: class cascade, underlines, sticky legend, frequency stems and row picking, style hints box with pager' );
+
+	// The critical-risk notice waits for the whole result, as on the provider's own page.
+	const riskNotices = () => page.evaluate( () => wp.data.select( 'core/notices' ).getNotices().filter( notice => notice.id === 'turgenev-risk-warning' ).map( notice => notice.content ) );
+	riskLevel = 'критический'; mode = 'delay'; operationMode = 'details'; release = null;
+	await analyze().click();
+	while ( ! release ) await page.waitForTimeout( 20 );
+	assert( await page.locator( '.turgenev-loading', { hasText: 'Analyzing document…' } ).isVisible(), 'The overall section is still loading.' );
+	assert( ! ( await riskNotices() ).length, 'The critical-risk notice appeared while "Analyzing document…" was still loading.' );
+	release(); mode = 'success';
+	await analyzed();
+	assert( JSON.stringify( await riskNotices() ) === JSON.stringify( [ 'Risk is critical! What to do?' ] ), 'The critical-risk notice must appear once the result has loaded.' );
+	await toggles().nth( 0 ).click(); await idle();
+	assert( await toggles().nth( 0 ).getAttribute( 'aria-expanded' ) === 'false' && ! ( await riskNotices() ).length, 'Collapsing "Overall risk" removes the notice.' );
+	await toggles().nth( 0 ).click(); await idle();
+	assert( JSON.stringify( await riskNotices() ) === JSON.stringify( [ 'Risk is critical! What to do?' ] ), 'Reopening "Overall risk" brings it back once loaded.' );
+	riskLevel = 'low';
+	checks.push( 'critical-risk notice only after "Analyzing document…" has loaded the overall section' );
 	await page.evaluate( results => { window.smokeResults = results; }, checks );
 }

@@ -28,10 +28,10 @@
 	 * Mirrors the provider's high/critical risk warning (client.riskWarning()) into the block
 	 * editor's own notices store, so it renders through Gutenberg's standard `.editor-notices`
 	 * area (the same mechanism behind every other core editor notice) instead of a one-off
-	 * element inside this plugin's own panel. Tracks only `result.level` and `openSection`:
-	 * like the provider's own warning, it is up only while the "Overall risk" accordion
-	 * section is the one open, regardless of whether this plugin's own sidebar happens to be
-	 * visible at that moment.
+	 * element inside this plugin's own panel. client.sessionRiskWarning() decides it for both
+	 * editors: like the provider's own warning, it is up only while the "Overall risk"
+	 * accordion section is open and loaded, regardless of whether this plugin's own sidebar
+	 * happens to be visible at that moment.
 	 */
 	function useRiskNotice( session: AnalysisSession ): void {
 		useEffect( () => {
@@ -45,13 +45,7 @@
 			};
 			let shown: string | null = null;
 			const unsubscribe = session.subscribe( ( state ) => {
-				const warning =
-					state.openSection === 'overall'
-						? clientApi.riskWarning(
-								state.result?.level,
-								state.sectionData?.tooShort
-						  )
-						: null;
+				const warning = clientApi.sessionRiskWarning( state );
 				const message = warning?.message ?? null;
 				if ( message === shown ) {
 					return;

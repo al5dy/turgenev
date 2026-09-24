@@ -92,18 +92,12 @@
 		} );
 		// The block editor shows the provider's risk warning in its notices area; here it is
 		// the same message as a standard admin notice under the screen title, with the same
-		// lifetime: up while "Overall risk" is open, replaced when the verdict changes, and a
-		// dismissed one stays away until then.
+		// lifetime: up while "Overall risk" is open and loaded, replaced when the verdict
+		// changes, and a dismissed one stays away until then.
 		let riskNotice: HTMLElement | null = null;
 		let shownWarning: string | null = null;
 		session.subscribe( ( state ) => {
-			const warning =
-				state.openSection === 'overall'
-					? client.riskWarning(
-							state.result?.level,
-							state.sectionData?.tooShort
-					  )
-					: null;
+			const warning = client.sessionRiskWarning( state );
 			const message = warning?.message ?? null;
 			if ( message === shownWarning ) {
 				return;

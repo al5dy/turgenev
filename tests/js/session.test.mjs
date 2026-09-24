@@ -257,6 +257,71 @@ test( 'the risk warning follows the provider\'s own: high and critical only, or 
 	assertSameShape( client.riskWarning( 'минимальный', true ), { message: 'The text is too short. Risk is not assessed.', url: '' } );
 	assertSameShape( client.riskWarning( 'высокий', true ), { message: 'The text is too short. Risk is not assessed.', url: '' } );
 } );
+test( 'the high/critical warning appears only once "Analyzing document…" has loaded the overall section', async () => {
+	const f = fixture();
+	const warning = state => f.client.sessionRiskWarning( state )?.message ?? null;
+	const emitted = [];
+	f.session.subscribe( state => emitted.push( state ) );
+	const last = operation => f.requests.findLastIndex( request => request.body.get( 'operation' ) === operation );
+	const flush = () => new Promise( resolve => setTimeout( resolve, 0 ) );
+
+	const pending = f.session.analyze();
+	f.respond( 0, { result: { ...result, level: 'критический' } } );
+	await pending;
+	assert.equal( f.state.openSection, 'overall' );
+	assert.equal( f.state.analyzing, true );
+	assert.equal( warning( f.state ), null, 'the verdict is known, but "Analyzing document…" is still loading' );
+	f.respond( last( 'highlights' ), { highlights: { text: 'Original text', marks: [] } } );
+	await flush();
+	assert.equal( warning( f.state ), null, 'highlights alone are not the full result' );
+	f.respond( last( 'details' ), { details: { params: [] } } );
+	await flush();
+	assert.equal( f.state.analyzing, false );
+	assert.equal( warning( f.state ), 'Risk is critical! What to do?', 'shown once everything has loaded' );
+	assert.deepEqual( emitted.filter( state => state.analyzing || state.sectionLoading ).map( warning ).filter( Boolean ), [], 'no state an editor received while loading carried the warning' );
+
+	// Collapsed, it goes away; reopened, it is back only once the section has reloaded.
+	await f.session.toggleSection( 'overall', 'risk12345' );
+	assert.equal( warning( f.state ), null );
+	const reopening = f.session.toggleSection( 'overall', 'risk12345' );
+	assert.equal( f.state.sectionLoading, true );
+	assert.equal( warning( f.state ), null, 'not while the reopened section is loading' );
+	f.respond( last( 'highlights' ), { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( last( 'details' ), { details: { params: [] } } );
+	await reopening;
+	assert.equal( warning( f.state ), 'Risk is critical! What to do?' );
+	const other = f.session.toggleSection( 'style', 'style12345' );
+	assert.equal( warning( f.state ), null, 'another section replaces "Overall risk", and the warning with it' );
+	f.respond( last( 'highlights' ), { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( last( 'details' ), { details: { params: [] } } );
+	await other;
+	assert.equal( warning( f.state ), null );
+} );
+test( 'a failed overall section still ends the loading, and then shows the verdict\'s warning', async () => {
+	const f = fixture();
+	const last = operation => f.requests.findLastIndex( request => request.body.get( 'operation' ) === operation );
+	const pending = f.session.analyze();
+	f.respond( 0, { result: { ...result, level: 'высокий' } } );
+	await pending;
+	assert.equal( f.client.sessionRiskWarning( f.state ), null );
+	f.respond( last( 'highlights' ), { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( last( 'details' ), { message: 'Turgenev report did not contain section details.' }, false );
+	await new Promise( resolve => setTimeout( resolve, 0 ) );
+	assert.equal( f.state.analyzing, false );
+	assert.equal( f.client.sessionRiskWarning( f.state )?.message, 'Risk is high. What to do?' );
+} );
+test( 'a text too short to assess is announced once its overall section has loaded', async () => {
+	const f = fixture();
+	const last = operation => f.requests.findLastIndex( request => request.body.get( 'operation' ) === operation );
+	const pending = f.session.analyze();
+	f.respond( 0, { result: { ...result, level: 'минимальный' } } );
+	await pending;
+	assert.equal( f.client.sessionRiskWarning( f.state ), null );
+	f.respond( last( 'highlights' ), { highlights: { text: 'Original text', marks: [] } } );
+	f.respond( last( 'details' ), { details: { params: [], tooShort: true } } );
+	await new Promise( resolve => setTimeout( resolve, 0 ) );
+	assertSameShape( f.client.sessionRiskWarning( f.state ), { message: 'The text is too short. Risk is not assessed.', url: '' } );
+} );
 test( 'section details validation accepts the full shape and rejects malformed payloads', () => {
 	const { client } = fixture();
 	// A long text flags thousands of sentences and phrases (over 200 live): none may be dropped.

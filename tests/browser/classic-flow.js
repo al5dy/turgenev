@@ -5,7 +5,7 @@ async page => {
 	const visible = html => html.replace( /<[^>]*>/g, ' ' ).replace( /&nbsp;/g, ' ' ).replace( /&lt;/g, '<' ).replace( /&gt;/g, '>' ).replace( /&amp;/g, '&' ).replace( /\s+/g, ' ' ).trim();
 	const onlyBlocks = html => ! /<!--|<(?!\/?(?:address|article|aside|blockquote|br|dd|div|dl|dt|figcaption|figure|h[1-6]|hr|li|main|ol|p|pre|section|table|td|th|tr|ul)>)/.test( html );
 	const requests = [];
-	let failure = '', malicious = false, balance = '100', fragments = false, provider = false;
+	let failure = '', malicious = false, balance = '100', fragments = false, provider = false, riskLevel = 'low', holdDetails = false, releaseDetails = null;
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
 	// Shaped like a live report: one mark per word (trailing space included); the first
 	// sentence's words are tied together only by a shared provider fragment id, the rest
@@ -43,12 +43,13 @@ async page => {
 	await page.route( '**/analysis', async route => {
 		const body = Object.fromEntries( route.request().postData().split( '&' ).map( part => part.split( '=' ).map( value => decodeURIComponent( value.replace( /\+/g, ' ' ) ) ) ) );
 		requests.push( body );
+		if ( holdDetails && body.operation === 'details' ) await new Promise( resolve => { releaseDetails = resolve; } );
 		if ( failure && body.operation === 'risk' ) {
 			await route.fulfill( { status: 502, json: { success: false, data: { message: failure } } } ); return;
 		}
 		let data;
 		if ( body.operation === 'balance' ) data = { balance };
-		if ( body.operation === 'risk' ) data = { result: { risk: 0, level: malicious ? '<img src=x onerror="window.leaked=true">' : 'low', link: 'risk12345', details: categories.map( block => ( { block, sum: 0, link: block + '12345' } ) ) } };
+		if ( body.operation === 'risk' ) data = { result: { risk: 0, level: malicious ? '<img src=x onerror="window.leaked=true">' : riskLevel, link: 'risk12345', details: categories.map( block => ( { block, sum: 0, link: block + '12345' } ) ) } };
 		if ( body.operation === 'details' && provider ) data = { details: providerDetails( body.section ) };
 		else if ( body.operation === 'details' ) {
 			data = { details: { params: body.section === 'frequency' ? [ { name: 'Сверхчастые слова', value: malicious ? '<img src=x onerror="window.leaked=true">' : 'Нет', score: '0', low: false }, { name: 'Доля', value: '12.5%', score: '0', low: false } ] : [] } };
@@ -302,6 +303,23 @@ async page => {
 	await page.getByRole( 'button', { name: 'Analyze document', exact: true, disabled: false } ).waitFor();
 	assert( requests.filter( request => request.operation === 'risk' ).length === beforeZeroBalance, 'A zero balance must never reach a paid request.' );
 	checks.push( 'refresh-balance icon updates the shown balance; a zero balance disables analysis and surfaces the top-up icon/message' );
+
+	// The critical-risk notice waits for the whole result, as on the provider's own page.
+	const riskNotices = () => page.locator( '.turgenev-risk-notice' );
+	malicious = false; riskLevel = 'критический'; holdDetails = true; releaseDetails = null;
+	await analyze().click();
+	while ( ! releaseDetails ) await page.waitForTimeout( 20 );
+	assert( await page.locator( '.turgenev-loading', { hasText: 'Analyzing document…' } ).isVisible(), 'The overall section is still loading.' );
+	assert( ! await riskNotices().count(), 'The critical-risk notice appeared while "Analyzing document…" was still loading.' );
+	holdDetails = false; releaseDetails();
+	await analyzed();
+	assert( await riskNotices().count() === 1 && ( await riskNotices().locator( 'p' ).innerText() ).startsWith( 'Risk is critical! What to do?' ), 'The critical-risk notice must appear once the result has loaded.' );
+	await toggles().nth( 0 ).click(); await idle();
+	assert( await toggles().nth( 0 ).getAttribute( 'aria-expanded' ) === 'false' && ! await riskNotices().count(), 'Collapsing "Overall risk" removes the notice.' );
+	await toggles().nth( 0 ).click(); await idle();
+	assert( await riskNotices().count() === 1, 'Reopening "Overall risk" brings it back once loaded.' );
+	riskLevel = 'low';
+	checks.push( 'critical-risk notice only after "Analyzing document…" has loaded the overall section' );
 
 	for ( const url of [ '/?unconfigured=1', '/classic?unconfigured=1&fallback=1' ] ) {
 		const before = requests.length;
