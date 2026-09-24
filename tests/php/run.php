@@ -900,6 +900,23 @@ try {
 		expect_true( 4 === $sections['marks'][1]['start'], 'HTML section boundaries match the editor whitespace model' );
 		$bom = $parser->parse( "<textarea id=\"textfield\"><p>\u{FEFF}<span class=\"xhl slop2\">😀 слово</span>\u{FEFF}</p></textarea>", '😀 слово' );
 		expect_true( 0 === $bom['marks'][0]['start'] && 8 === $bom['marks'][0]['end'], 'editor zero-width no-break spaces do not shift UTF-16 highlights' );
+
+		// Shaped like a live report: one span per word, a flagged sentence or phrase tied
+		// together only by the xhint-*/xhlln-* classes its spans share (possibly several).
+		$fragment_report = $parser->parse(
+			"<textarea id='textfield'><span class='xhl bb1 xhint xhint-0-2'>Один </span><span class='xhl bb1 xhint xhint-0-2'>два</span><span class='xhl bb1 xhint xhint-0-2'>.</span> "
+			. "<span class='xhl cqueries2 xhlln-2-2 xhlln-2-1 xhlln-2-2'>три </span><span class='xhl cqueries1 xhlln-2-2'>четыре</span> "
+			. "<span class='xhl doubles4 stm-6-190E7'>пять</span> <span class='xhl slop1 xhint-a-1 xhlln-3 xhintx-1-1 XHINT-1-1 xhint-1-1x'>шесть</span> "
+			. "<span class='xhl slop2 " . implode( ' ', array_map( static fn( int $i ): string => 'xhint-' . $i . '-1', range( 1, 10 ) ) ) . "'>семь</span></textarea>",
+			'Один два. три четыре пять шесть семь'
+		);
+		$fragments_of = static fn( int $index ): array => $fragment_report['marks'][ $index ]['fragments'];
+		expect_true( array( 'xhint-0-2' ) === $fragments_of( 0 ) && array( 'xhint-0-2' ) === $fragments_of( 1 ) && array( 'xhint-0-2' ) === $fragments_of( 2 ), 'every word span of one flagged sentence carries its shared xhint fragment' );
+		expect_true( '0-2' === $fragment_report['marks'][0]['sentence'], 'the sentence id stays available next to the fragments' );
+		expect_true( array( 'xhlln-2-2', 'xhlln-2-1' ) === $fragments_of( 3 ) && array( 'xhlln-2-2' ) === $fragments_of( 4 ), 'a keyword phrase is tied together by its xhlln fragments; a span in several keeps each once, in class order' );
+		expect_true( array() === $fragments_of( 5 ), 'a repeated word\'s stm-* class is no fragment: it stands alone, as in the provider\'s own report' );
+		expect_true( array() === $fragments_of( 6 ), 'malformed or differently cased fragment-like classes are ignored' );
+		expect_true( array_map( static fn( int $i ): string => 'xhint-' . $i . '-1', range( 1, 8 ) ) === $fragments_of( 7 ), 'fragments per span are bounded' );
 	} else {
 		// DOM-absent: direct parser construction with no override still resolves the real
 		// (false) capability and rejects gracefully, rather than fatally erroring on a

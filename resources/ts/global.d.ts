@@ -46,6 +46,14 @@ interface HighlightMark {
 	 * sentence's entry in SectionDetails.sentenceProblems when the reader hovers it.
 	 */
 	sentence: string | null;
+	/**
+	 * Every provider problem fragment this mark belongs to: its `xhint-*`/`xhlln-*` classes,
+	 * e.g. "xhint-0-19". The provider wraps each word of a flagged sentence or phrase in a
+	 * mark of its own and ties them together only through these ids, so hovering any one
+	 * word lights up every mark sharing one with it. Absent or empty: the mark stands alone
+	 * (e.g. a repeated word in "Frequency").
+	 */
+	fragments?: string[];
 }
 
 /** The result panel's six accordion sections: the overall score plus one per report block. */
@@ -175,16 +183,24 @@ interface TextareaAnalysisTarget {
 
 type AnalysisTarget = RangeAnalysisTarget | TextareaAnalysisTarget;
 
+/** The mark under the reader's cursor (see Decorations.apply()'s `onHover`). */
+interface MarkHover {
+	/** HighlightMark.sentence: set only for the "Overall risk" section's marks. */
+	sentence: string | null;
+	type: string;
+	level: number;
+}
+
 interface Decorations {
 	apply(
 		source: SourceSnapshot,
 		data: HighlightsResponseData,
 		/**
-		 * Invoked as the reader's cursor enters or leaves a rendered mark that carries a
-		 * HighlightMark.sentence id (only ever true for the "Overall risk" section): the
-		 * hovered mark's identity, or null once the cursor is no longer over any such mark.
+		 * Invoked as what the reader's cursor is over changes, in any section: the hovered
+		 * mark's identity, or null once the cursor is over no mark at all. Moving between
+		 * marks with the same identity (e.g. the words of one sentence) is not a change.
 		 */
-		onSentenceHover?: ( hover: SentenceHover | null ) => void
+		onHover?: ( hover: MarkHover | null ) => void
 	): { visible: number; total: number };
 	clear(): void;
 	dispose(): void;
@@ -440,6 +456,7 @@ interface WPElementModule {
 	createPortal: ( children: unknown, container: Element ) => unknown;
 	Fragment: unknown;
 	useEffect: ( effect: () => ( void | ( () => void ) ), deps?: unknown[] ) => void;
+	useLayoutEffect: ( effect: () => ( void | ( () => void ) ), deps?: unknown[] ) => void;
 	useMemo: < T >( factory: () => T, deps: unknown[] ) => T;
 	useRef: < T >( initial: T | null ) => { current: T | null };
 	useState: < T >( initial: T | ( () => T ) ) => [ T, ( value: T | ( ( current: T ) => T ) ) => void ];

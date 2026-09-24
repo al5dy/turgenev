@@ -318,7 +318,7 @@
 							hoveredLegendKey: hover
 								? hover.type + hover.level
 								: null,
-							...( hover
+							...( hover?.sentence
 								? {
 										sentenceProblem:
 											state.sectionData?.sentenceProblems?.[

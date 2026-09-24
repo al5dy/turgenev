@@ -33,6 +33,20 @@
 	background: #fff;
 	border-left: 1px solid #dcdcde;
 	box-shadow: -2px 0 6px rgba(0, 0, 0, 0.1);
+	// Same slide, duration and easing as Gutenberg's settings sidebar
+	// (ComplementaryArea: 0.3s tween, ease [0.6, 0, 0.4, 1]).
+	transform: translateX(100%);
+	transition: transform 0.3s cubic-bezier(0.6, 0, 0.4, 1);
+
+	&.is-open {
+		transform: none;
+	}
+
+	// Gutenberg drops the animation below its "medium" breakpoint and for
+	// reduced motion; the panel then appears and disappears instantly.
+	@media (max-width: 781px), (prefers-reduced-motion: reduce) {
+		transition: none;
+	}
 }
 
 .turgenev-sidebar__header {

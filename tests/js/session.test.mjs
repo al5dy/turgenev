@@ -114,6 +114,10 @@ test( 'highlight validation accepts dense reports and rejects malformed ranges a
 	assert.equal( client.validHighlights( 'text', Array.from( { length: 700 }, () => ( { ...mark } ) ) ).length, 700 );
 	// Only the "Overall risk" report's own marks ever carry a real sentence id.
 	assert.equal( client.validHighlights( 'text', [ { ...mark, sentence: '107-33' } ] ).length, 1 );
+	// Provider fragment ids tie one sentence's or phrase's per-word marks together.
+	for ( const fragments of [ [], [ 'xhint-0-19' ], [ 'xhlln-24-6', 'xhlln-24-3' ], Array( 8 ).fill( 'xhint-1-1' ) ] ) {
+		assert.equal( client.validHighlights( 'text', [ { ...mark, fragments } ] ).length, 1 );
+	}
 	for ( const invalid of [
 		null,
 		{},
@@ -125,6 +129,13 @@ test( 'highlight validation accepts dense reports and rejects malformed ranges a
 		[ { ...mark, level: 10 } ],
 		[ { ...mark, sentence: 'not-an-id' } ],
 		[ { ...mark, sentence: 107 } ],
+		[ { ...mark, fragments: 'xhint-0-19' } ],
+		[ { ...mark, fragments: null } ],
+		[ { ...mark, fragments: [ '0-19' ] } ], // the sentence id shape, not a provider class
+		[ { ...mark, fragments: [ 'stm-6-190E7' ] } ],
+		[ { ...mark, fragments: [ 'xhint-0-19 xhint-1-1' ] } ],
+		[ { ...mark, fragments: [ 42 ] } ],
+		[ { ...mark, fragments: Array( 9 ).fill( 'xhint-1-1' ) } ],
 		Array( 20001 ).fill( mark ),
 	] ) {
 		assert.throws( () => client.validHighlights( 'text', invalid ), /invalid highlight/ );

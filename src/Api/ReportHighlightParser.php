@@ -14,6 +14,8 @@ defined( 'ABSPATH' ) || exit;
 /** Converts untrusted provider markup to validated text offsets, never HTML. */
 final class ReportHighlightParser {
 	private const MAX_MARKS = 20000;
+	/** The provider has only ever been seen tying one span into two fragments; this bounds untrusted markup. */
+	private const MAX_FRAGMENTS = 8;
 	/** ECMAScript whitespace: the browser and provider ranges must use the same offsets. */
 	private const WHITESPACE = '/[\x{0009}-\x{000D}\x{0020}\x{00A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]+/u';
 
@@ -39,7 +41,7 @@ final class ReportHighlightParser {
 	 * @param string $report_html Provider report page.
 	 * @param string $expected_text Current normalized document text.
 	 * @throws ApiException On missing, mismatched or oversized markup.
-	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string}>}
+	 * @return array{text: string, marks: list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string, fragments: list<string>}>}
 	 */
 	public function parse( string $report_html, string $expected_text ): array {
 		if ( ! $this->has_dom ) {
@@ -73,12 +75,13 @@ final class ReportHighlightParser {
 			}
 
 			$marks[] = array(
-				'start'    => $start,
-				'end'      => $end,
-				'category' => $raw_mark['category'],
-				'type'     => $raw_mark['type'],
-				'level'    => $raw_mark['level'],
-				'sentence' => $raw_mark['sentence'],
+				'start'     => $start,
+				'end'       => $end,
+				'category'  => $raw_mark['category'],
+				'type'      => $raw_mark['type'],
+				'level'     => $raw_mark['level'],
+				'sentence'  => $raw_mark['sentence'],
+				'fragments' => $raw_mark['fragments'],
 			);
 		}
 
@@ -157,9 +160,9 @@ final class ReportHighlightParser {
 	/**
 	 * Collect visible text and byte ranges before UTF-16 conversion.
 	 *
-	 * @param \DOMNode                                                                                         $node Current inert node.
-	 * @param string                                                                                           $text Accumulated source text.
-	 * @param list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string}> $marks Collected annotations.
+	 * @param \DOMNode                                                                                                                  $node Current inert node.
+	 * @param string                                                                                                                    $text Accumulated source text.
+	 * @param list<array{start: int, end: int, category: string, type: string, level: int, sentence: ?string, fragments: list<string>}> $marks Collected annotations.
 	 */
 	private function collect( \DOMNode $node, string &$text, array &$marks ): void {
 		if ( XML_TEXT_NODE === $node->nodeType || XML_CDATA_SECTION_NODE === $node->nodeType ) {
@@ -225,7 +228,7 @@ final class ReportHighlightParser {
 	 * the provider's own stylesheet happens to reuse them across two different tabs.
 	 *
 	 * @param \DOMElement $element Provider element.
-	 * @return array{category: string, type: string, level: int, sentence: ?string}|null
+	 * @return array{category: string, type: string, level: int, sentence: ?string, fragments: list<string>}|null
 	 */
 	private function mark_for_element( \DOMElement $element ): ?array {
 		$class_names = (array) preg_split( '/\s+/', trim( $element->getAttribute( 'class' ) ) );
@@ -233,10 +236,11 @@ final class ReportHighlightParser {
 			return null;
 		}
 
-		$category = null;
-		$type     = null;
-		$level    = null;
-		$sentence = null;
+		$category  = null;
+		$type      = null;
+		$level     = null;
+		$sentence  = null;
+		$fragments = array();
 		foreach ( $class_names as $class_name ) {
 			if ( null === $category && preg_match( '/^([a-z_]+)([1-9]\d*)$/', $class_name, $match ) && isset( self::CATEGORIES[ $match[1] ] ) ) {
 				$category = self::CATEGORIES[ $match[1] ];
@@ -255,6 +259,14 @@ final class ReportHighlightParser {
 			if ( null === $sentence && preg_match( '/^xhint-(\d+-\d+)$/', $class_name, $match ) ) {
 				$sentence = $match[1];
 			}
+			// The provider wraps every word of a flagged sentence or phrase in a span of its
+			// own and ties them together only through a shared `xhint-*`/`xhlln-*` class
+			// (a word can sit in several overlapping fragments). Its report lights up every
+			// span sharing any of these with the hovered one (bb-hl.js `showXHintProcess()`),
+			// so the browser needs all of them to highlight the whole problem, not one word.
+			if ( count( $fragments ) < self::MAX_FRAGMENTS && preg_match( '/^(?:xhint|xhlln)-\d+-\d+$/', $class_name ) && ! in_array( $class_name, $fragments, true ) ) {
+				$fragments[] = $class_name;
+			}
 		}
 
 		if ( null === $category ) {
@@ -262,10 +274,11 @@ final class ReportHighlightParser {
 		}
 
 		return array(
-			'category' => $category,
-			'type'     => $type,
-			'level'    => $level,
-			'sentence' => $sentence,
+			'category'  => $category,
+			'type'      => $type,
+			'level'     => $level,
+			'sentence'  => $sentence,
+			'fragments' => $fragments,
 		);
 	}
 

@@ -3,20 +3,35 @@ async page => {
 	const assert = ( value, message ) => { if ( ! value ) throw new Error( message ); };
 	const checks = [];
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
+	// 'risk' is the overall report's own token; each maps to the provider class that section paints with.
+	const markTypes = { risk: [ 'style', 'bb', 2 ], frequency: [ 'frequency', 'doubles', 2 ], style: [ 'style', 'slop', 2 ], keywords: [ 'keywords', 'queries', 1 ], formality: [ 'formality', 'fog', 1 ], readability: [ 'readability', 'fre', 2 ] };
 	await page.unroute( '**/analysis' );
 	await page.route( '**/analysis', async route => {
 		const body = Object.fromEntries( route.request().postData().split( '&' ).map( part => part.split( '=' ).map( value => decodeURIComponent( value.replace( /\+/g, ' ' ) ) ) ) );
 		let data;
 		if ( body.operation === 'balance' ) data = { balance: '1' };
-		if ( body.operation === 'risk' ) data = { result: { risk: '5', level: 'medium', link: 'risk12345', details: categories.map( block => ( { block, sum: '1', link: block + '12345', params: [] } ) ) } };
+		if ( body.operation === 'risk' ) data = { result: { risk: '5', level: 'medium', link: 'risk12345', details: categories.map( block => ( { block, sum: '1', link: block + '12345' } ) ) } };
+		if ( body.operation === 'details' ) data = { details: { params: [] } };
 		if ( body.operation === 'highlights' ) {
-			const category = body.report_token.replace( '12345', '' );
-			data = { highlights: { text: body.text, marks: [ ...body.text.matchAll( /\S+/gu ) ].map( match => ( { start: match.index, end: match.index + match[ 0 ].length, category: category === 'risk' ? 'style' : category, level: 2 } ) ) } };
+			const [ category, type, level ] = markTypes[ body.report_token.replace( '12345', '' ) ];
+			data = { highlights: { text: body.text, marks: [ ...body.text.matchAll( /\S+/gu ) ].map( match => ( { start: match.index, end: match.index + match[ 0 ].length, category, type, level, sentence: null } ) ) } };
 		}
 		await route.fulfill( { json: { success: true, data } } );
 	} );
 	const analyze = () => page.getByRole( 'button', { name: 'Analyze document', exact: true } );
-	const action = index => page.getByRole( 'button', { name: 'Highlight', exact: true } ).nth( index );
+	// The accordion replaced per-section "Highlight" buttons: opening a section is what runs
+	// its highlight + details requests, so re-highlighting an open one means closing it first.
+	const toggles = () => page.locator( '.turgenev-accordion-toggle' );
+	const idle = () => page.waitForFunction( () => {
+		const panel = document.querySelector( '.turgenev-panel' );
+		return panel && panel.getAttribute( 'aria-busy' ) === 'false' && ! panel.querySelector( '.turgenev-accordion .turgenev-spinner' );
+	} );
+	const open = async index => {
+		if ( await toggles().nth( index ).getAttribute( 'aria-expanded' ) === 'true' ) await toggles().nth( index ).click();
+		await toggles().nth( index ).click();
+		await idle();
+	};
+	const analyzed = async () => { await toggles().nth( 5 ).waitFor(); await idle(); };
 	const reset = () => page.getByRole( 'button', { name: 'Reset view', exact: true } );
 	const openPanel = () => page.getByRole( 'button', { name: 'Turgenev', exact: true } ).click();
 	await page.goto( 'http://127.0.0.1:8897/' );
@@ -52,11 +67,10 @@ async page => {
 		window.smokeRegistry.dispatch( 'core/block-editor' ).resetBlocks( blocks );
 	} );
 	await page.getByText( 'Точный заголовок', { exact: true } ).waitFor();
-	await analyze().click(); await action( 5 ).waitFor();
+	await analyze().click(); await analyzed();
 	const original = await page.evaluate( () => wp.data.select( 'core/editor' ).getEditedPostContent() );
 	for ( let i = 0; i < 6; i++ ) {
-		await action( i ).click();
-		await page.waitForFunction( () => document.querySelector( '.turgenev-highlight-action[aria-pressed="true"]' ) );
+		await open( i );
 		const status = await page.evaluate( () => {
 			const source = TurgenevEditorContent.snapshot();
 			const covered = new Uint8Array( source.text.length );
@@ -66,8 +80,8 @@ async page => {
 		} );
 		assert( status.missing.length === 0, 'Unmapped Gutenberg text: ' + status.missing.join( ', ' ) );
 		assert( ! status.notices.length, 'Highlight produced a notice: ' + status.notices.join( ', ' ) );
-		const category = i ? categories[ i - 1 ] : 'style';
-		assert( status.categories.length && status.categories.every( name => name.startsWith( 'turgenev-' + category + '-' ) ) && status.raw.every( value => value === category ), 'Wrong category: ' + JSON.stringify( { category, visual: status.categories, raw: status.raw } ) );
+		const [ category, type, level ] = markTypes[ i ? categories[ i - 1 ] : 'risk' ];
+		assert( status.categories.length && status.categories.every( name => name === 'turgenev-' + type + level ) && status.raw.every( value => value === category ), 'Wrong category: ' + JSON.stringify( { category, visual: status.categories, raw: status.raw } ) );
 		assert( status.html === original, 'Mixed block highlighting changed serialized post content.' );
 	}
 	await page.evaluate( () => {
@@ -75,7 +89,7 @@ async page => {
 		registry.dispatch( 'core/block-editor' ).toggleBlockMode( registry.select( 'core/block-editor' ).getBlocks()[ 2 ].innerBlocks[ 0 ].clientId );
 	} );
 	await page.locator( 'textarea' ).waitFor();
-	await action( 2 ).click();
+	await open( 2 );
 	await page.locator( '.turgenev-source-mark' ).first().waitFor();
 	assert( await page.evaluate( () => CSS.highlights.size > 0 && wp.data.select( 'core/editor' ).getEditedPostContent() ) === original, 'Mixed visual/HTML editing must highlight both modes without changing the document.' );
 	assert( ! await page.locator( '.turgenev-notice' ).count(), 'A block in HTML mode must not discard its group highlights.' );
@@ -85,7 +99,7 @@ async page => {
 	checks.push( 'all six categories across mixed Gutenberg blocks, raw HTML, nested lists, captions, tables and code; exact reset' );
 	await page.getByRole( 'button', { name: 'Switch to code editor', exact: true } ).click();
 	await page.locator( '.editor-post-text-editor' ).waitFor();
-	await action( 2 ).click();
+	await open( 2 );
 	await page.locator( '.turgenev-source-mark' ).first().waitFor();
 	assert( await page.locator( '.editor-post-text-editor' ).inputValue() === original, 'Gutenberg code mode content changed.' );
 	assert( ! await page.locator( '.turgenev-notice' ).count(), 'Code mode must highlight without a partial-results notice.' );
@@ -97,9 +111,9 @@ async page => {
 	const html = '<p>Первая строка &amp; &#x1F600;.</p>\n<p>Раз<strong>делённое</strong> слово.</p>\n' + '<p>Повтор &nbsp; слова.</p>\n'.repeat( 15 );
 	await page.locator( '#content' ).fill( html );
 	await page.locator( '#content' ).evaluate( node => { node.style.cssText = 'width:360px;height:160px;font:16px/24px monospace;padding:12px;border:2px solid #888;'; } );
-	await analyze().click(); await action( 5 ).waitFor();
+	await analyze().click(); await analyzed();
 	for ( let i = 0; i < 6; i++ ) {
-		await action( i ).click(); await page.locator( '.turgenev-source-mark' ).first().waitFor();
+		await open( i ); await page.locator( '.turgenev-source-mark' ).first().waitFor();
 		assert( await page.locator( '#content' ).inputValue() === html, 'Classic code highlighting changed content.' );
 		assert( ! await page.locator( '.turgenev-notice' ).count(), 'Classic text mode reported missing highlights.' );
 	}
@@ -112,19 +126,34 @@ async page => {
 	await page.goto( 'http://127.0.0.1:8897/?iframe=1' );
 	await page.frameLocator( 'iframe[name="editor-canvas"]' ).locator( '[data-block]' ).first().waitFor();
 	await openPanel();
-	await analyze().click(); await action( 5 ).waitFor();
+	await analyze().click(); await analyzed();
 	const iframeOriginal = await page.evaluate( () => wp.data.select( 'core/editor' ).getEditedPostContent() );
 	for ( let i = 0; i < 6; i++ ) {
-		await action( i ).click();
+		await open( i );
 		await page.waitForFunction( () => document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.size > 0 );
 		assert( ! await page.locator( '.turgenev-notice' ).count(), 'Iframe editor did not match all report fragments.' );
 		await reset().click();
 		assert( await page.evaluate( () => document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.size === 0 && wp.data.select( 'core/editor' ).getEditedPostContent() ) === iframeOriginal, 'Iframe reset changed content or retained highlights.' );
 	}
+	await open( 1 );
+	const canvasWord = await page.evaluate( () => {
+		const frame = document.querySelector( 'iframe[name="editor-canvas"]' );
+		const range = [ ...frame.contentWindow.CSS.highlights.get( 'turgenev-doubles2' ) ][ 1 ];
+		const rect = range.getClientRects()[ 0 ], offset = frame.getBoundingClientRect();
+		return { x: offset.left + rect.left + rect.width / 2, y: offset.top + rect.top + rect.height / 2, text: range.toString() };
+	} );
+	const canvasHover = () => page.evaluate( () => [ ...( document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.get( 'turgenev-hover-on-light' ) || [] ) ].map( range => range.toString() ) );
+	await page.mouse.move( canvasWord.x, canvasWord.y );
+	await page.waitForFunction( () => document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	assert( JSON.stringify( await canvasHover() ) === JSON.stringify( [ canvasWord.text ] ), 'Hovering a word in the iframe canvas must paint exactly that word.' );
+	await page.mouse.move( 1, 1 );
+	await page.waitForFunction( () => ! document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.has( 'turgenev-hover-on-light' ) );
+	assert( await page.evaluate( () => wp.data.select( 'core/editor' ).getEditedPostContent() ) === iframeOriginal, 'Hovering changed iframe content.' );
+	await reset().click();
 	await page.evaluate( () => window.smokeRegistry.dispatch( 'core/block-editor' ).resetBlocks( [ wp.blocks.createBlock( 'core/paragraph', { content: 'слово '.repeat( 700 ) } ) ] ) );
-	await analyze().click(); await action( 5 ).waitFor(); await action( 2 ).click();
+	await analyze().click(); await analyzed(); await open( 2 );
 	await page.waitForFunction( () => [ ...document.querySelector( 'iframe[name="editor-canvas"]' ).contentWindow.CSS.highlights.values() ].reduce( ( count, group ) => count + group.size, 0 ) === 700 );
 	await reset().click();
-	checks.push( 'native Gutenberg iframe, all categories and reset, 700 fragments without omissions' );
+	checks.push( 'native Gutenberg iframe, all categories and reset, word hover inside the canvas, 700 fragments without omissions' );
 	await page.evaluate( results => { window.mappingSmokeResults = results; }, checks );
 }

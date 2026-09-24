@@ -10,6 +10,7 @@
 		createPortal,
 		Fragment,
 		useEffect,
+		useLayoutEffect,
 		useMemo,
 		useRef,
 		useState,
@@ -147,26 +148,39 @@
 		return node;
 	}
 
-	/** Keeps the fixed panel's width and top offset pixel-identical to what it stands in for. */
-	function useOverlayMetrics(): { width: number; top: number } {
-		const [ metrics, setMetrics ] = useState( {
-			width: DEFAULT_SIDEBAR_WIDTH,
-			top: 0,
-		} );
-		useEffect( () => {
+	type OverlayMetrics = { width: number; top: number };
+
+	function measureOverlay(): OverlayMetrics {
+		const sidebar = window.document.querySelector(
+			SIDEBAR_SELECTOR
+		) as HTMLElement | null;
+		const header = window.document.querySelector(
+			HEADER_SELECTOR
+		) as HTMLElement | null;
+		// A closed settings sidebar stays in the DOM collapsed to zero width, so
+		// only a rendered, non-empty sidebar is a usable measurement.
+		const sidebarWidth = sidebar ? sidebar.getBoundingClientRect().width : 0;
+		return {
+			width: sidebarWidth > 0 ? sidebarWidth : DEFAULT_SIDEBAR_WIDTH,
+			top: header ? header.getBoundingClientRect().bottom : 0,
+		};
+	}
+
+	/**
+	 * Keeps the fixed panel's width and top offset pixel-identical to what it stands in for.
+	 * The first measurement happens during render and later ones in a layout effect, so the
+	 * panel is never painted with a placeholder geometry and then visibly corrected.
+	 */
+	function useOverlayMetrics(): OverlayMetrics {
+		const [ metrics, setMetrics ] = useState< OverlayMetrics >( measureOverlay );
+		useLayoutEffect( () => {
 			function measure(): void {
-				const sidebar = window.document.querySelector(
-					SIDEBAR_SELECTOR
-				) as HTMLElement | null;
-				const header = window.document.querySelector(
-					HEADER_SELECTOR
-				) as HTMLElement | null;
-				setMetrics( {
-					width: sidebar
-						? sidebar.getBoundingClientRect().width
-						: DEFAULT_SIDEBAR_WIDTH,
-					top: header ? header.getBoundingClientRect().bottom : 0,
-				} );
+				const next = measureOverlay();
+				setMetrics( ( current ) =>
+					current.width === next.width && current.top === next.top
+						? current
+						: next
+				);
 			}
 			measure();
 			const observer = new window.ResizeObserver( measure );
@@ -178,6 +192,80 @@
 			};
 		}, [] );
 		return metrics;
+	}
+
+	/** Longest transition on `node`, in ms; 0 when CSS disabled it (reduced motion, mobile). */
+	function transitionMs( node: HTMLElement ): number {
+		const style = window.getComputedStyle( node );
+		const seconds = ( list: string ): number[] =>
+			list.split( ',' ).map( ( value ) => parseFloat( value ) || 0 );
+		const durations = seconds( style.transitionDuration );
+		const delays = seconds( style.transitionDelay );
+		return Math.max(
+			0,
+			...durations.map(
+				( duration, index ) =>
+					( duration + ( delays[ index % delays.length ] ?? 0 ) ) * 1000
+			)
+		);
+	}
+
+	/**
+	 * Drives the slide in/out that mirrors Gutenberg's settings sidebar. The panel mounts
+	 * off-screen and only gains `is-open` after its start position has been committed, so the
+	 * browser has a state to transition from; on close it stays mounted until the slide-out
+	 * finishes and only then asks the parent to unmount it.
+	 */
+	function useSlideTransition(
+		nodeRef: { current: HTMLElement | null },
+		open: boolean,
+		onExited: () => void
+	): boolean {
+		const [ shown, setShown ] = useState( false );
+		const exitedRef = useRef< () => void >( onExited );
+		exitedRef.current = onExited;
+		useLayoutEffect( () => {
+			const node = nodeRef.current;
+			if ( ! node ) {
+				return;
+			}
+			if ( open ) {
+				// Forcing layout commits the off-screen transform before `is-open` lands;
+				// otherwise both styles coalesce into one frame and nothing animates.
+				node.getBoundingClientRect();
+				setShown( true );
+				return;
+			}
+			setShown( false );
+			const duration = transitionMs( node );
+			if ( duration === 0 ) {
+				exitedRef.current?.();
+				return;
+			}
+			let finished = false;
+			function finish(): void {
+				if ( ! finished ) {
+					finished = true;
+					exitedRef.current?.();
+				}
+			}
+			function onEnd( event: TransitionEvent ): void {
+				// Transitions inside the panel bubble up here too.
+				if ( event.target === node && event.propertyName === 'transform' ) {
+					finish();
+				}
+			}
+			node.addEventListener( 'transitionend', onEnd );
+			// transitionend is not guaranteed (e.g. a backgrounded tab), so never leave
+			// an invisible panel mounted.
+			const timer = window.setTimeout( finish, duration + 100 );
+			return () => {
+				finished = true;
+				node.removeEventListener( 'transitionend', onEnd );
+				window.clearTimeout( timer );
+			};
+		}, [ open ] );
+		return shown;
 	}
 
 	/**
@@ -236,16 +324,23 @@
 
 	function Overlay( {
 		session,
+		open,
 		onClose,
+		onExited,
 	}: {
 		session: AnalysisSession;
+		open: boolean;
 		onClose: () => void;
+		onExited: () => void;
 	} ): unknown {
 		const { width, top } = useOverlayMetrics();
+		const ref = useRef< HTMLDivElement >( null );
+		const shown = useSlideTransition( ref, open, onExited );
 		return el(
 			'div',
 			{
-				className: 'turgenev-sidebar',
+				ref,
+				className: 'turgenev-sidebar' + ( shown ? ' is-open' : '' ),
 				style: { width, top },
 				role: 'region',
 				'aria-label': __( 'Turgenev', 'turgenev' ),
@@ -280,6 +375,8 @@
 
 	function App(): unknown {
 		const [ open, setOpen ] = useState( false );
+		// Outlives `open` by the slide-out so the panel can animate away before unmounting.
+		const [ mounted, setMounted ] = useState( false );
 		const registry = dataModule.useRegistry();
 		const session = useMemo(
 			() =>
@@ -310,7 +407,10 @@
 				? createPortal(
 						el( ToolbarButton, {
 							open,
-							onClick: () => setOpen( ( value ) => ! value ),
+							onClick: () => {
+								setMounted( true );
+								setOpen( ( value ) => ! value );
+							},
 							toolbar,
 						} ),
 						toolbar
@@ -320,9 +420,14 @@
 			// its own `display: none` wrapper (plugins are expected to render into named
 			// Slots elsewhere), so the overlay must escape it through a portal of its own,
 			// exactly like the toolbar button above, or it would never actually be visible.
-			open
+			mounted
 				? createPortal(
-						el( Overlay, { session, onClose: () => setOpen( false ) } ),
+						el( Overlay, {
+							session,
+							open,
+							onClose: () => setOpen( false ),
+							onExited: () => setMounted( false ),
+						} ),
 						window.document.body
 				  )
 				: null

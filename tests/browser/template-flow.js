@@ -3,6 +3,8 @@ async page => {
 	const assert = ( value, message ) => { if ( ! value ) throw new Error( message ); };
 	const checks = [];
 	const categories = [ 'frequency', 'style', 'keywords', 'formality', 'readability' ];
+	// 'risk' is the overall report's own token; each maps to the provider class that section paints with.
+	const markTypes = { risk: [ 'style', 'bb', 2 ], frequency: [ 'frequency', 'doubles', 2 ], style: [ 'style', 'slop', 2 ], keywords: [ 'keywords', 'queries', 1 ], formality: [ 'formality', 'fog', 1 ], readability: [ 'readability', 'fre', 2 ] };
 	const submitted = [];
 	await page.unroute( '**/analysis' );
 	await page.route( '**/analysis', async route => {
@@ -11,15 +13,28 @@ async page => {
 		if ( body.operation === 'balance' ) data = { balance: '1' };
 		if ( body.operation === 'risk' ) {
 			submitted.push( body );
-			data = { result: { risk: '5', level: 'medium', link: 'risk12345', details: categories.map( block => ( { block, sum: '1', link: block + '12345', params: [] } ) ) } };
+			data = { result: { risk: '5', level: 'medium', link: 'risk12345', details: categories.map( block => ( { block, sum: '1', link: block + '12345' } ) ) } };
 		}
+		if ( body.operation === 'details' ) data = { details: { params: [] } };
 		if ( body.operation === 'highlights' ) {
-			const section = body.report_token.replace( '12345', '' );
-			data = { highlights: { text: body.text, marks: [ ...body.text.matchAll( /\S+/gu ) ].map( match => ( { start: match.index, end: match.index + match[ 0 ].length, category: section === 'risk' ? 'style' : section, level: 2 } ) ) } };
+			const [ category, type, level ] = markTypes[ body.report_token.replace( '12345', '' ) ];
+			data = { highlights: { text: body.text, marks: [ ...body.text.matchAll( /\S+/gu ) ].map( match => ( { start: match.index, end: match.index + match[ 0 ].length, category, type, level, sentence: null } ) ) } };
 		}
 		await route.fulfill( { json: { success: true, data } } );
 	} );
-	const actions = () => page.getByRole( 'button', { name: 'Highlight', exact: true } );
+	// The accordion replaced per-section "Highlight" buttons: opening a section is what runs
+	// its highlight + details requests, so re-highlighting an open one means closing it first.
+	const toggles = () => page.locator( '.turgenev-accordion-toggle' );
+	const idle = () => page.waitForFunction( () => {
+		const panel = document.querySelector( '.turgenev-panel' );
+		return panel && panel.getAttribute( 'aria-busy' ) === 'false' && ! panel.querySelector( '.turgenev-accordion .turgenev-spinner' );
+	} );
+	const open = async index => {
+		if ( await toggles().nth( index ).getAttribute( 'aria-expanded' ) === 'true' ) await toggles().nth( index ).click();
+		await toggles().nth( index ).click();
+		await idle();
+	};
+	const analyzed = async () => { await toggles().nth( 5 ).waitFor(); await idle(); };
 	const reset = () => page.getByRole( 'button', { name: 'Reset view', exact: true } );
 	const analyze = () => page.getByRole( 'button', { name: 'Analyze document', exact: true } );
 	const state = () => page.evaluate( () => {
@@ -39,17 +54,16 @@ async page => {
 	} );
 	async function verifyCategories() {
 		const original = await state();
-		await analyze().click(); await actions().nth( 5 ).waitFor();
+		await analyze().click(); await analyzed();
 		assert( submitted.at( -1 ).text === original.text, 'The request must contain only the current post body, not template chrome.' );
 		for ( let index = 0; index < 6; index++ ) {
-			await actions().nth( index ).click();
-			await page.waitForFunction( () => ! document.body.textContent.includes( 'Loading highlights…' ) );
+			await open( index );
 			const result = await state();
 			assert( ! result.notices.length, 'Template highlight failed: ' + result.notices.join( '; ' ) );
 			assert( result.ranges.length === original.text.match( /\S+/gu ).length, 'Every body word must be highlighted once.' );
 			assert( result.ranges.every( range => range.inPost ), 'A highlight escaped into navigation, the template, a query or another entity.' );
-			const category = index ? categories[ index - 1 ] : 'style';
-			assert( result.ranges.every( range => range.key.startsWith( 'turgenev-' + category + '-' ) ), 'Previous category survived a new selection.' );
+			const [ , type, level ] = markTypes[ index ? categories[ index - 1 ] : 'risk' ];
+			assert( result.ranges.every( range => range.key === 'turgenev-' + type + level ), 'Previous category survived a new selection.' );
 			for ( const key of [ 'html', 'template', 'postBlocks', 'edits' ] ) assert( result[ key ] === original[ key ], 'Highlight changed ' + key );
 			await reset().click();
 			assert( !( await state() ).ranges.length, 'Template reset left highlights.' );
@@ -89,7 +103,7 @@ async page => {
 	// Gutenberg versions may keep Details open while editing. Simulate a block
 	// UI collapsing a field without changing its persisted attributes or content.
 	await page.frameLocator( 'iframe[name="editor-canvas"]' ).getByText( 'Содержимое закрытого раздела.', { exact: true } ).evaluate( node => { node.style.display = 'none'; } );
-	await actions().nth( 2 ).click();
+	await open( 2 );
 	await page.locator( '.turgenev-highlight-text-content' ).waitFor();
 	await page.screenshot( { path: 'output/playwright/template-complex-highlights.png' } );
 	await reset().click();
@@ -121,9 +135,9 @@ async page => {
 	} );
 	await page.frameLocator( 'iframe[name="editor-canvas"]' ).getByText( 'Обычный видимый текст.', { exact: true } ).waitFor();
 	const hiddenOriginal = await state();
-	await analyze().click(); await actions().nth( 5 ).waitFor();
+	await analyze().click(); await analyzed();
 	for ( let index = 0; index < 6; index++ ) {
-		await actions().nth( index ).click();
+		await open( index );
 		await page.locator( '.turgenev-highlight-text-content mark' ).first().waitFor();
 		const result = await state();
 		assert( ! result.notices.length && result.ranges.length === 3, 'A non-rendered widget discarded valid in-place highlights.' );
@@ -136,7 +150,7 @@ async page => {
 	checks.push( 'non-rendered third-party content: all fragments in local read-only fallback, native marks retained, no markup execution, exact reset' );
 	const overlap = await page.evaluate( () => {
 		const host = document.createElement( 'div' );
-		TurgenevUI.renderHighlightText( host, { text: 'A B C', marks: [ { start: 0, end: 5, category: 'style', level: 1 }, { start: 2, end: 3, category: 'keywords', level: 1 } ] } );
+		TurgenevUI.renderHighlightText( host, { text: 'A B C', marks: [ { start: 0, end: 5, category: 'style', type: 'slop', level: 1, sentence: null }, { start: 2, end: 3, category: 'keywords', type: 'cqueries', level: 2, sentence: null } ] } );
 		return { text: host.textContent, spans: [ ...host.children ].map( mark => ( { text: mark.textContent, color: mark.style.color } ) ) };
 	} );
 	assert( overlap.text === 'A B C' && overlap.spans.length === 3 && overlap.spans[ 0 ].color === overlap.spans[ 2 ].color && overlap.spans[ 1 ].color !== overlap.spans[ 0 ].color, 'Overlapping fallback ranges must retain the strongest severity without losing text.' );

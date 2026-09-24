@@ -1,3 +1,32 @@
+/**
+ * One mark occurrence the reader can hover, with everything needed to paint its hover
+ * background on whichever of the three paint paths drew it (see paint()). A mark that
+ * maps to several ranges or overlay pieces in the same document is still one target, so
+ * the whole mark lights up together.
+ */
+interface HoverTarget {
+	/** Stable across repaints of the same report: the mark's index in the active marks. */
+	key: number;
+	hover: MarkHover;
+	/** HighlightMark.fragments: hovering this mark lights up every target sharing one. */
+	fragments: string[];
+	/**
+	 * Viewport rectangles (already clipped to what is actually visible) that count as
+	 * "over this mark", each with the element the pointer must be over for it to count.
+	 */
+	rects: {
+		left: number;
+		top: number;
+		right: number;
+		bottom: number;
+		anchor: Element;
+	}[];
+	/** Highlight API path: the ranges the shared hover highlight is painted onto. */
+	ranges: Range[];
+	/** Overlay paths: real elements whose resting background is swapped while hovered. */
+	overlays: { element: HTMLElement; rest: string; opacity: number }[];
+}
+
 interface DecorationSurface {
 	doc: Document;
 	observer: MutationObserver;
@@ -7,38 +36,128 @@ interface DecorationSurface {
 	textareas: Set< HTMLTextAreaElement >;
 	resize: ResizeObserver | null;
 	/**
-	 * Hoverable-sentence hit boxes for the current paint, rebuilt on every repaint. Needed
-	 * only for the CSS Custom Highlight API path (::highlight() pseudo-elements can't
-	 * receive DOM events themselves, so entry/exit is detected with a hit test against these
-	 * instead); the textarea and older-browser paths attach real hover listeners directly to
-	 * their own real <span> elements instead. `range` is only used to paint the "currently
-	 * hovered" highlight and is a snapshot from the same paint pass as `rects`.
+	 * Every hoverable mark of the current paint, rebuilt on every repaint. Hover is
+	 * detected by hit-testing the pointer against these from one document-level
+	 * listener, never by listeners on the decorations themselves: ::highlight()
+	 * pseudo-elements can't receive events, and the overlay paths must stay
+	 * `pointer-events:none` so they never swallow clicks meant for the editor.
 	 */
-	sentenceRects: {
-		sentence: string;
-		type: string;
-		level: number;
-		range: Range;
-		rects: DOMRect[];
-	}[];
-	/** The active hit's identity (or null), so repeated mousemoves over the same sentence/mark are a no-op. */
+	targets: Map< number, HoverTarget >;
+	/** `targets` by each provider fragment id they belong to, rebuilt with them. */
+	fragments: Map< string, HoverTarget[] >;
+	/** The target under the pointer. */
+	hovered: HoverTarget | null;
+	/** What is painted as hovered: `hovered` plus every target sharing a fragment with it. */
+	lit: Set< HoverTarget >;
+	/**
+	 * Identity (see hoverIdentity()) last reported through the hover callback. Survives
+	 * repaints (unlike `hovered`), so re-hovering the same mark after one is not reported
+	 * twice.
+	 */
 	hoverKey: string | null;
+	/** Last pointer position in this document's viewport, or null once it left it. */
+	pointer: { x: number; y: number } | null;
 	/** Bound references kept so clear() can remove exactly the listeners observe() added. */
 	handleMove: ( event: MouseEvent ) => void;
 	handleLeave: ( event: MouseEvent ) => void;
 }
 
-/** What the reader's cursor is currently over: the sentence, and the mark that painted it. */
-type SentenceHover = { sentence: string; type: string; level: number };
-
 ( function ( window: Window & typeof globalThis ): void {
 	'use strict';
 	const client = window.TurgenevClient as TurgenevClientApi;
-	// A single shared highlight name for "whichever exact mark occurrence is under the
-	// cursor right now" — registered fresh on every hover change, painted with only a
+	// Shared highlight names for "whichever mark is under the cursor right now", one per
+	// backdrop brightness — registered fresh on every hover change, painted with only a
 	// background (see the stylesheet below), layered on top of the mark's own
 	// color-only `turgenev-<type><level>` highlight for the same range.
-	const HOVER_HIGHLIGHT_NAME = 'turgenev-hover';
+	const HOVER_ON_LIGHT = 'turgenev-hover-on-light';
+	const HOVER_ON_DARK = 'turgenev-hover-on-dark';
+	// The hover background is the text's own backdrop moved this far toward black (on a
+	// light backdrop) or white (on a dark one): exactly #ccc on white, #333 on black, and
+	// always a visible, same-strength step on any color in between.
+	const HOVER_TINT = 0.2;
+	const TEXTAREA_OVERLAY_OPACITY = 0.5;
+	const FALLBACK_OVERLAY_OPACITY = 0.45;
+	function hoverTint( dark: boolean, opacity = 1 ): string {
+		// An overlay drawn at reduced opacity needs a proportionally stronger tint to land
+		// on the same visible color as the Highlight API path.
+		const alpha = Math.min( 1, HOVER_TINT / opacity );
+		return dark
+			? `rgba(255, 255, 255, ${ alpha })`
+			: `rgba(0, 0, 0, ${ alpha })`;
+	}
+	const colorCache = new Map< string, number[] | null >();
+	let colorProbe: CanvasRenderingContext2D | null | undefined;
+	/**
+	 * Any CSS color a computed style can report (rgb(), color(srgb …), oklch(), …) as
+	 * straight sRGB [r, g, b, alpha 0–1], by letting the browser paint it into one pixel.
+	 */
+	function parseColor( value: string ): number[] | null {
+		if ( colorCache.has( value ) ) {
+			return colorCache.get( value ) ?? null;
+		}
+		if ( colorProbe === undefined ) {
+			const canvas = window.document.createElement( 'canvas' );
+			canvas.width = canvas.height = 1;
+			colorProbe = canvas.getContext( '2d', { willReadFrequently: true } );
+		}
+		let color: number[] | null = null;
+		if ( colorProbe ) {
+			colorProbe.clearRect( 0, 0, 1, 1 );
+			colorProbe.fillStyle = 'rgba(0, 0, 0, 0)';
+			colorProbe.fillStyle = value;
+			colorProbe.fillRect( 0, 0, 1, 1 );
+			const [ r, g, b, a ] = colorProbe.getImageData( 0, 0, 1, 1 ).data;
+			// Painted over transparent, so un-premultiply to recover the color itself.
+			color = a ? [ r * 255 / a, g * 255 / a, b * 255 / a, a / 255 ] : [ 0, 0, 0, 0 ];
+		}
+		colorCache.set( value, color );
+		return color;
+	}
+	function frameElementOf( doc: Document ): Element | null {
+		try {
+			return doc.defaultView?.frameElement ?? null;
+		} catch {
+			return null;
+		}
+	}
+	/**
+	 * Whether the background actually showing behind `element` is dark: composites every
+	 * (semi-)transparent background up the tree — crossing out of an editor iframe into
+	 * the page that hosts it — until an opaque one, over the browser's white canvas.
+	 */
+	function isDarkBackdrop( element: Element ): boolean {
+		const layers: number[][] = [];
+		let node: Element | null = element;
+		while ( node ) {
+			const view = node.ownerDocument.defaultView;
+			const color = view
+				? parseColor( view.getComputedStyle( node ).backgroundColor )
+				: null;
+			if ( color && color[ 3 ] > 0 ) {
+				layers.push( color );
+				if ( color[ 3 ] >= 1 ) {
+					break;
+				}
+			}
+			node = node.parentElement ?? frameElementOf( node.ownerDocument );
+		}
+		let rgb = [ 255, 255, 255 ];
+		for ( let i = layers.length - 1; i >= 0; i-- ) {
+			const alpha = layers[ i ][ 3 ];
+			rgb = rgb.map(
+				( channel, index ) =>
+					layers[ i ][ index ] * alpha + channel * ( 1 - alpha )
+			);
+		}
+		const [ r, g, b ] = rgb.map( ( channel ) => {
+			const value = channel / 255;
+			return value <= 0.04045
+				? value / 12.92
+				: ( ( value + 0.055 ) / 1.055 ) ** 2.4;
+		} );
+		// WCAG relative luminance; below ~0.179 white contrasts more than black does.
+		return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.179;
+	}
 	// Used only to pick a winner when highlight ranges overlap; the actual paint color
 	// always comes from client.highlightColor(), never from this number.
 	function severity( mark: HighlightMark ): number {
@@ -55,11 +174,86 @@ type SentenceHover = { sentence: string; type: string; level: number };
 		}
 		return surface.layer;
 	}
+	function hoverTargetFor(
+		surface: DecorationSurface,
+		key: number,
+		mark: HighlightMark
+	): HoverTarget {
+		let target = surface.targets.get( key );
+		if ( ! target ) {
+			target = {
+				key,
+				hover: {
+					sentence: mark.sentence ?? null,
+					type: mark.type,
+					level: mark.level,
+				},
+				fragments: mark.fragments ?? [],
+				rects: [],
+				ranges: [],
+				overlays: [],
+			};
+			surface.targets.set( key, target );
+			for ( const id of target.fragments ) {
+				const members = surface.fragments.get( id );
+				if ( members ) {
+					members.push( target );
+				} else {
+					surface.fragments.set( id, [ target ] );
+				}
+			}
+		}
+		return target;
+	}
+	/**
+	 * Everything that lights up while `target` is hovered: the mark itself plus every mark
+	 * sharing one of its provider fragments, i.e. the whole flagged sentence or phrase
+	 * rather than the one word under the cursor — exactly what the provider's own report
+	 * highlights for the same span.
+	 */
+	function unitOf(
+		surface: DecorationSurface,
+		target: HoverTarget
+	): Set< HoverTarget > {
+		const unit = new Set< HoverTarget >( [ target ] );
+		for ( const id of target.fragments ) {
+			for ( const member of surface.fragments.get( id ) ?? [] ) {
+				unit.add( member );
+			}
+		}
+		return unit;
+	}
+	function sameUnit( a: Set< HoverTarget >, b: Set< HoverTarget > ): boolean {
+		return a.size === b.size && [ ...a ].every( ( target ) => b.has( target ) );
+	}
+	/** Everything the sidebar reacts to (see MarkHover), so only a change of it is reported. */
+	function hoverIdentity( hover: MarkHover ): string {
+		return JSON.stringify( [ hover.sentence, hover.type, hover.level ] );
+	}
+	function addRects(
+		target: HoverTarget,
+		rects: DOMRectList | DOMRect[],
+		anchor: Element,
+		clip: { left: number; top: number; right: number; bottom: number } | null
+	): void {
+		for ( const rect of Array.from( rects ) ) {
+			const box = {
+				left: Math.max( rect.left, clip ? clip.left : -Infinity ),
+				top: Math.max( rect.top, clip ? clip.top : -Infinity ),
+				right: Math.min( rect.right, clip ? clip.right : Infinity ),
+				bottom: Math.min( rect.bottom, clip ? clip.bottom : Infinity ),
+				anchor,
+			};
+			if ( box.right > box.left && box.bottom > box.top ) {
+				target.rects.push( box );
+			}
+		}
+	}
 	function paintTextarea(
 		target: TextareaAnalysisTarget,
-		marks: HighlightMark[],
-		surface: DecorationSurface,
-		onSentenceHover: ( ( hover: SentenceHover | null ) => void ) | null
+		// Source-offset pieces of each mark, with `key` naming the mark they came from.
+		marks: ( HighlightMark & { key: number } )[],
+		surface: DecorationSurface
 	): void {
 		const { textarea, document: doc } = target;
 		const win = doc.defaultView as Window;
@@ -99,7 +293,8 @@ type SentenceHover = { sentence: string; type: string; level: number };
 		const clip = doc.createElement( 'div' );
 		clip.className = 'turgenev-source-decoration';
 		clip.style.cssText =
-			'position:absolute;overflow:hidden;pointer-events:none;opacity:.5;';
+			'position:absolute;overflow:hidden;pointer-events:none;';
+		clip.style.opacity = String( TEXTAREA_OVERLAY_OPACITY );
 		Object.assign( clip.style, {
 			left: clipLeft + 'px',
 			top: clipTop + 'px',
@@ -154,7 +349,9 @@ type SentenceHover = { sentence: string; type: string; level: number };
 				list.push( { index, adding } );
 			}
 		} );
-		const active = new Map< number, HighlightMark >();
+		const active = new Map< number, HighlightMark & { key: number } >();
+		// Every text node of the mirror with its textarea offset, to measure mark pieces.
+		const nodes: { node: Text; start: number; span: HTMLElement | null }[] = [];
 		let cursor = 0;
 		for ( const position of [
 			...events.keys(),
@@ -171,33 +368,15 @@ type SentenceHover = { sentence: string; type: string; level: number };
 					span.dataset.category = mark.category;
 					span.dataset.type = mark.type;
 					span.style.color = 'transparent';
-					const restColor = client.highlightColor( mark );
-					span.style.backgroundColor = restColor;
-					span.textContent = text;
-					// A real <textarea> can't recolor individual characters (the real text
-					// underneath stays its normal color; this overlay span only ever supplies
-					// a background), so hovering swaps this whole span's background between
-					// its resting severity color and #eee rather than layering a second color.
-					if ( onSentenceHover && mark.sentence ) {
-						const hover: SentenceHover = {
-							sentence: mark.sentence,
-							type: mark.type,
-							level: mark.level,
-						};
-						span.style.pointerEvents = 'auto';
-						span.style.cursor = 'pointer';
-						span.addEventListener( 'mouseenter', () => {
-							span.style.backgroundColor = '#eee';
-							onSentenceHover( hover );
-						} );
-						span.addEventListener( 'mouseleave', () => {
-							span.style.backgroundColor = restColor;
-							onSentenceHover( null );
-						} );
-					}
+					span.style.backgroundColor = client.highlightColor( mark );
+					const node = doc.createTextNode( text );
+					span.appendChild( node );
+					nodes.push( { node, start: cursor, span } );
 					mirror.appendChild( span );
 				} else {
-					mirror.appendChild( doc.createTextNode( text ) );
+					const node = doc.createTextNode( text );
+					nodes.push( { node, start: cursor, span: null } );
+					mirror.appendChild( node );
 				}
 			}
 			for ( const event of events.get( position ) || [] ) {
@@ -212,6 +391,48 @@ type SentenceHover = { sentence: string; type: string; level: number };
 		mirror.appendChild( doc.createTextNode( '\u200b' ) );
 		clip.appendChild( mirror );
 		layerFor( surface ).appendChild( clip );
+		// A real <textarea> can't recolor individual characters, so hovering a mark swaps
+		// the background of the overlay spans covering it (each span covers exactly one
+		// piece boundary to the next, so a span is either wholly inside a piece or not).
+		// Measured now that the mirror is laid out, clipped to the textarea's visible area.
+		for ( const mark of marks ) {
+			const hoverTarget = hoverTargetFor( surface, mark.key, mark );
+			const range = doc.createRange();
+			const first = nodes.find(
+				( entry ) =>
+					mark.start < entry.start + entry.node.length &&
+					mark.start >= entry.start
+			);
+			const last = nodes.find(
+				( entry ) =>
+					mark.end <= entry.start + entry.node.length &&
+					mark.end > entry.start
+			);
+			if ( ! first || ! last ) {
+				continue;
+			}
+			range.setStart( first.node, mark.start - first.start );
+			range.setEnd( last.node, mark.end - last.start );
+			addRects( hoverTarget, range.getClientRects(), textarea, {
+				left: clipLeft,
+				top: clipTop,
+				right: clipRight,
+				bottom: clipBottom,
+			} );
+			for ( const entry of nodes ) {
+				if (
+					entry.span &&
+					entry.start >= mark.start &&
+					entry.start < mark.end
+				) {
+					hoverTarget.overlays.push( {
+						element: entry.span,
+						rest: entry.span.style.backgroundColor,
+						opacity: TEXTAREA_OVERLAY_OPACITY,
+					} );
+				}
+			}
+		}
 		if ( ! surface.textareas.has( textarea ) ) {
 			surface.textareas.add( textarea );
 			surface.resize?.observe( textarea );
@@ -225,8 +446,7 @@ type SentenceHover = { sentence: string; type: string; level: number };
 	): Decorations {
 		let active: { source: SourceSnapshot; marks: HighlightMark[] } | null =
 			null;
-		let hoverCallback: ( ( hover: SentenceHover | null ) => void ) | null =
-			null;
+		let hoverCallback: ( ( hover: MarkHover | null ) => void ) | null = null;
 		let frame = 0;
 		const surfaces = new Map< Document, DecorationSurface >();
 		function surfaceWindow( surface: DecorationSurface ): ( Window & {
@@ -236,82 +456,201 @@ type SentenceHover = { sentence: string; type: string; level: number };
 					set: ( name: string, value: unknown ) => void;
 				};
 			};
-			Highlight?: new ( range: Range ) => unknown;
+			Highlight?: new ( ...ranges: Range[] ) => unknown;
 		} ) | null {
 			return surface.doc.defaultView as ReturnType< typeof surfaceWindow >;
 		}
+		function showHover(
+			surface: DecorationSurface,
+			unit: Set< HoverTarget >,
+			hovered: HoverTarget
+		): void {
+			const light: Range[] = [];
+			const dark: Range[] = [];
+			const backdrops = new Map< Element, boolean >();
+			for ( const target of unit ) {
+				// A fragment member scrolled out of a textarea's view has no rectangle of its
+				// own; it still sits on the same backdrop as the rest of its fragment.
+				const anchor = ( target.rects[ 0 ] ?? hovered.rects[ 0 ] ).anchor;
+				let onDark = backdrops.get( anchor );
+				if ( onDark === undefined ) {
+					onDark = isDarkBackdrop( anchor );
+					backdrops.set( anchor, onDark );
+				}
+				( onDark ? dark : light ).push( ...target.ranges );
+				for ( const overlay of target.overlays ) {
+					overlay.element.style.backgroundColor = hoverTint(
+						onDark,
+						overlay.opacity
+					);
+				}
+			}
+			const win = surfaceWindow( surface );
+			if ( win?.CSS?.highlights && win.Highlight ) {
+				if ( light.length ) {
+					win.CSS.highlights.set(
+						HOVER_ON_LIGHT,
+						new win.Highlight( ...light )
+					);
+				}
+				if ( dark.length ) {
+					win.CSS.highlights.set(
+						HOVER_ON_DARK,
+						new win.Highlight( ...dark )
+					);
+				}
+			}
+		}
+		function hideHover(
+			surface: DecorationSurface,
+			unit: Set< HoverTarget >
+		): void {
+			const win = surfaceWindow( surface );
+			win?.CSS?.highlights?.delete( HOVER_ON_LIGHT );
+			win?.CSS?.highlights?.delete( HOVER_ON_DARK );
+			for ( const target of unit ) {
+				for ( const overlay of target.overlays ) {
+					overlay.element.style.backgroundColor = overlay.rest;
+				}
+			}
+		}
 		/**
-		 * Applies (or clears) the hover state for one surface: repaints the shared
-		 * "currently hovered" CSS Highlight so it lands only on that exact mark occurrence,
-		 * and reports the change up so the sidebar can show its sentence problems and light
-		 * up the matching legend entry. A no-op when the hit hasn't actually changed, so a
-		 * mousemove within the same mark doesn't re-fire either.
+		 * Paints (or clears) the hover background for one surface and, only when the hovered
+		 * mark's identity actually changed, reports it up so the sidebar can show its sentence
+		 * problems and light up the matching legend entry. Moving between the words of one
+		 * fragment keeps the same background, and a mousemove within one mark is a no-op.
 		 */
 		function setHover(
 			surface: DecorationSurface,
-			hit: DecorationSurface[ 'sentenceRects' ][ number ] | null
+			hit: HoverTarget | null
 		): void {
-			const key = hit
-				? hit.sentence + '\u0000' + hit.type + hit.level
-				: null;
-			if ( key === surface.hoverKey ) {
+			if ( hit === surface.hovered ) {
 				return;
 			}
-			surface.hoverKey = key;
-			const win = surfaceWindow( surface );
-			win?.CSS?.highlights?.delete( HOVER_HIGHLIGHT_NAME );
-			if ( hit && win?.CSS?.highlights && win.Highlight ) {
-				win.CSS.highlights.set(
-					HOVER_HIGHLIGHT_NAME,
-					new win.Highlight( hit.range )
-				);
+			surface.hovered = hit;
+			const unit = hit ? unitOf( surface, hit ) : new Set< HoverTarget >();
+			if ( ! sameUnit( unit, surface.lit ) ) {
+				hideHover( surface, surface.lit );
+				surface.lit = unit;
+				if ( hit ) {
+					showHover( surface, unit, hit );
+				}
 			}
-			hoverCallback?.(
-				hit
-					? { sentence: hit.sentence, type: hit.type, level: hit.level }
-					: null
-			);
+			const key = hit ? hoverIdentity( hit.hover ) : null;
+			if ( key !== surface.hoverKey ) {
+				surface.hoverKey = key;
+				hoverCallback?.( hit ? hit.hover : null );
+			}
 		}
+		/**
+		 * The innermost mark under the point (a word wins over a sentence containing it),
+		 * counting a rectangle only while the pointer is really over that text — not over a
+		 * toolbar, popover or other UI that happens to float above it.
+		 */
 		function findHit(
 			surface: DecorationSurface,
 			x: number,
-			y: number
-		): DecorationSurface[ 'sentenceRects' ][ number ] | null {
-			return (
-				surface.sentenceRects.find( ( entry ) =>
-					entry.rects.some(
-						( rect ) =>
-							x >= rect.left &&
-							x <= rect.right &&
-							y >= rect.top &&
-							y <= rect.bottom
-					)
-				) ?? null
-			);
+			y: number,
+			over: Element | null
+		): HoverTarget | null {
+			if ( ! over ) {
+				return null;
+			}
+			let best: HoverTarget | null = null;
+			let bestArea = Infinity;
+			for ( const target of surface.targets.values() ) {
+				const inside = target.rects.some(
+					( rect ) =>
+						x >= rect.left &&
+						x <= rect.right &&
+						y >= rect.top &&
+						y <= rect.bottom &&
+						( rect.anchor.contains( over ) || over.contains( rect.anchor ) )
+				);
+				if ( ! inside ) {
+					continue;
+				}
+				const area = target.rects.reduce(
+					( sum, rect ) =>
+						sum + ( rect.right - rect.left ) * ( rect.bottom - rect.top ),
+					0
+				);
+				if ( area < bestArea ) {
+					best = target;
+					bestArea = area;
+				}
+			}
+			return best;
 		}
 		function handleSurfaceMove(
 			surface: DecorationSurface,
 			event: MouseEvent
 		): void {
-			setHover( surface, findHit( surface, event.clientX, event.clientY ) );
+			surface.pointer = { x: event.clientX, y: event.clientY };
+			setHover(
+				surface,
+				findHit(
+					surface,
+					event.clientX,
+					event.clientY,
+					( event.target as Node | null )?.nodeType === 1
+						? ( event.target as Element )
+						: null
+				)
+			);
+		}
+		/**
+		 * A repaint (scroll, resize, editor re-render) rebuilds every target, and the text
+		 * may have moved under a pointer that didn't: re-evaluate the last pointer position
+		 * so the hover background stays exactly where the cursor is, without a mousemove.
+		 */
+		function restoreHover( surface: DecorationSurface ): void {
+			const pointer = surface.pointer;
+			setHover(
+				surface,
+				pointer
+					? findHit(
+							surface,
+							pointer.x,
+							pointer.y,
+							surface.doc.elementFromPoint( pointer.x, pointer.y )
+					  )
+					: null
+			);
 		}
 		function clearSurface( surface: DecorationSurface ): void {
 			const win = surfaceWindow( surface );
 			for ( const name of surface.names ) {
 				win?.CSS?.highlights?.delete( name );
 			}
-			win?.CSS?.highlights?.delete( HOVER_HIGHLIGHT_NAME );
-			surface.hoverKey = null;
+			// Visual only: `hoverKey` is kept so restoreHover() can tell a repaint of the
+			// same hovered mark from a real change.
+			hideHover( surface, surface.lit );
+			surface.hovered = null;
+			surface.lit = new Set();
 			surface.names.clear();
 			surface.layer?.replaceChildren();
-			surface.sentenceRects = [];
+			surface.targets = new Map();
+			surface.fragments = new Map();
+		}
+		/** The plugin's own panel re-renders on every hover; that is never a reason to repaint. */
+		function isOwnUi( node: Node ): boolean {
+			const element =
+				node.nodeType === 1
+					? ( node as Element )
+					: ( node.parentElement as Element | null );
+			return !! element?.closest( '.turgenev-panel' );
 		}
 		function observe( doc: Document ): DecorationSurface {
 			const existing = surfaces.get( doc );
 			if ( existing ) {
 				return existing;
 			}
-			const observer = new window.MutationObserver( schedule );
+			const observer = new window.MutationObserver( ( records ) => {
+				if ( records.some( ( record ) => ! isOwnUi( record.target ) ) ) {
+					schedule();
+				}
+			} );
 			observer.observe( doc.body, {
 				childList: true,
 				subtree: true,
@@ -337,8 +676,12 @@ type SentenceHover = { sentence: string; type: string; level: number };
 				resize: doc.defaultView?.ResizeObserver
 					? new doc.defaultView.ResizeObserver( schedule )
 					: null,
-				sentenceRects: [],
+				targets: new Map(),
+				fragments: new Map(),
+				hovered: null,
+				lit: new Set(),
 				hoverKey: null,
+				pointer: null,
 				handleMove: ( event ) => handleSurfaceMove( surface, event ),
 				// `mouseleave` doesn't bubble and Document isn't itself a valid target for
 				// it in every engine, so leaving the whole document is instead detected via
@@ -347,6 +690,7 @@ type SentenceHover = { sentence: string; type: string; level: number };
 				// covered by handleMove's own hit test coming back empty.
 				handleLeave: ( event ) => {
 					if ( ! ( event as MouseEvent ).relatedTarget ) {
+						surface.pointer = null;
 						setHover( surface, null );
 					}
 				},
@@ -380,8 +724,8 @@ type SentenceHover = { sentence: string; type: string; level: number };
 							Highlight?: new () => unknown;
 					  } )
 					| null;
-				const sourceMarks: HighlightMark[] = [];
-				for ( const mark of active.marks ) {
+				const sourceMarks: ( HighlightMark & { key: number } )[] = [];
+				for ( const [ index, mark ] of active.marks.entries() ) {
 					const start = Math.max( 0, mark.start - target.offset );
 					const end = Math.min(
 						target.text.length,
@@ -401,7 +745,7 @@ type SentenceHover = { sentence: string; type: string; level: number };
 							sourceMarks.push(
 								...ranges.map(
 									( range ) =>
-										( { ...mark, ...range } as HighlightMark )
+										( { ...mark, ...range, key: index } )
 								)
 							);
 						}
@@ -418,14 +762,13 @@ type SentenceHover = { sentence: string; type: string; level: number };
 							target.offset + end
 						);
 					}
-					if ( mark.sentence ) {
-						surface.sentenceRects.push( {
-							sentence: mark.sentence,
-							type: mark.type,
-							level: mark.level,
-							range,
-							rects: [ ...range.getClientRects() ],
-						} );
+					const hoverTarget = hoverTargetFor( surface, index, mark );
+					const anchor =
+						range.commonAncestorContainer.nodeType === 1
+							? ( range.commonAncestorContainer as Element )
+							: range.commonAncestorContainer.parentElement;
+					if ( anchor ) {
+						addRects( hoverTarget, range.getClientRects(), anchor, null );
 					}
 					const name = 'turgenev-' + mark.type + mark.level;
 					if ( win?.CSS?.highlights && win.Highlight ) {
@@ -454,9 +797,8 @@ type SentenceHover = { sentence: string; type: string; level: number };
 								// Layered on top of a mark's own color-only rule above (never
 								// registered together on overlapping text otherwise), so
 								// hovering shows severity color and a background at once.
-								'\n::highlight(' +
-								HOVER_HIGHLIGHT_NAME +
-								'){background-color:#eee;}';
+								`\n::highlight(${ HOVER_ON_LIGHT }){background-color:${ hoverTint( false ) };}` +
+								`\n::highlight(${ HOVER_ON_DARK }){background-color:${ hoverTint( true ) };}`;
 							target.document.head.appendChild( surface.style );
 						}
 						if ( ! surface.names.has( name ) ) {
@@ -466,6 +808,7 @@ type SentenceHover = { sentence: string; type: string; level: number };
 						( win.CSS.highlights.get( name ) as {
 							add: ( range: Range ) => void;
 						} ).add( range );
+						hoverTarget.ranges.push( range );
 					} else {
 						// Older browsers: viewport rectangles outside body, hence outside TinyMCE too.
 						const layer = layerFor( surface );
@@ -473,7 +816,8 @@ type SentenceHover = { sentence: string; type: string; level: number };
 						for ( const rect of range.getClientRects() ) {
 							const box = target.document.createElement( 'span' );
 							box.style.cssText =
-								'position:absolute;pointer-events:none;opacity:.45;';
+								'position:absolute;pointer-events:none;';
+							box.style.opacity = String( FALLBACK_OVERLAY_OPACITY );
 							Object.assign( box.style, {
 								left: rect.left + 'px',
 								top: rect.top + 'px',
@@ -483,24 +827,12 @@ type SentenceHover = { sentence: string; type: string; level: number };
 							} );
 							// No rich text to layer a separate hover background onto here
 							// (unlike the Highlight API path above), so hovering swaps this
-							// box's own background between its resting severity color and #eee.
-							if ( hoverCallback && mark.sentence ) {
-								const hover: SentenceHover = {
-									sentence: mark.sentence,
-									type: mark.type,
-									level: mark.level,
-								};
-								box.style.pointerEvents = 'auto';
-								box.style.cursor = 'pointer';
-								box.addEventListener( 'mouseenter', () => {
-									box.style.backgroundColor = '#eee';
-									hoverCallback?.( hover );
-								} );
-								box.addEventListener( 'mouseleave', () => {
-									box.style.backgroundColor = restColor;
-									hoverCallback?.( null );
-								} );
-							}
+							// box's own background from its resting severity color.
+							hoverTarget.overlays.push( {
+								element: box,
+								rest: restColor,
+								opacity: FALLBACK_OVERLAY_OPACITY,
+							} );
 							layer.appendChild( box );
 						}
 					}
@@ -510,10 +842,12 @@ type SentenceHover = { sentence: string; type: string; level: number };
 					paintTextarea(
 						target as TextareaAnalysisTarget,
 						sourceMarks,
-						surface,
-						hoverCallback
+						surface
 					);
 				}
+			}
+			for ( const surface of surfaces.values() ) {
+				restoreHover( surface );
 			}
 			const missing = new Uint32Array( coverage.length + 1 );
 			for ( let i = 0; i < coverage.length; i++ ) {
@@ -559,7 +893,7 @@ type SentenceHover = { sentence: string; type: string; level: number };
 			apply(
 				source: SourceSnapshot,
 				data: HighlightsResponseData,
-				onSentenceHover?: ( hover: SentenceHover | null ) => void
+				onHover?: ( hover: MarkHover | null ) => void
 			) {
 				if ( data?.text !== source.text ) {
 					throw new Error(
@@ -570,7 +904,7 @@ type SentenceHover = { sentence: string; type: string; level: number };
 					source,
 					marks: client.validHighlights( data.text, data.marks ),
 				};
-				hoverCallback = onSentenceHover ?? null;
+				hoverCallback = onHover ?? null;
 				const visible = paint();
 				// Non-rendered third-party fields use the session's read-only text view.
 				// Keep every valid in-place decoration; malformed provider data still fails above.

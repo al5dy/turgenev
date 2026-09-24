@@ -220,6 +220,9 @@
 	// A HighlightMark.sentence id: "<word offset>-<word count>", matching a key in
 	// SectionDetails.sentenceProblems (see ReportSectionParser::parseSentenceProblems()).
 	const SENTENCE_ID_PATTERN = /^\d+-\d+$/;
+	// A HighlightMark.fragments entry; both bounds mirror ReportHighlightParser's own.
+	const FRAGMENT_ID_PATTERN = /^(?:xhint|xhlln)-\d+-\d+$/;
+	const MAX_MARK_FRAGMENTS = 8;
 
 	function highlightColor( mark: { type: string; level: number } ): string {
 		return (
@@ -970,6 +973,7 @@
 					type?: unknown;
 					level?: unknown;
 					sentence?: unknown;
+					fragments?: unknown;
 				};
 				return ! (
 					Number.isInteger( candidate.start ) &&
@@ -985,7 +989,15 @@
 					( candidate.level as number ) <= 9 &&
 					( candidate.sentence === null ||
 						( typeof candidate.sentence === 'string' &&
-							SENTENCE_ID_PATTERN.test( candidate.sentence ) ) )
+							SENTENCE_ID_PATTERN.test( candidate.sentence ) ) ) &&
+					( candidate.fragments === undefined ||
+						( Array.isArray( candidate.fragments ) &&
+							candidate.fragments.length <= MAX_MARK_FRAGMENTS &&
+							candidate.fragments.every(
+								( id: unknown ) =>
+									typeof id === 'string' &&
+									FRAGMENT_ID_PATTERN.test( id )
+							) ) )
 				);
 			} )
 		) {
