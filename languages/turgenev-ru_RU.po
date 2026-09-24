@@ -152,10 +152,6 @@ msgstr "Подсказки"
 msgid "Keywords"
 msgstr "Запросы"
 
-#: src/Admin/SettingsPage.php:219
-msgid "Leave blank to keep the saved key"
-msgstr "Оставьте пустым, чтобы сохранить текущий ключ"
-
 #: assets/build/analysis.js
 msgid "Loading highlights…"
 msgstr "Загрузка подсветки…"
@@ -175,10 +171,6 @@ msgstr "Открыть отчёт"
 #: assets/build/client.js
 msgid "Overall risk"
 msgstr "Общий риск"
-
-#: src/Admin/SettingsPage.php:219
-msgid "Paste API key"
-msgstr "Вставьте ключ API"
 
 #: assets/build/client.js
 msgid "Phrases"
@@ -496,8 +488,8 @@ msgid "The text is too short. Risk is not assessed."
 msgstr "Текст слишком короткий. Риск не оценивается"
 
 #: src/Admin/SettingsPage.php
-msgid "Saved token:"
-msgstr "Сохранённый токен:"
+msgid "Saved API key:"
+msgstr "Сохранённый ключ API:"
 
 #: src/Admin/SettingsPage.php
 msgid "Leave this field empty to keep the currently saved API key."

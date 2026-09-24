@@ -734,6 +734,29 @@ try {
 	$cleared_with_candidate = $settings->sanitizeSettings( array( 'api_key' => 'typed-but-deleted', 'clear_api_key' => '1' ) );
 	expect_true( array() === $cleared_with_candidate && 0 === $GLOBALS['turgenev_remote_post_calls'], 'the Delete API Key button wins over a key typed in the field, which is never even validated' );
 
+	// With the option at its registered default (fresh install, or just after Delete API Key),
+	// update_option() hands off to add_option(), and WordPress sanitizes our output once more.
+	$GLOBALS['turgenev_test_options']['turgenev'] = array();
+	$GLOBALS['turgenev_settings_errors']          = array();
+	$GLOBALS['turgenev_remote_post_calls']        = 0;
+	$fresh_settings = new SettingsPage( new OptionStore() );
+	$first_pass     = $fresh_settings->sanitizeSettings( array( 'api_key' => 'fresh-working-key' ) );
+	$second_pass    = $fresh_settings->sanitizeSettings( $first_pass );
+	$saved_notices  = array_filter( $GLOBALS['turgenev_settings_errors'], static fn( array $error ): bool => 'turgenev_key_saved' === $error['code'] );
+	expect_true( array( 'api_key' => 'fresh-working-key' ) === $first_pass && $first_pass === $second_pass, 'the second sanitize pass keeps the validated key' );
+	expect_true( 1 === $GLOBALS['turgenev_remote_post_calls'], 'a new key is validated with one balance request, not one per sanitize pass' );
+	expect_true( 1 === count( $saved_notices ) && 1 === count( $GLOBALS['turgenev_settings_errors'] ), '"API key verified and saved" is shown once' );
+	$GLOBALS['turgenev_settings_errors']   = array();
+	$GLOBALS['turgenev_remote_post_calls'] = 0;
+	$GLOBALS['turgenev_http_handler']      = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '{"error":"Invalid key"}' );
+	$rejected_settings = new SettingsPage( new OptionStore() );
+	$rejected_first    = $rejected_settings->sanitizeSettings( array( 'api_key' => 'fresh-bad-key' ) );
+	$rejected_second   = $rejected_settings->sanitizeSettings( $rejected_first );
+	expect_true( array() === $rejected_second && 1 === $GLOBALS['turgenev_remote_post_calls'] && 1 === count( $GLOBALS['turgenev_settings_errors'] ), 'a rejected key on a fresh install is reported once and nothing is stored' );
+	$GLOBALS['turgenev_http_handler'] = static fn() => array( 'response' => array( 'code' => 200 ), 'body' => '{"balance":"9.75"}' );
+	$GLOBALS['turgenev_test_options']['turgenev'] = array( 'api_key' => 'working-key' );
+	$GLOBALS['turgenev_settings_errors']          = array();
+
 	expect_true( '••••••••••••-key' === $store->maskedApiKey(), 'masked key never returns the full secret' );
 
 	// The settings form: a saved key is shown masked under the field, with a hint and a
@@ -744,13 +767,15 @@ try {
 	expect_true( str_contains( $field, 'Saved API key:' ) && str_contains( $field, '<code>••••••••••••-key</code>' ) && ! str_contains( $field, 'working-key' ), 'a saved key is shown under the field only as its masked suffix' );
 	expect_true( str_contains( $field, 'Leave this field empty to keep the currently saved API key.' ) && ! str_contains( $field, 'type="checkbox"' ), 'the hint replaces the old remove checkbox' );
 	expect_true( str_contains( $field, 'value=""' ) && str_contains( $field, 'type="password"' ), 'the key field itself is always rendered empty' );
+	expect_true( ! str_contains( $field, 'placeholder=' ), 'the key field has no placeholder; the hint under it explains a blank field' );
 	expect_true( str_contains( $page, 'value="Save API key"' ) && ! str_contains( $page, 'Save Changes' ), 'the submit button reads "Save API key"' );
-	expect_true( 1 === preg_match( '~<button type="submit" name="turgenev\[clear_api_key\]" value="1" class="button button-secondary button-link-delete">Delete API Key</button>~', $page ), 'a saved key gets its Delete API Key button' );
+	expect_true( 1 === preg_match( '~<button type="submit" name="turgenev\[clear_api_key\]" value="1" style="margin-left:15px;" class="button button-secondary button-link-delete">Delete API Key</button>~', $page ), 'a saved key gets its Delete API Key button' );
 	expect_true( strpos( $page, 'value="Save API key"' ) < strpos( $page, 'Delete API Key' ), 'Save comes first, so Enter in the key field saves rather than deletes' );
 	$GLOBALS['turgenev_test_options']['turgenev'] = array();
 	$empty_field = render_to_string( array( $settings, 'renderApiKeyField' ) );
 	$empty_page  = render_to_string( array( $settings, 'renderPage' ) );
 	expect_true( ! str_contains( $empty_field, 'Saved API key:' ) && ! str_contains( $empty_page, 'clear_api_key' ) && str_contains( $empty_page, 'value="Save API key"' ), 'without a saved key there is nothing to show or delete' );
+	expect_true( ! str_contains( $empty_field, 'placeholder=' ), 'no placeholder without a saved key either' );
 	$GLOBALS['test_caps'] = array();
 	$GLOBALS['turgenev_test_options']['turgenev'] = array( 'api_key' => 'working-key' );
 

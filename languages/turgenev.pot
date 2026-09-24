@@ -150,10 +150,6 @@ msgstr ""
 msgid "Keywords"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:219
-msgid "Leave blank to keep the saved key"
-msgstr ""
-
 #: assets/build/analysis.js
 msgid "Loading highlights…"
 msgstr ""
@@ -172,10 +168,6 @@ msgstr ""
 
 #: assets/build/client.js
 msgid "Overall risk"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:219
-msgid "Paste API key"
 msgstr ""
 
 #: assets/build/client.js
@@ -494,7 +486,7 @@ msgid "The text is too short. Risk is not assessed."
 msgstr ""
 
 #: src/Admin/SettingsPage.php
-msgid "Saved token:"
+msgid "Saved API key:"
 msgstr ""
 
 #: src/Admin/SettingsPage.php

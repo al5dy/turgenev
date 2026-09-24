@@ -23,6 +23,13 @@ final class SettingsPage {
 	private OptionStore $options;
 
 	/**
+	 * What sanitizeSettings() returned last in this request.
+	 *
+	 * @var array<string, string>|null
+	 */
+	private ?array $sanitized = null;
+
+	/**
 	 * Bind configuration access.
 	 *
 	 * @param OptionStore $options Configuration store.
@@ -85,8 +92,28 @@ final class SettingsPage {
 	 * @return array<string, string>
 	 */
 	public function sanitizeSettings( $input ): array {
+		$input = is_array( $input ) ? $input : array();
+
+		// While the stored option still equals its registered default (a fresh install, or
+		// right after "Delete API Key"), update_option() hands off to add_option(), which
+		// sanitizes our own output a second time. Validating it again would repeat the paid
+		// balance request and show the "verified and saved" notice twice.
+		if ( null !== $this->sanitized && $input === $this->sanitized ) {
+			return $this->sanitized;
+		}
+
+		$this->sanitized = $this->sanitizeSubmission( $input );
+		return $this->sanitized;
+	}
+
+	/**
+	 * Validate one submitted form.
+	 *
+	 * @param array<mixed> $input Submitted option value.
+	 * @return array<string, string>
+	 */
+	private function sanitizeSubmission( array $input ): array {
 		$current = $this->options->all();
-		$input   = is_array( $input ) ? $input : array();
 
 		if ( ! empty( $input['clear_api_key'] ) ) {
 			add_settings_error(
@@ -172,7 +199,7 @@ final class SettingsPage {
 					submit_button( __( 'Save API key', 'turgenev' ), 'primary', 'submit', false );
 					?>
 					<?php if ( $this->options->hasApiKey() ) : ?>
-						<button type="submit" name="turgenev[clear_api_key]" value="1" class="button button-secondary button-link-delete"><?php esc_html_e( 'Delete API Key', 'turgenev' ); ?></button>
+						<button type="submit" name="turgenev[clear_api_key]" value="1" style="margin-left:15px;" class="button button-secondary button-link-delete"><?php esc_html_e( 'Delete API Key', 'turgenev' ); ?></button>
 					<?php endif; ?>
 				</p>
 			</form>
@@ -220,7 +247,6 @@ final class SettingsPage {
 			class="regular-text"
 			autocomplete="new-password"
 			spellcheck="false"
-			placeholder="<?php echo $has_key ? esc_attr__( 'Leave blank to keep the saved key', 'turgenev' ) : esc_attr__( 'Paste API key', 'turgenev' ); ?>"
 		/>
 		<?php if ( $has_key ) : ?>
 			<p class="turgenev-saved-key">

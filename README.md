@@ -83,7 +83,11 @@ npm run test:e2e
 
 The option name remains `turgenev` for backwards compatibility with 1.x installations. Version 2.0.0 reads the existing `api_key` automatically.
 
-The settings screen does not echo the saved secret back into the password field. It displays only a masked suffix. Submitting an empty key field keeps the current key; selecting **Remove the saved API key** explicitly clears it.
+The settings screen does not echo the saved secret back into the password field. Below the empty field it shows only a masked suffix, for example `Saved API key: ••••••••••••abcd`; the mask length is fixed and does not reveal how long the key is.
+
+- **Save API key** with an empty field keeps the current key.
+- **Save API key** with a new key first verifies it through the balance endpoint and stores it only if the check succeeds; a rejected key or a provider outage leaves the current key in place.
+- **Delete API Key**, shown only while a key is saved, explicitly removes it.
 
 ## Release build
 

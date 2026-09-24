@@ -68,6 +68,8 @@ test.describe( 'API key save/rotate/clear', () => {
 
 		expect( getSavedApiKey() ).toBe( candidate );
 		expect( await page.content() ).not.toContain( candidate );
+		// A missing option equals its registered default, so WordPress sanitizes twice here.
+		await expect( page.locator( '#setting-error-turgenev_key_saved' ) ).toHaveCount( 1 );
 		await expect( page.locator( '.turgenev-saved-key' ) ).toContainText( 'Saved API key: ••••••••••••' + candidate.slice( -4 ) );
 		await expect( page.getByRole( 'button', { name: /Delete API Key/i } ) ).toBeVisible();
 	} );
@@ -128,5 +130,20 @@ test.describe( 'API key save/rotate/clear', () => {
 		expect( await page.content() ).not.toContain( original );
 		await expect( page.getByRole( 'button', { name: /Delete API Key/i } ) ).toHaveCount( 0 );
 		await expect( page.locator( '.turgenev-saved-key' ) ).toHaveCount( 0 );
+	} );
+
+	test( 'a key saved right after Delete API Key is verified and announced once', async ( { page } ) => {
+		const original = 'e2e-key-before-delete-' + Date.now();
+		wpCli( [ 'option', 'update', 'turgenev', JSON.stringify( { api_key: original } ), '--format=json' ] );
+		test.skip( original !== getSavedApiKey(), 'wp-cli is required (set WP_TEST_ROOT).' );
+		await login( page );
+
+		await submitApiKeyForm( page, { clear: true } );
+		const replacement = 'e2e-key-after-delete-' + Date.now();
+		await submitApiKeyForm( page, { newKey: replacement } );
+
+		expect( getSavedApiKey() ).toBe( replacement );
+		await expect( page.locator( '#setting-error-turgenev_key_saved' ) ).toHaveCount( 1 );
+		expect( await page.content() ).not.toContain( replacement );
 	} );
 } );
