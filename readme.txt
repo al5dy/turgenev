@@ -163,9 +163,9 @@ This plugin requires an account with the external Turgenev service.
 
 Useful provider pages:
 
-* Turgenev website: https://turgenev.ashmanov.com/
-* API key / account: https://turgenev.ashmanov.com/?a=apikey
-* Top up balance: https://turgenev.ashmanov.com/?a=pay
+* [Turgenev website](https://turgenev.ashmanov.com/)
+* [API key / account](https://turgenev.ashmanov.com/?a=apikey)
+* [Top up balance](https://turgenev.ashmanov.com/?a=pay)
 
 The Turgenev website currently publishes separate pricing for its web interface, subscriptions and API usage. Pricing can change, so always treat the provider's current website as authoritative.
 
@@ -195,12 +195,12 @@ Do not upload a GitHub source archive containing development files. Use the prod
 
 = Create or prepare your Turgenev account =
 
-1. Open https://turgenev.ashmanov.com/
+1. Open [Turgenev](https://turgenev.ashmanov.com/).
 2. Sign in or create a Turgenev account.
 3. Confirm the account if the provider asks you to verify your email.
-4. Open the API-key/account page: https://turgenev.ashmanov.com/?a=apikey
+4. Open the [API key / account page](https://turgenev.ashmanov.com/?a=apikey).
 5. Generate or copy your API key.
-6. If necessary, add funds through https://turgenev.ashmanov.com/?a=pay
+6. If necessary, [top up your balance](https://turgenev.ashmanov.com/?a=pay).
 
 The provider controls account registration, billing, subscriptions and API pricing.
 
@@ -238,9 +238,7 @@ Saving the post before analysis is not required.
 
 = Top up your Turgenev balance =
 
-You can top up directly from the provider:
-
-https://turgenev.ashmanov.com/?a=pay
+You can [top up your Turgenev balance](https://turgenev.ashmanov.com/?a=pay) directly through the provider.
 
 The editor also exposes a **Top up Turgenev balance** control when appropriate.
 
@@ -292,15 +290,11 @@ The current plugin runtime accepts up to **50,000 visible Unicode characters per
 
 = Where do I get the Turgenev API key? =
 
-Use your Turgenev account:
-
-https://turgenev.ashmanov.com/?a=apikey
+Get your API key from the [Turgenev API key / account page](https://turgenev.ashmanov.com/?a=apikey).
 
 = Where do I add money / top up the balance? =
 
-Use the provider's payment page:
-
-https://turgenev.ashmanov.com/?a=pay
+Use the [Turgenev balance top-up page](https://turgenev.ashmanov.com/?a=pay).
 
 The plugin also provides a top-up shortcut from the editor.
 
@@ -365,9 +359,7 @@ See the External Service section for details.
 
 == External Service ==
 
-This plugin connects WordPress to the external **Turgenev** service at:
-
-https://turgenev.ashmanov.com/
+This plugin connects WordPress to the external [Turgenev service](https://turgenev.ashmanov.com/).
 
 The provider is operated by **ООО "Интернет-лингвистика" / Internet-Linguistics LLC**.
 
@@ -382,10 +374,10 @@ The plugin does not control how the external service stores or processes data af
 
 Provider links:
 
-* Service: https://turgenev.ashmanov.com/
-* API key / account: https://turgenev.ashmanov.com/?a=apikey
-* Balance top-up: https://turgenev.ashmanov.com/?a=pay
-* Service terms / company information: https://turgenev.ashmanov.com/?a=org
+* [Turgenev service](https://turgenev.ashmanov.com/)
+* [API key / account](https://turgenev.ashmanov.com/?a=apikey)
+* [Balance top-up](https://turgenev.ashmanov.com/?a=pay)
+* [Service terms / company information](https://turgenev.ashmanov.com/?a=org)
 
 By configuring this integration, the site administrator is responsible for determining whether sending content to the external service is appropriate for the site's privacy policy and applicable data-protection requirements.
 
