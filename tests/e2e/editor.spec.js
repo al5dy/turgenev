@@ -13,11 +13,19 @@ const password = process.env.WP_ADMIN_PASSWORD;
  */
 
 async function login( page, user, pass ) {
-	await page.goto( '/wp-login.php' );
+	await page.goto( '/wp-login.php', { waitUntil: 'domcontentloaded' } );
 	await page.locator( '#user_login' ).fill( user );
 	await page.locator( '#user_pass' ).fill( pass );
-	await page.getByRole( 'button', { name: /Log In/i } ).click();
-	await page.waitForURL( /wp-admin/ );
+
+	await Promise.all( [
+		page.waitForURL(
+			url => url.hostname === 'localhost' && url.pathname.startsWith( '/wp-admin' ),
+			{ waitUntil: 'domcontentloaded', timeout: 20000 }
+		),
+		page.locator( '#wp-submit' ).click(),
+	] );
+
+	await expect( page.locator( '#wpadminbar' ) ).toBeVisible( { timeout: 20000 } );
 }
 
 async function loginAsAdmin( page ) {

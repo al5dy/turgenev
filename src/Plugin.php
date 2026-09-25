@@ -11,6 +11,7 @@ use Al5dy\Turgenev\Admin\EditorIntegration;
 use Al5dy\Turgenev\Admin\SettingsPage;
 use Al5dy\Turgenev\Ajax\ApiController;
 use Al5dy\Turgenev\Api\ApiClient;
+use Al5dy\Turgenev\I18n\BundledTranslations;
 use Al5dy\Turgenev\Support\OptionStore;
 use Al5dy\Turgenev\Support\ContentProtection;
 use Al5dy\Turgenev\Support\RateLimiter;
@@ -64,10 +65,10 @@ final class Plugin {
 
 		$this->booted = true;
 
-		// No load_plugin_textdomain() call: WordPress has auto-loaded translations for
-		// WordPress.org-hosted plugins since 4.6 (this plugin requires 6.6+), matching the
-		// `Text Domain`/`Domain Path` headers in turgenev.php. Calling it here would only be
-		// redundant, which is why WP.org's Plugin Check flags the call as discouraged.
+		// Just-in-time loading reads PHP translations from language packs only; the ones
+		// this plugin ships in languages/ need to be pointed out (see BundledTranslations).
+		( new BundledTranslations() )->register();
+
 		$options = new OptionStore();
 		$client  = new ApiClient( $options );
 

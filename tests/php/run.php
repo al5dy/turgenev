@@ -22,6 +22,13 @@ class WP_Error {
 }
 
 function __( string $text, string $domain = '' ): string { return $text; }
+function _x( string $text, string $context, string $domain = '' ): string { return $text; }
+/**
+ * Provider text reaches the browser untouched unless a scenario switches to another locale,
+ * so every assertion about the provider's own wording holds as written.
+ */
+$GLOBALS['turgenev_test_locale'] = 'ru_RU';
+function determine_locale(): string { return $GLOBALS['turgenev_test_locale']; }
 function get_option( string $name, $default = false ) { return $GLOBALS['turgenev_test_options'][ $name ] ?? $default; }
 function sanitize_text_field( string $value ): string { return trim( strip_tags( $value ) ); }
 function wp_unslash( $value ) { return $value; }
@@ -116,6 +123,10 @@ require_once dirname( __DIR__, 2 ) . '/src/Support/Requirements.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ApiException.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ResponseValidator.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ReportHighlightParser.php';
+require_once dirname( __DIR__, 2 ) . '/src/I18n/ReportGlossary.php';
+require_once dirname( __DIR__, 2 ) . '/src/I18n/StyleHintGlossary.php';
+require_once dirname( __DIR__, 2 ) . '/src/I18n/ProviderText.php';
+require_once dirname( __DIR__, 2 ) . '/src/I18n/BundledTranslations.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ReportSectionParser.php';
 require_once dirname( __DIR__, 2 ) . '/src/Api/ApiClient.php';
 require_once dirname( __DIR__, 2 ) . '/src/Admin/SettingsPage.php';
@@ -1152,6 +1163,8 @@ try {
 			'unavailable'
 		);
 	}
+
+	require __DIR__ . '/provider-text.php';
 
 	echo 'PHP smoke tests passed: ' . $tests . PHP_EOL . ( Al5dy\Turgenev\Support\Requirements::hasDom() ? '(ext-dom present: full suite ran)' : '(ext-dom absent: DOM-dependent parser assertions were skipped by design)' ) . PHP_EOL;
 } catch ( Throwable $exception ) {

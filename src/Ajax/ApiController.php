@@ -9,6 +9,7 @@ namespace Al5dy\Turgenev\Ajax;
 
 use Al5dy\Turgenev\Api\ApiClient;
 use Al5dy\Turgenev\Api\ApiException;
+use Al5dy\Turgenev\I18n\ProviderText;
 use Al5dy\Turgenev\Support\RateLimiter;
 
 defined( 'ABSPATH' ) || exit;
@@ -109,7 +110,7 @@ final class ApiController {
 		try {
 			$data = match ( $operation ) {
 				'balance' => array( 'balance' => $this->client->balance() ),
-				'risk' => array( 'result' => $this->client->analyze( $text ) ),
+				'risk' => array( 'result' => $this->withLevelLabel( $this->client->analyze( $text ) ) ),
 				'highlights' => array( 'highlights' => $this->client->reportHighlights( $token, $text ) ),
 				'details' => array( 'details' => $this->client->reportSectionDetails( $token, $section ) ),
 			};
@@ -121,5 +122,19 @@ final class ApiController {
 			return;
 		}
 		wp_send_json_success( $data );
+	}
+
+	/**
+	 * Add the verdict as the reader sees it, beside the provider's own word.
+	 *
+	 * `level` stays exactly as the provider sent it: the browser keys the provider's
+	 * high/critical warning off that word, whatever the interface language.
+	 *
+	 * @param array<string, mixed> $result Validated analysis.
+	 * @return array<string, mixed>
+	 */
+	private function withLevelLabel( array $result ): array {
+		$result['levelLabel'] = ( new ProviderText() )->text( $result['level'] );
+		return $result;
 	}
 }

@@ -109,7 +109,7 @@ function ui() {
 	}
 	const window = {
 		TurgenevConfig: { ajaxUrl: '/api', nonce: 'nonce', postId: 1, isConfigured: true, highlightsAvailable: true },
-		wp: { i18n: { __: ( value ) => value } },
+		wp: { i18n: { __: ( value ) => value, sprintf: ( format, ...args ) => format.replace( /%(\d)\$s/g, ( _, n ) => String( args[ n - 1 ] ) ) } },
 		setTimeout,
 		clearTimeout,
 		requestAnimationFrame: () => 0,
@@ -132,6 +132,16 @@ function fixture() {
 
 function param( name, low = false ) {
 	return { name, value: '1', score: '0', low };
+}
+
+// The explainer and help link the server attaches to a characteristic: parsed from the
+// report, or its own fallback for a row that arrives without one.
+const HINTS = {
+	Водность: { hint: 'Доля стоп-слов в тексте. Для определения риска не используется.', hintUrl: 'https://turgenev.ashmanov.com/?h=vkladki#water' },
+	'Покрытие ключевыми словами': { hint: 'Доля текста, которую занимают запросы (с учетом «штрафов» за запросы в точной форме и длинные запросы).', hintUrl: 'https://turgenev.ashmanov.com/?h=vkladki#queries' },
+};
+function hinted( name ) {
+	return { ...param( name ), ...HINTS[ name ] };
 }
 
 test( 'the value cell shows the plain score in its own badge before the value text, no parentheses', () => {
@@ -212,7 +222,7 @@ function paramNameEl( wrap, rowIndex = 0 ) {
 
 test( 'a recognized overall characteristic is marked hoverable/focusable but carries no nested tooltip markup', () => {
 	const { renderSectionParams } = ui();
-	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ) ] );
+	const wrap = renderSectionParams( 'overall', [ hinted( 'Водность' ) ] );
 	const name = paramNameEl( wrap );
 	assert.ok( name.className.includes( 'has-tooltip' ), 'recognized characteristic must be marked as having a tooltip' );
 	assert.equal( name.tabIndex, 0, 'must be reachable by keyboard, not mouse-only' );
@@ -224,9 +234,9 @@ test( 'a recognized overall characteristic is marked hoverable/focusable but car
 	assert.equal( name.children.length, 0 );
 } );
 
-test( 'hovering a recognized characteristic shows the shared tooltip, portaled to <body>, with its explainer and "Подробнее" link', () => {
+test( 'hovering a characteristic shows the shared tooltip, portaled to <body>, with its explainer and "More information" link', () => {
 	const { renderSectionParams, document } = ui();
-	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ) ] );
+	const wrap = renderSectionParams( 'overall', [ hinted( 'Водность' ) ] );
 	const name = paramNameEl( wrap );
 
 	name.fire( 'mouseenter' );
@@ -243,12 +253,12 @@ test( 'hovering a recognized characteristic shows the shared tooltip, portaled t
 	assert.equal( link.href, 'https://turgenev.ashmanov.com/?h=vkladki#water' );
 	assert.equal( link.target, '_blank' );
 	assert.equal( link.rel, 'noopener noreferrer' );
-	assert.equal( link.textContent, 'Подробнее' );
+	assert.equal( link.textContent, 'More information' );
 } );
 
 test( 'the tooltip is positioned strictly to the left of its trigger (never right/above/below), vertically centered', () => {
 	const { renderSectionParams, document } = ui();
-	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ) ] );
+	const wrap = renderSectionParams( 'overall', [ hinted( 'Водность' ) ] );
 	const name = paramNameEl( wrap );
 	const triggerRect = name.getBoundingClientRect();
 
@@ -269,7 +279,7 @@ test( 'the tooltip is positioned strictly to the left of its trigger (never righ
 
 test( 'the tooltip stays open while the pointer travels from the trigger onto the tooltip itself, e.g. to reach the link', () => {
 	const { renderSectionParams, document } = ui();
-	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ) ] );
+	const wrap = renderSectionParams( 'overall', [ hinted( 'Водность' ) ] );
 	const name = paramNameEl( wrap );
 	name.fire( 'mouseenter' );
 	const tooltip = document.getElementById( 'turgenev-param-tooltip' );
@@ -281,7 +291,7 @@ test( 'the tooltip stays open while the pointer travels from the trigger onto th
 
 test( 'the tooltip closes, after a short grace period, once the pointer leaves both the trigger and the tooltip', async () => {
 	const { renderSectionParams, document } = ui();
-	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ) ] );
+	const wrap = renderSectionParams( 'overall', [ hinted( 'Водность' ) ] );
 	const name = paramNameEl( wrap );
 	name.fire( 'mouseenter' );
 	const tooltip = document.getElementById( 'turgenev-param-tooltip' );
@@ -294,14 +304,14 @@ test( 'the tooltip closes, after a short grace period, once the pointer leaves b
 
 test( 'focusing the trigger shows the tooltip; moving focus onto its own link keeps it open, Escape closes it immediately', () => {
 	const { renderSectionParams, document } = ui();
-	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ) ] );
+	const wrap = renderSectionParams( 'overall', [ hinted( 'Водность' ) ] );
 	const name = paramNameEl( wrap );
 
 	name.fire( 'focus' );
 	const tooltip = document.getElementById( 'turgenev-param-tooltip' );
 	assert.equal( tooltip.hidden, false );
 
-	// Tab from the trigger into the tooltip's own "Подробнее" link.
+	// Tab from the trigger into the tooltip's own "More information" link.
 	name.fire( 'blur', { relatedTarget: tooltip } );
 	assert.equal( tooltip.hidden, false, 'must not close when focus moves into the tooltip itself' );
 
@@ -309,37 +319,32 @@ test( 'focusing the trigger shows the tooltip; moving focus onto its own link ke
 	assert.equal( tooltip.hidden, true, 'Escape closes it immediately, no grace period' );
 } );
 
-test( 'a live provider-supplied hint always wins over the curated fallback text, even for a recognized name', () => {
+test( 'the tooltip shows exactly the explainer and link the server sent, in whatever language it sent them', () => {
 	const { renderSectionParams, document } = ui();
-	const live = { ...param( 'Водность' ), hint: 'Live text from the provider report itself.', hintUrl: 'https://turgenev.ashmanov.com/?h=vkladki#water-live' };
-	const wrap = renderSectionParams( 'overall', [ live ] );
+	const english = { ...param( 'Water content' ), hint: 'The share of stop words in the text. Not used to determine the risk.', hintUrl: 'https://turgenev.ashmanov.com/?h=vkladki#water' };
+	const wrap = renderSectionParams( 'overall', [ english ] );
 	const name = paramNameEl( wrap );
+	assert.equal( name.textContent, 'Water content' );
 	name.fire( 'mouseenter' );
 	const tooltip = document.getElementById( 'turgenev-param-tooltip' );
 	const [ description, linkWrap ] = tooltip.children;
-	assert.equal( description.textContent, 'Live text from the provider report itself.' );
-	assert.equal( linkWrap.children[ 0 ].href, 'https://turgenev.ashmanov.com/?h=vkladki#water-live' );
+	assert.equal( description.textContent, english.hint );
+	assert.equal( linkWrap.children[ 0 ].href, english.hintUrl );
 } );
 
-test( 'a live hint with no accompanying link URL falls back to the curated link for a recognized name, or shows text only for an unrecognized one', () => {
+test( 'a hint without a link URL shows its text only, and the browser never supplies an explainer of its own', () => {
 	const { renderSectionParams, document } = ui();
-	const recognized = { ...param( 'Водность' ), hint: 'Live text, no URL from the provider this time.' };
-	const unrecognized = { ...param( 'Some future characteristic' ), hint: 'Live text for a characteristic we have no curated fallback for.' };
-	const wrap = renderSectionParams( 'overall', [ recognized, unrecognized ] );
-	const [ recognizedName, unrecognizedName ] = [ paramNameEl( wrap, 0 ), paramNameEl( wrap, 1 ) ];
-
-	recognizedName.fire( 'mouseenter' );
-	let tooltip = document.getElementById( 'turgenev-param-tooltip' );
-	assert.equal( tooltip.children[ 1 ].children[ 0 ].href, 'https://turgenev.ashmanov.com/?h=vkladki#water', 'no live URL: falls back to the curated link for a name we recognize' );
-
-	unrecognizedName.fire( 'mouseenter' );
-	tooltip = document.getElementById( 'turgenev-param-tooltip' );
-	assert.equal( tooltip.children.length, 1, 'no live URL and no curated fallback: text only, no link' );
+	const unlinked = { ...param( 'Водность' ), hint: 'Live text, no URL from the provider this time.' };
+	const wrap = renderSectionParams( 'overall', [ unlinked, param( 'Водность' ) ] );
+	paramNameEl( wrap, 0 ).fire( 'mouseenter' );
+	const tooltip = document.getElementById( 'turgenev-param-tooltip' );
+	assert.equal( tooltip.children.length, 1, 'no URL: text only, no link' );
+	assert.equal( paramNameEl( wrap, 1 ).className.includes( 'has-tooltip' ), false, 'a known provider name without a hint gets none: the server owns every fallback, in the reader\'s language' );
 } );
 
 test( 'showing a new row\'s tooltip replaces the previous one\'s content in the single shared element', () => {
 	const { renderSectionParams, document } = ui();
-	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ), { ...param( 'Покрытие ключевыми словами' ) } ] );
+	const wrap = renderSectionParams( 'overall', [ hinted( 'Водность' ), hinted( 'Покрытие ключевыми словами' ) ] );
 	const [ first, second ] = [ paramNameEl( wrap, 0 ), paramNameEl( wrap, 1 ) ];
 
 	first.fire( 'mouseenter' );
@@ -352,7 +357,7 @@ test( 'showing a new row\'s tooltip replaces the previous one\'s content in the 
 
 test( 're-rendering the panel (e.g. a background state change) hides a currently open tooltip instead of leaving it stranded', () => {
 	const { renderResult, renderSectionParams, document } = ui();
-	const wrap = renderSectionParams( 'overall', [ param( 'Водность' ) ] );
+	const wrap = renderSectionParams( 'overall', [ hinted( 'Водность' ) ] );
 	const name = paramNameEl( wrap );
 	name.fire( 'mouseenter' );
 	const tooltip = document.getElementById( 'turgenev-param-tooltip' );
@@ -373,7 +378,7 @@ test( 'an unrecognized characteristic name gets no tooltip, degrading gracefully
 
 test( 'tooltips also appear outside the overall section: the provider embeds the same hint in every section\'s report', () => {
 	const { renderSectionParams, document } = ui();
-	const wrap = renderSectionParams( 'frequency', [ param( 'Водность' ) ] );
+	const wrap = renderSectionParams( 'frequency', [ hinted( 'Водность' ) ] );
 	const name = paramNameEl( wrap );
 	assert.ok( name.className.includes( 'has-tooltip' ) );
 	name.fire( 'mouseenter' );
@@ -468,6 +473,18 @@ test( 'the style hints box shows one explainer at a time with its pager, links a
 	assert.deepEqual( seeAlso.children.filter( ( c ) => c.tagName === 'a' ).map( ( a ) => a.textContent ), [ 'Канцелярит', 'Утяжеление' ] );
 	const empty = renderSectionContent( 'style', { params: [] }, riskResult, null, null, undefined, { hints: [] } ).children.find( ( c ) => c.className === 'turgenev-section-hints' );
 	assert.equal( empty.children.length, 1, 'a hovered fragment without explainers keeps the box, empty' );
+	assert.equal( first.children[ 1 ].children.some( ( c ) => c.className === 'turgenev-section-hint-category' ), false, 'a translated (or verbatim) explainer carries no category line' );
+} );
+
+test( 'an explainer left in the provider\'s words shows its English category on its own line, between title and text', () => {
+	const { renderSectionContent } = ui();
+	const hints = [ { title: 'данный', category: 'Bureaucratese', text: [ { text: 'Новое пояснение, которого нет в словаре.' } ], more: 'https://turgenev.ashmanov.com/?h=oshibki_kopirajterov#kants' } ];
+	const box = renderSectionContent( 'style', { params: [] }, riskResult, null, null, undefined, { hints } ).children.find( ( c ) => c.className === 'turgenev-section-hints' );
+	const [ title, category, text ] = box.children[ 1 ].children;
+	assert.equal( title.textContent, 'данный', 'the flagged words come from the document and are never translated' );
+	assert.equal( category.className, 'turgenev-section-hint-category' );
+	assert.equal( category.textContent, 'Bureaucratese' );
+	assert.equal( text.className, 'turgenev-section-hint-text' );
 } );
 
 test( 'a stop-word row gets a native "Stop word" tooltip, mirroring the provider\'s own title attribute', () => {
@@ -488,12 +505,21 @@ test( 'the overall section shows the analyzed word count next to the verdict, wh
 	assert.equal( count.textContent, 'Words: 51', 'labelled like the provider\'s own counter' );
 } );
 
+test( 'the verdict reads the server\'s levelLabel (the reader\'s language), falling back to the provider\'s own word', () => {
+	const { renderSectionContent } = ui();
+	const verdict = ( result ) => renderSectionContent( 'overall', { params: [] }, result ).children.find( ( c ) => c.className === 'turgenev-section-verdict' ).textContent;
+	assert.equal( verdict( { ...riskResult, level: 'высокий', levelLabel: 'high', risk: '9' } ), 'Risk: high (9)' );
+	assert.equal( verdict( { ...riskResult, level: 'высокий', levelLabel: 'высокий', risk: '9' } ), 'Risk: высокий (9)', 'a Russian locale gets the provider\'s word untouched' );
+	assert.equal( verdict( { ...riskResult, level: 'высокий', risk: '9' } ), 'Risk: высокий (9)', 'no label (an older response): the provider\'s own word' );
+	assert.equal( verdict( { ...riskResult, level: 'высокий', levelLabel: 42, risk: '9' } ), 'Risk: высокий (9)', 'a malformed label never replaces the verdict' );
+} );
+
 test( 'a text too short to assess shows the provider\'s own message instead of a verdict', () => {
 	const { renderSectionContent } = ui();
 	const short = renderSectionContent( 'overall', { params: [], tooShort: true }, { ...riskResult, level: 'минимальный', risk: '0' } );
 	assert.equal( short.children.find( ( c ) => c.className === 'turgenev-section-verdict' ).textContent, 'The text is too short. Risk is not assessed.' );
 	const assessed = renderSectionContent( 'overall', { params: [], tooShort: false }, { ...riskResult, level: 'минимальный', risk: '0' } );
-	assert.equal( assessed.children.find( ( c ) => c.className === 'turgenev-section-verdict' ).textContent, 'Risk минимальный (0)' );
+	assert.equal( assessed.children.find( ( c ) => c.className === 'turgenev-section-verdict' ).textContent, 'Risk: минимальный (0)' );
 } );
 
 test( 'no word count element appears when the provider did not supply one', () => {

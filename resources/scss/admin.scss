@@ -517,6 +517,17 @@
 	margin-bottom: 5px;
 }
 
+// An untranslated explainer's kind of problem, on its own line above the
+// provider's text.
+.turgenev-section-hint-category {
+	display: block;
+	margin-bottom: 3px;
+	color: #50575e;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+}
+
 .turgenev-section-hint-text {
 	margin: 0;
 	line-height: 20px;

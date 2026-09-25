@@ -7,6 +7,7 @@
 
 namespace Al5dy\Turgenev\Api;
 
+use Al5dy\Turgenev\I18n\ProviderText;
 use Al5dy\Turgenev\Support\Requirements;
 
 defined( 'ABSPATH' ) || exit;
@@ -24,9 +25,32 @@ defined( 'ABSPATH' ) || exit;
  * class receives) - this plugin only ever holds the token, never a session cookie, so
  * neither is parsed here. The overall verdict is derived from `RiskResult.level` instead,
  * which the JSON `risk` operation already provides.
+ *
+ * Every provider text in the result goes through {@see ProviderText}: untouched on a
+ * Russian locale, in English elsewhere. Text taken from the analyzed document itself (the
+ * frequency tables' words, a hint's flagged words) is never translated.
  */
 final class ReportSectionParser {
 	private const MAX_ITEMS = 200;
+	/**
+	 * The provider's own explainer and help-wiki anchor for each characteristic, for a row
+	 * that ever arrives without its `div.xphint` (every live report so far has carried one).
+	 *
+	 * @var array<string, array{0: string, 1: string}>
+	 */
+	private const PARAM_HINTS = array(
+		'«Академическая тошнота»'           => array( 'Параметр, оценивающий количество повторов слов в тексте. Чем чаще слово повторяется, тем больше его вклад.', 'academ' ),
+		'«Тошнота» словосочетаний'          => array( '"Академическая тошнота", посчитанная не для отдельных слов, а для пар слов (между которыми может быть предлог). Она тем выше, чем больше повторов словосочетаний.', 'academ' ),
+		'Плотность стилистических проблем'  => array( 'Количество стилистических проблем, деленное на длину текста в словах.', 'styleden' ),
+		'Покрытие ключевыми словами'        => array( 'Доля текста, которую занимают запросы (с учетом «штрафов» за запросы в точной форме и длинные запросы).', 'queries' ),
+		'Доля содержательного текста'       => array( 'Доля в тексте слов, не входящих в списки стоп-слов и общих слов.', 'informative' ),
+		'Индекс удобочитаемости'            => array( 'Индекс, оценивающий сложность текста на основе средних длин слов и предложений. Automated Readability Index в варианте, адаптированном для русского языка.', 'readability' ),
+		'«Классическая тошнота»'            => array( 'Параметр, зависящий от максимальной частоты слов в тексте. Для определения риска не используется.', 'classic' ),
+		'Сверхчастые слова'                 => array( 'Количество слов, которые встречаются в тексте существенно чаще, чем должны были в соответствии с вероятностной моделью.', 'superfreq' ),
+		'Сверхконцентрация «и»'             => array( 'Слишком большое количество повторов союза «и». Может свидетельствовать о злоупотреблении конструкциями типа «удобно и выгодно».', 'superand' ),
+		'Количество стилистических проблем' => array( 'Сумма «квантов» (от 1 до 3), полученных словами текста за стилистические проблемы.', 'stylenum' ),
+		'Водность'                          => array( 'Доля стоп-слов в тексте. Для определения риска не используется.', 'water' ),
+	);
 	/**
 	 * Bounds the per-sentence problems and per-fragment hints: one entry per flagged sentence
 	 * or phrase, which a 50,000-character text can have thousands of (over 200 live). The
@@ -77,12 +101,21 @@ final class ReportSectionParser {
 	private bool $has_dom;
 
 	/**
-	 * Resolve the environment's DOM capability, overridable for tests.
+	 * Presents provider text in the reader's language.
 	 *
-	 * @param bool|null $has_dom Forced capability; null resolves `Requirements::hasDom()`.
+	 * @var ProviderText
 	 */
-	public function __construct( ?bool $has_dom = null ) {
+	private ProviderText $text;
+
+	/**
+	 * Resolve the environment's DOM capability and the reader's language, both overridable for tests.
+	 *
+	 * @param bool|null         $has_dom Forced capability; null resolves `Requirements::hasDom()`.
+	 * @param ProviderText|null $text Provider text presentation; null follows the request's locale.
+	 */
+	public function __construct( ?bool $has_dom = null, ?ProviderText $text = null ) {
 		$this->has_dom = $has_dom ?? Requirements::hasDom();
+		$this->text    = $text ?? new ProviderText();
 	}
 
 	/**
@@ -219,19 +252,26 @@ final class ReportSectionParser {
 			if ( '' === $label ) {
 				continue;
 			}
+			$name       = ResponseValidator::label( $label );
 			$value_node = $xpath->query( ".//td[@align='right']//span[contains(concat(' ', normalize-space(@class), ' '), ' value ')]", $row )->item( 0 );
 			$mark_node  = $xpath->query( ".//span[contains(concat(' ', normalize-space(@class), ' '), ' mark ')]", $row )->item( 0 );
 			$item       = array(
-				'name'  => ResponseValidator::label( $label ),
-				'value' => $value_node ? ResponseValidator::label( trim( $value_node->textContent ) ) : '',
+				'name'  => $this->text->text( $name ),
+				'value' => $value_node ? $this->text->text( ResponseValidator::label( trim( $value_node->textContent ) ) ) : '',
 				// Secondary rows carry no score badge at all on the provider's page; '' keeps
 				// that apart from a real score of 0.
 				'score' => $mark_node ? (string) max( 0, (int) trim( $mark_node->textContent ) ) : '',
 				'low'   => (bool) preg_match( '/\blow\b/', (string) $row->getAttribute( 'class' ) ),
 			);
 			$hint       = $this->parseHint( $xpath, $row );
+			if ( null === $hint && isset( self::PARAM_HINTS[ $name ] ) ) {
+				$hint = array(
+					'hint'    => self::PARAM_HINTS[ $name ][0],
+					'hintUrl' => ApiClient::ENDPOINT . '?h=vkladki#' . self::PARAM_HINTS[ $name ][1],
+				);
+			}
 			if ( null !== $hint ) {
-				$item['hint']    = $hint['hint'];
+				$item['hint']    = $this->text->text( $hint['hint'] );
 				$item['hintUrl'] = $hint['hintUrl'];
 			}
 			$items[] = $item;
@@ -319,7 +359,7 @@ final class ReportSectionParser {
 				continue;
 			}
 			$items[] = array(
-				'label' => ResponseValidator::label( $label ),
+				'label' => $this->text->text( ResponseValidator::label( $label ) ),
 				'value' => ResponseValidator::label( $value ),
 			);
 		}
@@ -373,7 +413,7 @@ final class ReportSectionParser {
 			$items[] = array(
 				'type'  => $type,
 				'level' => $level,
-				'label' => ResponseValidator::label( $label ),
+				'label' => $this->text->text( ResponseValidator::label( $label ) ),
 			);
 		}
 		return $items;
@@ -410,7 +450,7 @@ final class ReportSectionParser {
 			if ( ! is_array( $entry ) || ! isset( $entry['c'] ) || ! is_string( $entry['c'] ) ) {
 				continue;
 			}
-			$labels = self::sentenceProblemLabels( $entry['c'] );
+			$labels = $this->sentenceProblemLabels( $entry['c'] );
 			if ( array() !== $labels ) {
 				$result[ $sentence_id ] = $labels;
 			}
@@ -449,7 +489,7 @@ final class ReportSectionParser {
 	 * validated structure instead (see {@see hint()}), one item per text.
 	 *
 	 * @param string $report_html Full report page markup.
-	 * @return array<string, list<array{title: string, text: list<array{text: string, italic?: bool}>, more?: string, seeAlso?: list<array{label: string, url: string}>}>>
+	 * @return array<string, list<array{title: string, text: list<array{text: string, italic?: bool}>, category?: string, more?: string, seeAlso?: list<array{label: string, url: string}>}>>
 	 */
 	private function parseHints( string $report_html ): array {
 		$result = array();
@@ -467,7 +507,7 @@ final class ReportSectionParser {
 				}
 				$title = is_string( $entry['t'] ?? null ) ? self::plainText( $entry['t'] ) : '';
 				foreach ( $entry['c'] as $source ) {
-					$hint = is_string( $source ) && count( $hints ) < self::MAX_HINTS ? self::hint( $title, $source ) : null;
+					$hint = is_string( $source ) && count( $hints ) < self::MAX_HINTS ? $this->hint( $title, $source ) : null;
 					if ( null !== $hint ) {
 						$hints[] = $hint;
 					}
@@ -488,22 +528,26 @@ final class ReportSectionParser {
 	 * copywriting-errors article, exactly as there), and `_words_` italics. Everything else
 	 * is text: tags are dropped and entities decoded, never interpreted as markup.
 	 *
-	 * @param string $title Plain title (the flagged words), possibly empty.
+	 * The explainer is translated as a whole, `_italic_` markers included, before it is split
+	 * into runs. One no glossary knows keeps the provider's text and, outside a Russian
+	 * locale, gains an English `category` ({@see ProviderText::category()}).
+	 *
+	 * @param string $title Plain title (the flagged words, from the document itself), possibly empty.
 	 * @param string $source Untrusted explainer text.
-	 * @return array{title: string, text: list<array{text: string, italic?: bool}>, more?: string, seeAlso?: list<array{label: string, url: string}>}|null
+	 * @return array{title: string, text: list<array{text: string, italic?: bool}>, category?: string, more?: string, seeAlso?: list<array{label: string, url: string}>}|null
 	 */
-	private static function hint( string $title, string $source ): ?array {
+	private function hint( string $title, string $source ): ?array {
 		if ( strlen( $source ) > 4000 ) {
 			return null;
 		}
 		$see_also = array();
 		$source   = (string) preg_replace_callback(
 			'/&(\w*)(#?\w*)\[([^\[\]]+?)\]\s*/',
-			static function ( array $link ) use ( &$see_also ): string {
+			function ( array $link ) use ( &$see_also ): string {
 				$label = self::plainText( $link[3] );
 				if ( '' !== $label && count( $see_also ) < self::MAX_HINTS ) {
 					$see_also[] = array(
-						'label' => $label,
+						'label' => $this->text->text( $label ),
 						'url'   => self::helpUrl( $link[1], $link[2] ),
 					);
 				}
@@ -512,13 +556,18 @@ final class ReportSectionParser {
 			$source
 		);
 		$more     = null;
+		$anchor   = null;
 		if ( preg_match( '/&(\w*)(#?\w*)\s*$/', $source, $match, PREG_OFFSET_CAPTURE ) ) {
 			$more   = self::helpUrl( $match[1][0], $match[2][0] );
+			$anchor = array( $match[1][0], $match[2][0] );
 			$source = substr( $source, 0, $match[0][1] );
 		}
+		$plain       = self::plainText( $source );
+		$translation = $this->text->translation( $plain );
+		$category    = null === $translation ? $this->text->category( ...( $anchor ?? array() ) ) : null;
 
 		$text  = array();
-		$parts = preg_split( '/\b_([^_]+)_\b/', self::plainText( $source ), -1, PREG_SPLIT_DELIM_CAPTURE );
+		$parts = preg_split( '/\b_([^_]+)_\b/', $translation ?? $plain, -1, PREG_SPLIT_DELIM_CAPTURE );
 		foreach ( (array) $parts as $index => $part ) {
 			if ( '' === $part ) {
 				continue;
@@ -537,6 +586,9 @@ final class ReportSectionParser {
 			'title' => $title,
 			'text'  => $text,
 		);
+		if ( null !== $category ) {
+			$hint['category'] = $category;
+		}
 		if ( null !== $more ) {
 			$hint['more'] = $more;
 		}
@@ -579,7 +631,7 @@ final class ReportSectionParser {
 	 * @param string $html Untrusted provider markup fragment.
 	 * @return list<array{label: string, section?: string}>
 	 */
-	private static function sentenceProblemLabels( string $html ): array {
+	private function sentenceProblemLabels( string $html ): array {
 		// preg_match_all() returns a match *count* (falsy 0 or false on failure), unlike
 		// preg_match()'s 1/0 — a `1 !==` check here would incorrectly reject any sentence
 		// with more than one problem link, which is the common case, not the exception.
@@ -597,7 +649,7 @@ final class ReportSectionParser {
 			if ( '' === $label ) {
 				continue;
 			}
-			$item = array( 'label' => ResponseValidator::label( $label ) );
+			$item = array( 'label' => $this->text->text( ResponseValidator::label( $label ) ) );
 			if ( 1 === preg_match( '/\bhref\s*=\s*([\'"])#([\w-]+)\1/i', $match[1], $href ) && isset( $sections[ $href[2] ] ) ) {
 				$item['section'] = $sections[ $href[2] ];
 			}

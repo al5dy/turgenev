@@ -77,7 +77,7 @@ interface SectionParam {
 	low: boolean;
 	/** The provider's own explainer for this characteristic, confirmed live in every section. */
 	hint?: string;
-	/** Absolute URL for this characteristic's "Подробнее" help-wiki anchor. */
+	/** Absolute URL of this characteristic's help-wiki anchor (the provider's "Подробнее" link). */
 	hintUrl?: string;
 }
 
@@ -118,6 +118,11 @@ interface SectionHint {
 	title: string;
 	/** Plain text runs; `italic` marks the provider's own `_word_` emphasis. */
 	text: { text: string; italic?: boolean }[];
+	/**
+	 * The kind of problem the explainer describes, in the reader's language: present only
+	 * when the explainer itself stays in the provider's Russian for want of a translation.
+	 */
+	category?: string;
 	/** Absolute provider help URL behind "Подробнее". */
 	more?: string;
 	/** "См. также" links. */
@@ -179,7 +184,10 @@ interface RiskResultDetail {
 }
 
 interface RiskResult {
+	/** The provider's own verdict word ("высокий"), whatever the interface language. */
 	level: string;
+	/** The same verdict in the reader's language (verbatim on a Russian locale). */
+	levelLabel?: string;
 	risk: unknown;
 	link?: string;
 	details: RiskResultDetail[];
@@ -575,6 +583,7 @@ interface WPBlocksModule {
 
 interface WPI18nModule {
 	__( text: string, domain?: string ): string;
+	sprintf( format: string, ...args: unknown[] ): string;
 }
 
 interface WPGlobal {

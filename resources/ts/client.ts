@@ -10,7 +10,7 @@
 	// retain the narrowing from the guard above.
 	const config: TurgenevConfigShape = maybeConfig;
 
-	const { __ } = i18n;
+	const { __, sprintf } = i18n;
 	const textareaModels = new WeakMap<
 		HTMLTextAreaElement,
 		{ html: string; model: SourceModel | null }
@@ -410,101 +410,22 @@
 	function renderVerdict( data: RiskResult, tooShort = false ): HTMLElement {
 		const verdict = document.createElement( 'p' );
 		verdict.className = 'turgenev-section-verdict';
+		// `levelLabel` is the verdict in the reader's language; `level` stays the provider's
+		// own word, which riskWarning() keys off.
+		const level =
+			typeof data.levelLabel === 'string' && data.levelLabel
+				? data.levelLabel
+				: data.level;
 		verdict.textContent = tooShort
 			? tooShortMessage()
-			: `${ __( 'Risk', 'turgenev' ) } ${ String( data.level || '—' ) } (${ String(
-					data.risk ?? '—'
-			  ) })`;
+			: sprintf(
+					/* translators: 1: risk verdict, e.g. "high", 2: risk score. */
+					__( 'Risk: %1$s (%2$s)', 'turgenev' ),
+					String( level || '—' ),
+					String( data.risk ?? '—' )
+			  );
 		return verdict;
 	}
-
-	/**
-	 * Fallback per-characteristic explainer for a param row's tooltip, in any section, keyed
-	 * by the provider's own characteristic label, matched verbatim. `SectionParam.hint`/
-	 * `hintUrl` (parsed server-side from the report's own `div.xphint`, confirmed live for
-	 * every section) is always preferred when present; this only covers a param the provider
-	 * ever omits it for. An unrecognized label (a new or renamed characteristic with no live
-	 * hint either) simply gets no tooltip rather than a guessed one.
-	 */
-	const PARAM_HELP: Record< string, { text: string; url: string } > = {
-		'«Академическая тошнота»': {
-			text: __(
-				'Параметр, оценивающий количество повторов слов в тексте. Чем чаще слово повторяется, тем больше его вклад.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#academ',
-		},
-		'«Тошнота» словосочетаний': {
-			text: __(
-				'«Академическая тошнота», посчитанная не для отдельных слов, а для пар слов (между которыми может быть предлог). Она тем выше, чем больше повторов словосочетаний.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#academ',
-		},
-		'Плотность стилистических проблем': {
-			text: __(
-				'Количество стилистических проблем, деленное на длину текста в словах.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#styleden',
-		},
-		'Покрытие ключевыми словами': {
-			text: __(
-				'Доля текста, которую занимают запросы (с учетом «штрафов» за запросы в точной форме и длинные запросы).',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#queries',
-		},
-		'Доля содержательного текста': {
-			text: __(
-				'Доля в тексте слов, не входящих в списки стоп-слов и общих слов.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#informative',
-		},
-		'Индекс удобочитаемости': {
-			text: __(
-				'Индекс, оценивающий сложность текста на основе средних длин слов и предложений. Automated Readability Index в варианте, адаптированном для русского языка.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#readability',
-		},
-		'«Классическая тошнота»': {
-			text: __(
-				'Параметр, зависящий от максимальной частоты слов в тексте. Для определения риска не используется.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#classic',
-		},
-		'Сверхчастые слова': {
-			text: __(
-				'Количество слов, которые встречаются в тексте существенно чаще, чем должны были в соответствии с вероятностной моделью.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#superfreq',
-		},
-		'Сверхконцентрация «и»': {
-			text: __(
-				'Слишком большое количество повторов союза «и». Может свидетельствовать о злоупотреблении конструкциями типа «удобно и выгодно».',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#superand',
-		},
-		'Количество стилистических проблем': {
-			text: __(
-				'Сумма «квантов» (от 1 до 3), полученных словами текста за стилистические проблемы.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#stylenum',
-		},
-		Водность: {
-			text: __(
-				'Доля стоп-слов в тексте. Для определения риска не используется.',
-				'turgenev'
-			),
-			url: 'https://turgenev.ashmanov.com/?h=vkladki#water',
-		},
-	};
 
 	// A single tooltip shared by every characteristic row, portaled straight onto
 	// <body> rather than nested under whichever row triggered it. The accordion
@@ -538,7 +459,7 @@
 		cancelTooltipHide();
 		// A short grace period rather than an instant close: lets the pointer (or
 		// focus, when tabbing) travel from the trigger text onto the tooltip
-		// itself to reach the "Подробнее" link without it disappearing first.
+		// itself to reach the "More information" link without it disappearing first.
 		tooltipHideTimer = window.setTimeout( hideTooltip, 200 );
 	}
 
@@ -581,7 +502,7 @@
 		tooltip.className = 'turgenev-param-tooltip';
 		tooltip.setAttribute( 'role', 'tooltip' );
 		tooltip.hidden = true;
-		// Hovering or focusing the tooltip itself (e.g. to click "Подробнее")
+		// Hovering or focusing the tooltip itself (e.g. to click "More information")
 		// keeps it open exactly like hovering/focusing its trigger does.
 		tooltip.addEventListener( 'mouseenter', cancelTooltipHide );
 		tooltip.addEventListener( 'mouseleave', scheduleTooltipHide );
@@ -638,7 +559,7 @@
 			link.href = help.url;
 			link.target = '_blank';
 			link.rel = 'noopener noreferrer';
-			link.textContent = __( 'Подробнее', 'turgenev' );
+			link.textContent = __( 'More information', 'turgenev' );
 			linkWrap.appendChild( link );
 			tooltip.appendChild( linkWrap );
 		}
@@ -675,10 +596,9 @@
 			// Confirmed live: the provider's own report embeds this explainer in every
 			// section's characteristic rows, not only "overall", so the tooltip is not
 			// restricted to that section either.
-			const fallbackHelp = PARAM_HELP[ param.name ];
 			const help = param.hint
-				? { text: param.hint, url: param.hintUrl ?? fallbackHelp?.url }
-				: fallbackHelp;
+				? { text: param.hint, url: param.hintUrl }
+				: null;
 			if ( help ) {
 				name.classList.add( 'has-tooltip' );
 				name.tabIndex = 0;
@@ -993,6 +913,14 @@
 				title.textContent = hint.title;
 				body.appendChild( title );
 			}
+			// Only for an explainer the reader's language has no translation of: it stays in
+			// the provider's words, under the kind of problem it describes.
+			if ( hint.category ) {
+				const category = document.createElement( 'span' );
+				category.className = 'turgenev-section-hint-category';
+				category.textContent = hint.category;
+				body.appendChild( category );
+			}
 			const text = document.createElement( 'p' );
 			text.className = 'turgenev-section-hint-text';
 			hint.text.forEach( ( run ) => {
@@ -1014,7 +942,7 @@
 				return link;
 			};
 			if ( hint.more ) {
-				const more = helpLink( __( 'Подробнее', 'turgenev' ), hint.more );
+				const more = helpLink( __( 'More information', 'turgenev' ), hint.more );
 				more.className = 'turgenev-section-hint-more';
 				body.appendChild( more );
 			}
@@ -1455,6 +1383,8 @@
 		const candidate = value as Record< string, unknown >;
 		return (
 			typeof candidate.title === 'string' &&
+			( candidate.category === undefined ||
+				typeof candidate.category === 'string' ) &&
 			Array.isArray( candidate.text ) &&
 			candidate.text.length > 0 &&
 			candidate.text.length <= 200 &&

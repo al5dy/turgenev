@@ -97,6 +97,7 @@
     "build:assets": "parcel build --target adminStyles --no-content-hash --no-cache && parcel build --target client --target contentReset --target highlights --target analysis --target classic --target editorContent --target editor --no-content-hash --no-cache",
     "build:images": "node tools/copy-images.mjs",
     "build": "npm run clean && npm run build:assets && npm run build:images",
+    "i18n": "node tools/i18n.mjs",
     "watch": "parcel watch",
     "typecheck": "tsc --noEmit",
     "check:syntax": "node tools/check-js-syntax.mjs",

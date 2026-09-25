@@ -7,11 +7,20 @@ const SETTINGS_URL = '/wp-admin/options-general.php?page=turgenev-settings';
 
 async function login( page ) {
 	test.skip( ! username || ! password, 'WP_ADMIN_USER and WP_ADMIN_PASSWORD are required.' );
-	await page.goto( '/wp-login.php' );
+
+	await page.goto( '/wp-login.php', { waitUntil: 'domcontentloaded' } );
 	await page.locator( '#user_login' ).fill( username );
 	await page.locator( '#user_pass' ).fill( password );
-	await page.getByRole( 'button', { name: /Log In/i } ).click();
-	await page.waitForURL( /wp-admin/ );
+
+	await Promise.all( [
+		page.waitForURL(
+			url => url.hostname === 'localhost' && url.pathname.startsWith( '/wp-admin' ),
+			{ waitUntil: 'domcontentloaded', timeout: 20000 }
+		),
+		page.locator( '#wp-submit' ).click(),
+	] );
+
+	await expect( page.locator( '#wpadminbar' ) ).toBeVisible( { timeout: 20000 } );
 }
 
 /** Reads the stored `api_key`, or null if wp-cli/the option is unavailable. */

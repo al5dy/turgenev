@@ -5,38 +5,259 @@ msgstr ""
 "Project-Id-Version: Turgenev 2.0.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/turgenev\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: Lokotkov\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-21T08:56:06+00:00\n"
+"POT-Creation-Date: 2026-09-25T08:10:25+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"X-Generator: manual\n"
+"X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: turgenev\n"
-#: assets/build/editor-content.js
+
+#: assets/build/analysis.js:102
+msgid "Could not remove the old Turgenev markup. Your text has not been restored from an older version. Try Reset view again."
+msgstr ""
+
+#: assets/build/analysis.js:115
+msgid "Content changed. Analyze the document again."
+msgstr ""
+
+#: assets/build/analysis.js:164
+msgid "Configure a Turgenev API key before running an analysis."
+msgstr ""
+
+#: assets/build/analysis.js:170
+#: assets/build/analysis.js:548
+msgid "Your Turgenev balance is empty. Top it up before running an analysis."
+msgstr ""
+
+#: assets/build/analysis.js:176
+msgid "Add content to the editor before running Turgenev."
+msgstr ""
+
+#: assets/build/analysis.js:183
+msgid "The content is longer than the maximum size accepted by Turgenev."
+msgstr ""
+
+#: assets/build/analysis.js:204
+#: src/Api/ResponseValidator.php:54
+msgid "Turgenev returned an incomplete analysis."
+msgstr ""
+
+#: assets/build/analysis.js:278
+msgid "This report has no highlighted fragments."
+msgstr ""
+
+#: assets/build/analysis.js:521
+#: src/Admin/EditorIntegration.php:158
+msgid "Turgenev is ready, but an API key has not been configured yet."
+msgstr ""
+
+#: assets/build/analysis.js:521
+#: src/Admin/EditorIntegration.php:161
+msgid "Configure API key"
+msgstr ""
+
+#: assets/build/analysis.js:524
+#: src/Admin/EditorIntegration.php:167
+#: src/Admin/SettingsPage.php:228
+msgid "Current balance:"
+msgstr ""
+
+#: assets/build/analysis.js:530
+#: src/Admin/SettingsPage.php:230
+msgid "Refresh balance"
+msgstr ""
+
+#: assets/build/analysis.js:540
+#: src/Admin/EditorIntegration.php:182
+msgid "Top up Turgenev balance"
+msgstr ""
+
+#: assets/build/analysis.js:561
+msgid "HTML analysis (send markup)"
+msgstr ""
+
+#: assets/build/analysis.js:562
+msgid "By default, only the current document text is sent. Saving first is not required."
+msgstr ""
+
+#: assets/build/analysis.js:564
+msgid "Highlighting the analyzed text in reports is unavailable on this server (a required PHP component is missing). Analysis and balance are unaffected."
+msgstr ""
+
+#: assets/build/analysis.js:567
+#: assets/build/analysis.js:583
+msgid "Analyzing document…"
+msgstr ""
+
+#: assets/build/analysis.js:568
+msgid "Analyze document"
+msgstr ""
+
+#: assets/build/analysis.js:588
+msgid "Loading highlights…"
+msgstr ""
+
+#: assets/build/analysis.js:612
+#: assets/build/analysis.js:613
+msgid "Analyzed text (read-only)"
+msgstr ""
+
+#: assets/build/analysis.js:622
+msgid "Reset view"
+msgstr ""
+
+#: assets/build/client.js:96
+msgid "Could not connect to WordPress. Check your network connection and try again."
+msgstr ""
+
+#: assets/build/client.js:103
+#: assets/build/client.js:113
+msgid "WordPress returned an invalid response."
+msgstr ""
+
+#: assets/build/client.js:109
+msgid "Turgenev request failed."
+msgstr ""
+
+#: assets/build/client.js:119
+msgid "Frequency"
+msgstr ""
+
+#: assets/build/client.js:120
+msgid "Style"
+msgstr ""
+
+#: assets/build/client.js:121
+msgid "Keywords"
+msgstr ""
+
+#: assets/build/client.js:122
+msgid "Formality"
+msgstr ""
+
+#: assets/build/client.js:123
+msgid "Readability"
+msgstr ""
+
+#: assets/build/client.js:150
+msgid "Open report"
+msgstr ""
+
+#: assets/build/client.js:286
+msgid "Risk is high. What to do?"
+msgstr ""
+
+#: assets/build/client.js:289
+msgid "Risk is critical! What to do?"
+msgstr ""
+
+#: assets/build/client.js:312
+msgid "Overall risk"
+msgstr ""
+
+#: assets/build/client.js:335
+msgid "The text is too short. Risk is not assessed."
+msgstr ""
+
+#. translators: 1: risk verdict, e.g. "high", 2: risk score.
+#: assets/build/client.js:349
+#, js-format
+msgid "Risk: %1$s (%2$s)"
+msgstr ""
+
+#: assets/build/client.js:470
+#: assets/build/client.js:804
+#: assets/build/client.js:1262
+#: assets/build/editor.js:52
+msgid "More information"
+msgstr ""
+
+#: assets/build/client.js:547
+msgid "Show all characteristics"
+msgstr ""
+
+#: assets/build/client.js:548
+msgid "Hide unimportant characteristics"
+msgstr ""
+
+#: assets/build/client.js:628
+msgid "Stop word"
+msgstr ""
+
+#: assets/build/client.js:666
+msgid "Words"
+msgstr ""
+
+#: assets/build/client.js:670
+msgid "Phrases"
+msgstr ""
+
+#: assets/build/client.js:700
+msgid "Problems in this sentence"
+msgstr ""
+
+#: assets/build/client.js:741
+msgid "Hints"
+msgstr ""
+
+#: assets/build/client.js:760
+msgid "Previous hint"
+msgstr ""
+
+#: assets/build/client.js:760
+msgid "Next hint"
+msgstr ""
+
+#: assets/build/client.js:812
+msgid "See also:"
+msgstr ""
+
+#: assets/build/client.js:850
+msgid "Words:"
+msgstr ""
+
+#: assets/build/client.js:946
+msgid "Loading…"
+msgstr ""
+
+#: assets/build/client.js:1006
+msgid "Turgenev returned invalid highlight data."
+msgstr ""
+
+#: assets/build/client.js:1142
+msgid "Turgenev returned invalid section details."
+msgstr ""
+
+#: assets/build/client.js:1270
+msgid "Dismiss this notice."
+msgstr ""
+
+#: assets/build/editor-content.js:29
+msgid "The document contains an invalid or circular synced pattern."
+msgstr ""
+
+#: assets/build/editor-content.js:43
 msgid "A synced pattern is not loaded or is unavailable. Load the pattern before analyzing the document."
 msgstr ""
 
-#: src/Ajax/ApiController.php:72
-msgid "A valid post is required for this request."
+#: assets/build/editor-content.js:54
+msgid "The expanded synced patterns exceed the supported document size."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:67
-msgid "API connection"
+#. Plugin Name of the plugin
+#: assets/build/editor.js:363
+#: assets/build/editor.js:374
+#: assets/build/editor.js:375
+#: turgenev.php
+#: src/Admin/EditorIntegration.php:143
+#: src/Admin/SettingsPage.php:53
+msgid "Turgenev"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:74
-msgid "API key"
-msgstr ""
-
-#. translators: %s: current API balance.
-#, php-format
-#: src/Admin/SettingsPage.php:123
-msgid "API key verified and saved. Current balance: %s ₽."
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "Add content to the editor before running Turgenev."
+#: assets/build/editor.js:378
+msgid "Close"
 msgstr ""
 
 #. Description of the plugin
@@ -44,459 +265,2441 @@ msgstr ""
 msgid "Analyze WordPress content with the official Turgenev API for SEO over-optimization, readability, style, keyword stuffing and Baden-Baden risk."
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:178
-msgid "Analyze content"
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "Analyze document"
+#. Author of the plugin
+#: turgenev.php
+msgid "al5dy"
 msgstr ""
 
 #: src/Admin/EditorIntegration.php:174
 msgid "Analyze plain text only"
 msgstr ""
 
-#: assets/build/analysis.js
-msgid "Analyzed text (read-only)"
+#: src/Admin/EditorIntegration.php:176
+msgid "When enabled, HTML markup is removed before the text is sent for analysis."
 msgstr ""
 
-#: assets/build/analysis.js
-msgid "Analyzing document…"
+#: src/Admin/EditorIntegration.php:178
+msgid "Analyze content"
 msgstr ""
 
-#: assets/build/analysis.js
-msgid "By default, only the current document text is sent. Saving first is not required."
-msgstr ""
-
-#: assets/build/editor.js
-msgid "Close"
-msgstr ""
-
-#: assets/build/analysis.js src/Admin/EditorIntegration.php:161
-msgid "Configure API key"
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "Configure a Turgenev API key before running an analysis."
-msgstr ""
-
-#: src/Api/ApiClient.php:216
-msgid "Configure a Turgenev API key first."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:163
-msgid "Connect WordPress to the official Turgenev content-analysis API. The API key is stored server-side and is never exposed to editor JavaScript."
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "Content changed. Analyze the document again."
-msgstr ""
-
-#: assets/build/client.js
-msgid "Could not connect to WordPress. Check your network connection and try again."
-msgstr ""
-
-#: src/Api/ApiClient.php:244
-msgid "Could not reach the Turgenev API. Try again later."
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "Could not remove the old Turgenev markup. Your text has not been restored from an older version. Try Reset view again."
-msgstr ""
-
-#: src/Api/ApiClient.php:178
-msgid "Could not retrieve the Turgenev report. Try again later."
-msgstr ""
-
-#: assets/build/analysis.js src/Admin/EditorIntegration.php:167 src/Admin/SettingsPage.php:197
-msgid "Current balance:"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Formality"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Frequency"
-msgstr ""
-
-#. translators: 1: opening link, 2: closing link.
-#, php-format
-#: src/Admin/SettingsPage.php:182
-msgid "Generate an API key in your %1$sTurgenev account%2$s. Turgenev is an external paid service; a content check is sent only when an editor explicitly starts an analysis."
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "HTML analysis (send markup)"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Hide unimportant characteristics"
-msgstr ""
-
-#: src/Api/ReportHighlightParser.php:46
-msgid "Highlighting is unavailable on this server (the PHP DOM extension is not installed). Analysis and balance are unaffected."
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "Highlighting the analyzed text in reports is unavailable on this server (a required PHP component is missing). Analysis and balance are unaffected."
-msgstr ""
-
-#: assets/build/client.js
-msgid "Hints"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Keywords"
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "Loading highlights…"
-msgstr ""
-
-#: assets/build/analysis.js assets/build/client.js
-msgid "Loading…"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Next hint"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Open report"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Overall risk"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Phrases"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Previous hint"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Problems in this sentence"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Readability"
-msgstr ""
-
-#: assets/build/analysis.js src/Admin/SettingsPage.php:199
-msgid "Refresh balance"
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "Reset view"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Risk"
-msgstr ""
-
-#: src/Api/ReportSectionParser.php:83
-msgid "Section details are unavailable on this server (the PHP DOM extension is not installed)."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:249
-msgid "Settings"
-msgstr ""
-
-#: assets/build/client.js
-msgid "See also:"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Show all characteristics"
-msgstr ""
-
-#: assets/build/client.js
-msgid "Style"
-msgstr ""
-
-#: src/Api/ApiClient.php:325
-msgid "The content contains invalid text encoding."
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "The content is longer than the maximum size accepted by Turgenev."
-msgstr ""
-
-#: assets/build/editor-content.js
-msgid "The document contains an invalid or circular synced pattern."
-msgstr ""
-
-#: assets/build/editor-content.js
-msgid "The expanded synced patterns exceed the supported document size."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:226
-msgid "The key is verified with the balance endpoint before it is stored."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:148
-msgid "The new API key could not be verified and was not saved. The previous key was kept."
-msgstr ""
-
-#. translators: %s: API validation error.
-#, php-format
-#: src/Admin/SettingsPage.php:136
-msgid "The new API key was not saved: %s"
-msgstr ""
-
-#: src/Api/ApiClient.php:321
-msgid "There is no content to analyze."
-msgstr ""
-
-#: src/Api/ReportHighlightParser.php:91
-msgid "This report contains too many highlights. Use the full report."
-msgstr ""
-
-#: assets/build/analysis.js
-msgid "This report has no highlighted fragments."
-msgstr ""
-
-#: src/Ajax/ApiController.php:82 src/Ajax/ApiController.php:95
-msgid "Too many Turgenev requests. Wait a moment and try again."
-msgstr ""
-
-#: assets/build/analysis.js src/Admin/EditorIntegration.php:182
-msgid "Top up Turgenev balance"
-msgstr ""
-
-#. Plugin Name of the plugin
-#: assets/build/editor.js src/Admin/EditorIntegration.php:143 src/Admin/SettingsPage.php:46 turgenev.php
-msgid "Turgenev"
-msgstr ""
-
-#: src/Admin/SettingsPage.php:95
-msgid "Turgenev API key removed."
-msgstr ""
-
-#. translators: %d: HTTP status code.
-#, php-format
-#: src/Api/ApiClient.php:252
-msgid "Turgenev API returned HTTP %d."
-msgstr ""
-
-#: src/Api/ApiClient.php:263
-msgid "Turgenev API returned an empty response."
-msgstr ""
-
-#: src/Api/ApiClient.php:260
-msgid "Turgenev API returned an oversized response."
-msgstr ""
-
-#: src/Api/ApiClient.php:273
-msgid "Turgenev API returned an unexpected response."
-msgstr ""
-
-#: src/Api/ApiClient.php:269
-msgid "Turgenev API returned malformed JSON."
-msgstr ""
-
-#: src/Admin/SettingsPage.php:45
+#: src/Admin/SettingsPage.php:52
 msgid "Turgenev Settings"
 msgstr ""
 
-#. translators: %d: maximum character count.
+#: src/Admin/SettingsPage.php:74
+msgid "API connection"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:81
+msgid "API key"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:122
+msgid "Turgenev API key removed."
+msgstr ""
+
+#. translators: %s: current API balance.
+#: src/Admin/SettingsPage.php:150
 #, php-format
-#: src/Api/ApiClient.php:332
-msgid "Turgenev accepts up to %d characters per check."
+msgid "API key verified and saved. Current balance: %s ₽."
 msgstr ""
 
-#: assets/build/analysis.js src/Admin/EditorIntegration.php:158
-msgid "Turgenev is ready, but an API key has not been configured yet."
+#. translators: %s: API validation error.
+#: src/Admin/SettingsPage.php:163
+#, php-format
+msgid "The new API key was not saved: %s"
 msgstr ""
 
-#: src/Api/ApiClient.php:282
-msgid "Turgenev rejected the request. Check the API key and account status in Settings → Turgenev."
+#: src/Admin/SettingsPage.php:175
+msgid "The new API key could not be verified and was not saved. The previous key was kept."
 msgstr ""
 
-#: src/Api/ReportHighlightParser.php:51
-msgid "Turgenev report did not contain highlight markup."
+#: src/Admin/SettingsPage.php:190
+msgid "Connect WordPress to the official Turgenev content-analysis API. The API key is stored server-side and is never exposed to editor JavaScript."
 msgstr ""
 
-#: src/Api/ReportSectionParser.php:90
-msgid "Turgenev report did not contain section details."
+#: src/Admin/SettingsPage.php:199
+msgid "Save API key"
 msgstr ""
 
-#: src/Api/ReportHighlightParser.php:126 src/Api/ReportSectionParser.php:139
-msgid "Turgenev report markup could not be parsed."
+#: src/Admin/SettingsPage.php:202
+msgid "Delete API Key"
 msgstr ""
 
-#: src/Api/ApiClient.php:194
-msgid "Turgenev report markup is unavailable."
+#. translators: 1: opening link, 2: closing link.
+#: src/Admin/SettingsPage.php:217
+#, php-format
+msgid "Generate an API key in your %1$sTurgenev account%2$s. Turgenev is an external paid service; a content check is sent only when an editor explicitly starts an analysis."
 msgstr ""
 
-#: src/Api/ResponseValidator.php:40
-msgid "Turgenev report reference is invalid."
+#: src/Admin/SettingsPage.php:253
+msgid "Saved API key:"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:260
+msgid "Leave this field empty to keep the currently saved API key."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:262
+msgid "The key is verified with the balance endpoint before it is stored."
+msgstr ""
+
+#: src/Admin/SettingsPage.php:279
+msgid "Settings"
+msgstr ""
+
+#: src/Admin/SettingsPage.php:298
+msgid "Turgenev service"
+msgstr ""
+
+#: src/Ajax/ApiController.php:52
+msgid "Your editor session expired. Reload the editor and try again."
+msgstr ""
+
+#: src/Ajax/ApiController.php:59
+msgid "Unsupported Turgenev request."
+msgstr ""
+
+#: src/Ajax/ApiController.php:73
+msgid "A valid post is required for this request."
+msgstr ""
+
+#: src/Ajax/ApiController.php:77
+msgid "You are not allowed to analyze this post."
+msgstr ""
+
+#: src/Ajax/ApiController.php:83
+#: src/Ajax/ApiController.php:96
+msgid "Too many Turgenev requests. Wait a moment and try again."
+msgstr ""
+
+#: src/Ajax/ApiController.php:90
+msgid "You are not allowed to use Turgenev."
+msgstr ""
+
+#: src/Ajax/ApiController.php:121
+msgid "Unexpected Turgenev integration error."
+msgstr ""
+
+#: src/Api/ApiClient.php:92
+msgid "Turgenev returned an invalid balance response."
+msgstr ""
+
+#: src/Api/ApiClient.php:145
+#: src/Api/ReportSectionParser.php:177
+msgid "Unsupported Turgenev report section."
+msgstr ""
+
+#: src/Api/ApiClient.php:177
+msgid "Could not retrieve the Turgenev report. Try again later."
 msgstr ""
 
 #. translators: %d: HTTP status code.
+#: src/Api/ApiClient.php:185
 #, php-format
-#: src/Api/ApiClient.php:186
 msgid "Turgenev report returned HTTP %d."
 msgstr ""
 
-#: src/Api/ReportHighlightParser.php:61
-msgid "Turgenev report text does not match the analyzed document."
+#: src/Api/ApiClient.php:193
+msgid "Turgenev report markup is unavailable."
 msgstr ""
 
-#: src/Api/ApiClient.php:280
+#: src/Api/ApiClient.php:243
+msgid "Unsupported Turgenev API operation."
+msgstr ""
+
+#: src/Api/ApiClient.php:248
+msgid "Configure a Turgenev API key first."
+msgstr ""
+
+#: src/Api/ApiClient.php:276
+msgid "Could not reach the Turgenev API. Try again later."
+msgstr ""
+
+#. translators: %d: HTTP status code.
+#: src/Api/ApiClient.php:284
+#, php-format
+msgid "Turgenev API returned HTTP %d."
+msgstr ""
+
+#: src/Api/ApiClient.php:292
+msgid "Turgenev API returned an oversized response."
+msgstr ""
+
+#: src/Api/ApiClient.php:295
+msgid "Turgenev API returned an empty response."
+msgstr ""
+
+#: src/Api/ApiClient.php:301
+msgid "Turgenev API returned malformed JSON."
+msgstr ""
+
+#: src/Api/ApiClient.php:305
+msgid "Turgenev API returned an unexpected response."
+msgstr ""
+
+#: src/Api/ApiClient.php:312
 msgid "Turgenev reports insufficient balance. Top up your account and try again."
 msgstr ""
 
-#: assets/build/client.js
-msgid "Turgenev request failed."
+#: src/Api/ApiClient.php:319
+msgid "Turgenev rejected the request. Check the API key and account status in Settings → Turgenev."
 msgstr ""
 
-#. translators: 1: minimum WordPress version, 2: minimum PHP version.
+#: src/Api/ApiClient.php:360
+msgid "There is no content to analyze."
+msgstr ""
+
+#: src/Api/ApiClient.php:364
+msgid "The content contains invalid text encoding."
+msgstr ""
+
+#. translators: %d: maximum character count.
+#: src/Api/ApiClient.php:396
 #, php-format
-#: src/Support/Requirements.php:53
-msgid "Turgenev requires WordPress %1$s or newer and PHP %2$s or newer."
+msgid "Turgenev accepts up to %d characters per check."
 msgstr ""
 
-#: assets/build/analysis.js src/Api/ResponseValidator.php:54
-msgid "Turgenev returned an incomplete analysis."
+#: src/Api/ReportHighlightParser.php:56
+msgid "Highlighting is unavailable on this server (the PHP DOM extension is not installed). Analysis and balance are unaffected."
 msgstr ""
 
-#: src/Api/ResponseValidator.php:123
-msgid "Turgenev returned an invalid analysis label."
+#: src/Api/ReportHighlightParser.php:61
+msgid "Turgenev report did not contain highlight markup."
 msgstr ""
 
-#: src/Api/ResponseValidator.php:65
-msgid "Turgenev returned an invalid analysis section."
+#: src/Api/ReportHighlightParser.php:67
+msgid "Turgenev report text does not match the analyzed document."
 msgstr ""
 
-#: src/Api/ApiClient.php:77
-msgid "Turgenev returned an invalid balance response."
+#: src/Api/ReportHighlightParser.php:109
+msgid "This report contains too many highlights. Use the full report."
+msgstr ""
+
+#: src/Api/ReportHighlightParser.php:271
+#: src/Api/ReportSectionParser.php:209
+msgid "Turgenev report markup could not be parsed."
+msgstr ""
+
+#: src/Api/ReportSectionParser.php:131
+msgid "Section details are unavailable on this server (the PHP DOM extension is not installed)."
+msgstr ""
+
+#: src/Api/ReportSectionParser.php:138
+msgid "Turgenev report did not contain section details."
 msgstr ""
 
 #: src/Api/ResponseValidator.php:26
 msgid "Turgenev returned an invalid numeric value."
 msgstr ""
 
-#: src/Api/ResponseValidator.php:106 src/Api/ResponseValidator.php:70 src/Api/ResponseValidator.php:80
+#: src/Api/ResponseValidator.php:40
+msgid "Turgenev report reference is invalid."
+msgstr ""
+
+#: src/Api/ResponseValidator.php:65
+msgid "Turgenev returned an invalid analysis section."
+msgstr ""
+
+#: src/Api/ResponseValidator.php:70
+#: src/Api/ResponseValidator.php:80
+#: src/Api/ResponseValidator.php:106
 msgid "Turgenev returned invalid analysis parameters."
 msgstr ""
 
-#: assets/build/client.js
-msgid "Turgenev returned invalid highlight data."
+#: src/Api/ResponseValidator.php:123
+msgid "Turgenev returned an invalid analysis label."
 msgstr ""
 
-#: assets/build/client.js
-msgid "Turgenev returned invalid section details."
+#: src/I18n/ReportGlossary.php:29
+msgctxt "Turgenev report"
+msgid "minimal"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:268
-msgid "Turgenev service"
+#: src/I18n/ReportGlossary.php:30
+msgctxt "Turgenev report"
+msgid "low"
 msgstr ""
 
-#: src/Ajax/ApiController.php:120
-msgid "Unexpected Turgenev integration error."
+#: src/I18n/ReportGlossary.php:31
+msgctxt "Turgenev report"
+msgid "medium"
 msgstr ""
 
-#: src/Api/ApiClient.php:211
-msgid "Unsupported Turgenev API operation."
+#: src/I18n/ReportGlossary.php:32
+msgctxt "Turgenev report"
+msgid "high"
 msgstr ""
 
-#: src/Api/ApiClient.php:130 src/Api/ReportSectionParser.php:114
-msgid "Unsupported Turgenev report section."
+#: src/I18n/ReportGlossary.php:33
+msgctxt "Turgenev report"
+msgid "critical"
 msgstr ""
 
-#: src/Ajax/ApiController.php:58
-msgid "Unsupported Turgenev request."
+#: src/I18n/ReportGlossary.php:36
+msgctxt "Turgenev report"
+msgid "“Academic nausea”"
 msgstr ""
 
-#: src/Admin/EditorIntegration.php:176
-msgid "When enabled, HTML markup is removed before the text is sent for analysis."
+#: src/I18n/ReportGlossary.php:37
+msgctxt "Turgenev report"
+msgid "“Classic nausea”"
 msgstr ""
 
-#: assets/build/client.js
-msgid "WordPress returned an invalid response."
+#: src/I18n/ReportGlossary.php:38
+msgctxt "Turgenev report"
+msgid "Phrase “nausea”"
 msgstr ""
 
-#: assets/build/client.js
-msgid "Words"
+#: src/I18n/ReportGlossary.php:39
+msgctxt "Turgenev report"
+msgid "Water content"
 msgstr ""
 
-#: src/Ajax/ApiController.php:76
-msgid "You are not allowed to analyze this post."
+#: src/I18n/ReportGlossary.php:40
+msgctxt "Turgenev report"
+msgid "Share of meaningful text"
 msgstr ""
 
-#: src/Ajax/ApiController.php:89
-msgid "You are not allowed to use Turgenev."
+#: src/I18n/ReportGlossary.php:41
+msgctxt "Turgenev report"
+msgid "Readability index"
 msgstr ""
 
-#: assets/build/analysis.js
-msgid "Your Turgenev balance is empty. Top it up before running an analysis."
+#: src/I18n/ReportGlossary.php:42
+msgctxt "Turgenev report"
+msgid "Number of style problems"
 msgstr ""
 
-#: src/Ajax/ApiController.php:51
-msgid "Your editor session expired. Reload the editor and try again."
+#: src/I18n/ReportGlossary.php:43
+msgctxt "Turgenev report"
+msgid "Style problem density"
 msgstr ""
 
-#. Author of the plugin
-#: turgenev.php
-msgid "al5dy"
+#: src/I18n/ReportGlossary.php:44
+msgctxt "Turgenev report"
+msgid "Keyword coverage"
 msgstr ""
 
-#. Plugin URI of the plugin
-#: turgenev.php
-msgid "https://wordpress.org/plugins/turgenev/"
+#: src/I18n/ReportGlossary.php:45
+msgctxt "Turgenev report"
+msgid "Overuse of “и” (“and”)"
 msgstr ""
 
-#. Author URI of the plugin
-#: turgenev.php
-msgid "https://ziscod.com"
+#: src/I18n/ReportGlossary.php:46
+msgctxt "Turgenev report"
+msgid "Overly frequent words"
 msgstr ""
 
-#: assets/build/client.js
-msgid "Dismiss this notice."
+#: src/I18n/ReportGlossary.php:49
+msgctxt "Turgenev report"
+msgid "“Academic nausea” calculated for pairs of words (possibly with a preposition between them) rather than for single words. The more phrases repeat, the higher it is."
 msgstr ""
 
-#: assets/build/client.js
-#: assets/build/editor.js
-msgid "More information"
+#: src/I18n/ReportGlossary.php:50
+msgctxt "Turgenev report"
+msgid "The share of words in the text that are on neither the stop-word nor the common-word list."
 msgstr ""
 
-#: assets/build/client.js
-msgid "Risk is critical! What to do?"
+#: src/I18n/ReportGlossary.php:51
+msgctxt "Turgenev report"
+msgid "The share of stop words in the text. Not used to determine the risk."
 msgstr ""
 
-#: assets/build/client.js
-msgid "Risk is high. What to do?"
+#: src/I18n/ReportGlossary.php:52
+msgctxt "Turgenev report"
+msgid "The share of the text taken up by search queries (including “penalties” for exact-match and long queries)."
 msgstr ""
 
-#: assets/build/client.js
-msgid "Stop word"
+#: src/I18n/ReportGlossary.php:53
+msgctxt "Turgenev report"
+msgid "An index that rates how hard a text is to read from its average word and sentence lengths: the Automated Readability Index, adapted for Russian."
 msgstr ""
 
-#: assets/build/client.js
-msgid "Words:"
+#: src/I18n/ReportGlossary.php:54
+msgctxt "Turgenev report"
+msgid "The number of words that occur in the text significantly more often than a probabilistic model predicts."
 msgstr ""
 
-#: assets/build/client.js
-msgid "The text is too short. Risk is not assessed."
+#: src/I18n/ReportGlossary.php:55
+msgctxt "Turgenev report"
+msgid "The number of style problems divided by the length of the text in words."
 msgstr ""
 
-#: src/Admin/SettingsPage.php
-msgid "Saved API key:"
+#: src/I18n/ReportGlossary.php:56
+msgctxt "Turgenev report"
+msgid "A parameter that depends on the highest word frequency in the text. Not used to determine the risk."
 msgstr ""
 
-#: src/Admin/SettingsPage.php
-msgid "Leave this field empty to keep the currently saved API key."
+#: src/I18n/ReportGlossary.php:57
+msgctxt "Turgenev report"
+msgid "A parameter that rates how much words repeat in the text. The more often a word repeats, the more it contributes."
 msgstr ""
 
-#: src/Admin/SettingsPage.php
-msgid "Save API key"
+#: src/I18n/ReportGlossary.php:58
+msgctxt "Turgenev report"
+msgid "Too many repetitions of the conjunction “и” (“and”). May point to overuse of constructions like «удобно и выгодно» (“convenient and profitable”)."
 msgstr ""
 
-#: src/Admin/SettingsPage.php
-msgid "Delete API Key"
+#: src/I18n/ReportGlossary.php:59
+msgctxt "Turgenev report"
+msgid "The sum of the “quanta” (from 1 to 3) the words of the text received for style problems."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:62
+msgctxt "Turgenev report"
+msgid "No"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:65
+msgctxt "Turgenev report"
+msgid "There are problems. Editing is advisable."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:66
+msgctxt "Turgenev report"
+msgid "Many problems. Editing or rewriting is advisable."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:67
+msgctxt "Turgenev report"
+msgid "Very many problems. Rewriting is advisable."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:68
+msgctxt "Turgenev report"
+msgid "Potential style problems — it may well be fine."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:69
+msgctxt "Turgenev report"
+msgid "Almost certainly a problem. Editing is advisable."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:70
+msgctxt "Turgenev report"
+msgid "A serious problem. Fix it."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:71
+msgctxt "Turgenev report"
+msgid "Common (“empty”) words"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:72
+msgctxt "Turgenev report"
+msgid "Stop words"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:73
+msgctxt "Turgenev report"
+msgid "Keywords"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:74
+msgctxt "Turgenev report"
+msgid "Exact-match keywords"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:75
+msgctxt "Turgenev report"
+msgid "Long sentences"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:76
+msgctxt "Turgenev report"
+msgid "Long words"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:79
+msgctxt "Turgenev report"
+msgid "Long sentence"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:80
+msgctxt "Turgenev report"
+msgid "Contains long words"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:81
+msgctxt "Turgenev report"
+msgid "Contains words that occur frequently in the text"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:82
+msgctxt "Turgenev report"
+msgid "Low share of meaningful text"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:83
+msgctxt "Turgenev report"
+msgid "Style errors"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:86
+msgctxt "Turgenev report"
+msgid "keyword coverage"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:87
+msgctxt "Turgenev report"
+msgid "exact-match keyword coverage"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:88
+msgctxt "Turgenev report"
+msgid "long keywords"
+msgstr ""
+
+#. translators: %s: comma-separated words from the analyzed text, left in their original language.
+#: src/I18n/ReportGlossary.php:109
+#, php-format
+msgctxt "Turgenev report"
+msgid "The number of words that occur in the text significantly more often than a probabilistic model predicts: %s"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:122
+msgctxt "Turgenev report"
+msgid "Keyword stuffing"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:123
+msgctxt "Turgenev report"
+msgid "Boilerplate text"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:124
+msgctxt "Turgenev report"
+msgid "Filler, filler..."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:125
+msgctxt "Turgenev report"
+msgid "Classifications and features"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:126
+msgctxt "Turgenev report"
+msgid "Enumerations"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:127
+msgctxt "Turgenev report"
+msgid "Vague words"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:128
+msgctxt "Turgenev report"
+msgid "Writing about the writing"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:129
+msgctxt "Turgenev report"
+msgid "The wrong tone with the customer"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:130
+msgctxt "Turgenev report"
+msgid "Blowing your own trumpet..."
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:131
+msgctxt "Turgenev report"
+msgid "Marketing Bullshit"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:132
+msgctxt "Turgenev report"
+msgid "Lecturing"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:133
+msgctxt "Turgenev report"
+msgid "Manipulation"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:134
+msgctxt "Turgenev report"
+msgid "The seller’s point of view"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:135
+msgctxt "Turgenev report"
+msgid "Tactless talk about prices"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:136
+msgctxt "Turgenev report"
+msgid "Indirect names"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:137
+msgctxt "Turgenev report"
+msgid "Style problems"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:138
+msgctxt "Turgenev report"
+msgid "Bureaucratese"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:139
+msgctxt "Turgenev report"
+msgid "“Tedious style”"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:140
+msgctxt "Turgenev report"
+msgid "“Weighing down” the text"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:141
+msgctxt "Turgenev report"
+msgid "Unjustified emotion"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:142
+msgctxt "Turgenev report"
+msgid "Colloquialisms, foreign borrowings and slang"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:143
+msgctxt "Turgenev report"
+msgid "Baby talk"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:144
+msgctxt "Turgenev report"
+msgid "Pomposity"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:145
+msgctxt "Turgenev report"
+msgid "Flourishes and imagery"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:146
+msgctxt "Turgenev report"
+msgid "Repetition and tautology"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:147
+msgctxt "Turgenev report"
+msgid "Generalizations"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:148
+msgctxt "Turgenev report"
+msgid "Hedges and caveats"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:149
+msgctxt "Turgenev report"
+msgid "Mixed styles"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:150
+msgctxt "Turgenev report"
+msgid "Plain mistakes"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:151
+msgctxt "Turgenev report"
+msgid "Word collocation"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:152
+msgctxt "Turgenev report"
+msgid "Twisted set phrases"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:153
+msgctxt "Turgenev report"
+msgid "Grammar problems"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:154
+msgctxt "Turgenev report"
+msgid "Gross typos"
+msgstr ""
+
+#: src/I18n/ReportGlossary.php:155
+msgctxt "Turgenev report"
+msgid "Text logic and connectives"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:31
+msgctxt "Turgenev report"
+msgid "_From now on_, if you want to avoid _further problems_ and care about the _subsequent use_ of your text, get rid of the words «дальнейший» (“further”) and «последующий» (“subsequent”) as soon as you spot them."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:32
+msgctxt "Turgenev report"
+msgid "_In short, brief, minimal time frames_: however you phrase it, it grates on the ear. Bureaucratese or plain cliché, something is clearly off; people don’t talk like that."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:33
+msgctxt "Turgenev report"
+msgid "_Always try_ to do without the word «всегда» (“always”) when you can. Without it the text _always comes out_ more credible, and often more convincing."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:34
+msgctxt "Turgenev report"
+msgid "_Precisely_ with “intensifiers” _it is very important_ to show restraint, or you will _definitely_ overdo it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:35
+msgctxt "Turgenev report"
+msgid "_As we already said above_, website copy is not a genre that welcomes references forward and back, references to the text itself and remarks like _let us first recall_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:36
+msgctxt "Turgenev report"
+msgid "_A trendy look_, _the right image_, _a finished outfit_, _wardrobe style_: say something along those lines and you become a _trendsetter_. Cheap and cheerful."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:37
+msgctxt "Turgenev report"
+msgid "_Don’t miss your chance_ to write a decent text: drop the word «шанс» (“chance”). It is pretentious and needlessly emotional, and it _leaves no chance_ of winning the reader over."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:38
+msgctxt "Turgenev report"
+msgid "_It should be noted separately_ that in a short practical text, telling the reader what, how and why you are telling them is bad form. _We are talking about the fact_ that, _for greater clarity_, we _would like to specify_ that, _as this block explains_, in such cases you are simply padding the text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:39
+msgctxt "Turgenev report"
+msgid "_Let us emphasize_ that giving up the word «подчеркнуть» (“emphasize”) can _favorably emphasize_ your copywriting skill."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:40
+msgctxt "Turgenev report"
+msgid "_Diverse_ authors delight us with their _diversity_: they love _diverse_ superfluous words (and it is lucky if not _multifarious_ or _heterogeneous_ ones). Yet somehow the result is still very monotonous."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:41
+msgctxt "Turgenev report"
+msgid "«Актуальный» (“topical”, “relevant”) is the _topical leader_ among vague but cool-sounding words. A _topical task_ for copywriters is learning to do without such words."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:42
+msgctxt "Turgenev report"
+msgid "«Ассортимент» (“product range”) is a word from the seller’s vocabulary, not the buyer’s. Using it almost always signals the wrong perspective and repels customers rather than attracting them."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:43
+msgctxt "Turgenev report"
+msgid "“Be prepared! — _Always prepared!_” The Young Pioneer, a role model for every kid. Is that what you meant?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:44
+msgctxt "Turgenev report"
+msgid "«В наличии» (“in stock”) works as a product label (“in stock vs. made to order”), but in running text it usually grates: it sounds awkward or bureaucratic."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:45
+msgctxt "Turgenev report"
+msgid "«Для девочек» (“for girls”) already implies «детский» (“children’s”): words with the same meaning are repeated side by side."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:46
+msgctxt "Turgenev report"
+msgid "«Забота», «позаботиться» (“care”, “take care”) are lovely, warm words. The only trouble is that the moment something is slightly off, they start to sound false. For example: _we help you take care_ of the quality of your texts! (Which happens to be the plain truth...)"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:47
+msgctxt "Turgenev report"
+msgid "«И конечно» (“and of course”) is often not the best connective."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:48
+msgctxt "Turgenev report"
+msgid "«Ключевой» (“key”) is a rather grandiloquent word. Consider whether it fits this context."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:49
+msgctxt "Turgenev report"
+msgid "«Комплекс», «комплексный» (“complex”, “comprehensive”) are good words, but they are overused so often that nobody has believed them for a long time. Do you really believe that a “complex of measures” is actually a complex of measures? What’s needed is a _complex of practical measures_ for the _comprehensive_ rehabilitation of these words."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:50
+msgctxt "Turgenev report"
+msgid "“Lovers”, “connoisseurs” and other professional consumers exist only in the imagination of bad PR people. Even when we are merely labeled “residents” or “car owners”, we tense up inside."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:51
+msgctxt "Turgenev report"
+msgid "“Oh, my friend, Arkady Nikolaich!” exclaimed Bazarov. “One thing I beg of you: no fine talk.”"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:52
+msgctxt "Turgenev report"
+msgid "«Посредством» (“by means of”) is a universal but very archaic and dull way to link an action to the means of carrying it out (or to anything else, for that matter)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:53
+msgctxt "Turgenev report"
+msgid "What «происходит» (“takes place”) is usually something nobody can control. Avoid saying it about your own work, for example. Besides, the word is very bookish; it “dries out” the text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:54
+msgctxt "Turgenev report"
+msgid "«Разместить» and «размещение» (“place”, “placement”) are words from the vocabulary of sellers and “instructions for use”; in most cases they sound unnatural."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:55
+msgctxt "Turgenev report"
+msgid "«Сегодня» (“today”) in the sense of “now, in our time” sounds somewhat affected and clichéd at the same time. On the bright side, it can almost always simply be dropped."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:56
+msgctxt "Turgenev report"
+msgid "«Соответствовать критериям» (“meet the criteria”) is rather crude bureaucratese. Imagine a normal person saying it not in a speech at the commissioning of a facility but just in everyday life."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:57
+msgctxt "Turgenev report"
+msgid "«Соответствовать требованиям» (“meet the requirements”) is rather crude bureaucratese. Imagine a normal person saying it not in a speech at the commissioning of a facility but just in everyday life."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:58
+msgctxt "Turgenev report"
+msgid "Only a seller calls _their own goods_ «товар» (“merchandise”), especially in the singular; a buyer never comes _for the merchandise_ unless they buy wholesale. Speak the customer’s language!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:59
+msgctxt "Turgenev report"
+msgid "You can only «уточнить» (“clarify”) what you already know at least roughly; «уточнить» instead of «узнать» (“find out”) is an extremely ugly and completely unjustified euphemism. Better still, avoid this unpleasant word altogether whenever you can, even when nothing directly rules it out."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:60
+msgctxt "Turgenev report"
+msgid "«Эстетичный», «эстетичность», «эстетический» (“aesthetic”, “aesthetics”), and often «эстетика» too, are purely marketing words with a rather vague meaning. They are used when you can’t call something beautiful but still have to praise it. Better avoided."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:61
+msgctxt "Turgenev report"
+msgid "Appealing to the reader’s feelings is a risky business. It is easy to strike a false note, and all the easier the more clichéd the surrounding text is."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:62
+msgctxt "Turgenev report"
+msgid "The argument that someone is “experienced” or “has experience” is very weak. You can say that about anyone when there is nothing else to say. Be more specific."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:63
+msgctxt "Turgenev report"
+msgid "You can almost always do without the word «способ» (“way”, “method”). If you needed it, perhaps it _became a way_ to write “obscurely and limply”. An _accessible way_ to fix this is to rephrase and often shorten the sentence."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:64
+msgctxt "Turgenev report"
+msgid "A flawless text is one nobody can reproach you for. So if a text contains the word «безупречный» (“flawless”), it is already not _flawless_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:65
+msgctxt "Turgenev report"
+msgid "Beware of tautologies! “Semantic content”, “qualified experts”, “temporal moment”, “traditional classics”, “shampoo for washing hair”, “buttery butter”, ..."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:66
+msgctxt "Turgenev report"
+msgid "Thank you for _visiting_ our website! We hope that by _visiting_ “Turgenev” you will learn to sense the stylistic marking of the words «посетить» and «посещение» (“visit”) and avoid them whenever possible."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:67
+msgctxt "Turgenev report"
+msgid "There are better connectives."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:68
+msgctxt "Turgenev report"
+msgid "Some words look perfectly Russian, yet any phrase with them sounds translated. Meet _one of the undisputed leaders_ in this category: the word «лидер» (“leader”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:69
+msgctxt "Turgenev report"
+msgid "There are ritual formulas that nobody takes seriously but everybody keeps repeating for some reason. “Better leave it to the professionals!” “Contact us, we are always happy to ...”"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:70
+msgctxt "Turgenev report"
+msgid "Some words are so telling that you write one and everything about you is clear. Take «немаловажный» (“not unimportant”): the perfect fly in the ointment. «Немало» (“not a little”) is slightly weaker, but that is _also not a little_. Admittedly, the ointment they get added to is usually not great on its own either..."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:71
+msgctxt "Turgenev report"
+msgid "In SEO texts, including “informational” ones, “first-person narration” and remarks about the text itself (“in this article you will learn...”, “we will tell you...”) often sound awkward."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:72
+msgctxt "Turgenev report"
+msgid "Similar words collide in your text. Something needs to be removed or replaced."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:73
+msgctxt "Turgenev report"
+msgid "A medical text apparently can’t do without «полость рта» (“oral cavity”), but remember that these words frighten a customer, and keep them to a sensible minimum."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:74
+msgctxt "Turgenev report"
+msgid "Sounds neutral in some contexts, but often haughty or dismissive, which is best avoided."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:75
+msgctxt "Turgenev report"
+msgid "In some cases this can be said about a person. The epithet does not suit other objects."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:76
+msgctxt "Turgenev report"
+msgid "Russian has no good word for someone who owns a car and drives it. «Автовладелец» (“car owner”) puts a completely needless emphasis on ownership, when often just a person at the wheel is meant. Besides, the word sounds official and awkward."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:77
+msgctxt "Turgenev report"
+msgid "Russian has no good word for someone who owns a car and drives it. «Автомобилист» (“motorist”) sounds like either a profession or a hobby, and awkward."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:78
+msgctxt "Turgenev report"
+msgid "The words «стать» and «становиться» (“become”) easily reveal that you are passing off wishful thinking as fact. “X will become our regular customer”, “Y will become an excellent choice”, “Z becomes possible”: admit it, you don’t believe it yourself, do you?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:79
+msgctxt "Turgenev report"
+msgid "On the “colloquial–bookish” scale this word (or phrase) leans heavily toward bookish. It is fine for legal and some other subjects, but it may jar or make reading harder in neutral texts, sales copy included."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:80
+msgctxt "Turgenev report"
+msgid "There seems to be no outright mistake in what is written here, but it is somehow sloppy, imprecise, not quite appropriate. Your context may be exactly where it works, but most likely this spot is better edited."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:81
+msgctxt "Turgenev report"
+msgid "In the course of the _text editing procedure_, it is best to get rid of the word «процедура» (“procedure”) whenever you can. It is often superfluous, and it makes a very poor pronoun. If you write _the procedure has contraindications_, it no longer matters which “procedure” was meant: the result is bad. At the very least write _this procedure has_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:82
+msgctxt "Turgenev report"
+msgid "In economics «стоимость» (“cost”) and «цена» (“price”) can differ, but in practice «стоимость» is usually just a synonym for price, and it often sounds rather bad."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:83
+msgctxt "Turgenev report"
+msgid "Your readers will _appreciate the merits_ of your texts if you don’t bore them with the _merits_ of anything whatsoever. We think _they deserve it_!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:84
+msgctxt "Turgenev report"
+msgid "A parenthetical construction that is probably better left out."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:85
+msgctxt "Turgenev report"
+msgid "The parenthetical «кстати» (“by the way”) usually shows that the author can’t connect what they are writing now with what came before."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:86
+msgctxt "Turgenev report"
+msgid "Instead of the dreary «наиболее красивый / подходящий / выгодный» (“most beautiful / suitable / profitable”), it is better to say «самый ...». And usually it is even better to drop «наиболее» altogether and enjoy what is left."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:87
+msgctxt "Turgenev report"
+msgid "In many contexts the word «конкретно» (“specifically”) is stylistically out of place: it sounds too colloquial, or _specifically_ rude, or just out of place."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:88
+msgctxt "Turgenev report"
+msgid "In many contexts this word is stylistically out of place: it sounds too colloquial, or _specifically_ rude, or just out of place."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:89
+msgctxt "Turgenev report"
+msgid "There may be no problem in your case, but a sentence that starts like this usually bodes no good."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:90
+msgctxt "Turgenev report"
+msgid "A trick question: is there a single product in the world a copywriter could not credit with _universality_?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:91
+msgctxt "Turgenev report"
+msgid "A «вопрос» (“question”) is when somebody asks something. But the word has another meaning, bureaucratic in the most literal sense: an item on the agenda, on the list for discussion, something to be “resolved”. Use the word in that sense and you instantly _resolve the question_ of turning your text into bureaucratese."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:92
+msgctxt "Turgenev report"
+msgid "Exclamations combined with bookish, “bureaucratic” words look especially unnatural."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:93
+msgctxt "Turgenev report"
+msgid "Harmful advice. _Thanks to its unrivaled negative properties_, the word «свойства» (“properties”) can spoil the _stylistic properties_ of your text, sometimes even more than «характеристики» (“characteristics”) does."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:94
+msgctxt "Turgenev report"
+msgid "Harmful advice. _To add style_ or, at the very least, _elegance_ to your future texts, use the word «стильный» (“stylish”) as often as you can, or at least _elegant_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:95
+msgctxt "Turgenev report"
+msgid "Harmful advice. _When manufacturing_ your texts, don’t forget to state what the _equipment_, the _structures_ and even the _materials are manufactured_ from. _Manufacturing details_ matter to readers: they help them close this page, _manufactured by professional specialists_, all the sooner."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:96
+msgctxt "Turgenev report"
+msgid "Harmful advice. The _exclusivity_ of the word «эксклюзивный» (“exclusive”) is that it is very loud and very empty at the same time. It rattles like a tin can from _exclusive caviar_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:97
+msgctxt "Turgenev report"
+msgid "Harmful advice. The Tao of using «варьировать» and «варьироваться» (“vary”) correctly is so hard that only black-belt copywriters master it. And nobody seems to have coped with «вариативный» (“variable”) yet."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:98
+msgctxt "Turgenev report"
+msgid "Harmful advice. For _extra persuasiveness_, when talking about _your products_, don’t forget to mention that they _complement the interior to advantage_, and tell the reader how they _can be complemented with new details_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:99
+msgctxt "Turgenev report"
+msgid "Harmful advice. Why write «пришли многочисленные гости» (“numerous guests arrived”) instead of «пришло много гостей» (“many guests came”)? So that everyone can see an _experienced copywriter_ wrote it!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:100
+msgctxt "Turgenev report"
+msgid "Harmful advice. Every time something in your text «создает» (“creates”) or, worse, «создается» (“is created”), the reader _gains the conviction_ that you _took up content creation_ for a reason: you certainly know how to _create the appearance_ of a persuasive text!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:101
+msgctxt "Turgenev report"
+msgid "Harmful advice. When there is nothing to say about X, a _qualified professional_ copywriter will be sure to write that X is a _professional_ or does something _professionally_ and in a _(highly) qualified_ manner, and won’t forget to praise X for _professionalism_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:102
+msgctxt "Turgenev report"
+msgid "Harmful advice. Don’t forget to tell readers about the _novelties in your range_ and assure them that you keep track of _technical and design novelties_. Maybe the _old-fashioned way_ will get you by."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:103
+msgctxt "Turgenev report"
+msgid "Harmful advice. Livening up a text is _simple_: _simply_ insert the word «просто» (“simply”) often enough, or at worst «простой» (“simple”). The only problem is that this _simple and cheap_ trick often looks _simply very_ cheap."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:104
+msgctxt "Turgenev report"
+msgid "Harmful advice. Use vague epithets like «технологичный» (“high-tech”) as often as possible (_a high-tech coating_, _a high-tech space_) and praise things for their _manufacturability_. The only thing better is _high-technology_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:105
+msgctxt "Turgenev report"
+msgid "Harmful advice. The words «призванный» (“intended”, “called upon”) and «призвание» (“calling”) are very useful: they are _called upon to help_ the reader see that the text is bombastic and unnatural and that its author doesn’t believe what they write."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:106
+msgctxt "Turgenev report"
+msgid "Harmful advice: an SEO specialist will think nothing of writing that _the economy is aimed at serving tourism_ or that a company _develops a sales direction_. That is because their efforts are _aimed at achieving_ success and they always pick some important _direction_ of activity without bothering about details."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:107
+msgctxt "Turgenev report"
+msgid "Harmful advice: “users”, “clients”, “buyers” are supposedly people just like you and me, but completely defenseless. It is so easy to say something banal about them, such as that they “wonder” or are “not satisfied” with something; they will put up with anything."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:108
+msgctxt "Turgenev report"
+msgid "Harmful advice: call everything _comfortable_: _life_, _work_, _driving_, _solutions_, _operation_ and so on. Only then will the reader _feel comfortable_ reading your text, which of course has no other purpose than to _ensure their comfort_ and protect them from _discomfort_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:109
+msgctxt "Turgenev report"
+msgid "Harmful advice: if you need to dry a text out and pad it at the same time, write _a longer period of time_ instead of _longer_, _during the quarantine period_ instead of _in quarantine_, _in the winter period_ or _in the cold season of the year_ instead of _in winter_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:110
+msgctxt "Turgenev report"
+msgid "Harmful advice: when talking to the user, use plenty of scare stories. Unless you frighten them properly with “extreme cases”, “possible malfunctions” and “poor-quality work by competitors”, they won’t buy anything!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:111
+msgctxt "Turgenev report"
+msgid "Harmful advice: write in a lofty style, and the higher the note you strike, the less people will believe you."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:112
+msgctxt "Turgenev report"
+msgid "There is hardly anything in the world less _original_ than the word «оригинальный» (“original”). In either of its two senses (“original design” or “original products”) it adds cliché to an _original text_, not _originality_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:113
+msgctxt "Turgenev report"
+msgid "There is hardly anything in the world less original than the words «оригинальный дизайн» (“original design”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:114
+msgctxt "Turgenev report"
+msgid "Everyone tries to convince the customer that they know “the right remedy”, “the winning approach”, what “matches optimally”, what “suits you perfectly”. That is manipulation and pressure too, and the customer may not stand it and leave."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:115
+msgctxt "Turgenev report"
+msgid "The inserted «же» (an emphatic particle) makes the text more colloquial, which may not be quite appropriate in a neutral text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:116
+msgctxt "Turgenev report"
+msgid "The inserted «же» (an emphatic particle) makes the text more emotional and colloquial, which is most likely not quite appropriate in a neutral text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:117
+msgctxt "Turgenev report"
+msgid "Listed in the “Dictionary of Irritating Expressions”. The list of words and phrases that “leave no one indifferent” was compiled after a Facebook post by the writer Andrei Astvatsaturov."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:118
+msgctxt "Turgenev report"
+msgid "It is as if you were playing a game with the reader: convincing them that they will find, buy or fix something _without effort_: _just_ lift a finger or click the mouse _without getting off the couch_. But they may _easily_ not believe you, because such mantras don’t sound very convincing."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:119
+msgctxt "Turgenev report"
+msgid "Do you think crude flattery is the best way to a customer’s wallet?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:120
+msgctxt "Turgenev report"
+msgid "Did you mean to offend women raising children? The word «мамочка» (“mommy”), especially in the plural, sounds overfamiliar and has a negative connotation."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:121
+msgctxt "Turgenev report"
+msgid "An expression that is overused quite often, especially when the subject is not construction."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:122
+msgctxt "Turgenev report"
+msgid "An often overused expression. Plain «для удобства» (“for convenience”) and «для удобства кого-либо» (“for someone’s convenience”) are equally bad."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:123
+msgctxt "Turgenev report"
+msgid "The verb «использовать» (“use”) and especially the verbal noun «использование» (“use”) are heavy and often redundant (_for use in household conditions_ ≈ _for the home_)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:124
+msgctxt "Turgenev report"
+msgid "When talking about people, avoid the words «люди» (“people”) or «человек» (“person”), and also «мужчины» (“men”) or «женщины» (“women”), whenever you can. They are usually either a rather clumsy stand-in for a pronoun (“talk to a person/to people”) or a noun that weighs the text down (“people prone to colds”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:125
+msgctxt "Turgenev report"
+msgid "By calling something «приемлемое» (“acceptable”), you cast doubt on its _acceptability_. Nobody calls a good thing acceptable!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:126
+msgctxt "Turgenev report"
+msgid "A gross typo or spelling mistake! Be more careful."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:127
+msgctxt "Turgenev report"
+msgid "Cheap advertising tricks have never made a text more convincing. The reader will be sure to sense they are being conned."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:128
+msgctxt "Turgenev report"
+msgid "A didactic tone is harmful, especially in sales copy. Readers are not as naive as they seem, and at best they will ignore your lecturing. Just as you may ignore our recommendations."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:129
+msgctxt "Turgenev report"
+msgid "For an experienced copywriter it is _no problem_ to find a _solution to the problem_ of overusing the word «проблема» (“problem”). Just forget this _problematic_ word, and it will never _cause you problems_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:130
+msgctxt "Turgenev report"
+msgid "For a buyer, _your catalog_ is simply the store’s products."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:131
+msgctxt "Turgenev report"
+msgid "By allowing that unprofessional specialists might exist, you cast suspicion on your own staff too: maybe they aren’t so professional after all?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:132
+msgctxt "Turgenev report"
+msgid "If «вы располагаете» (“you have at your disposal”) time, money or anything else, it is better to say it is «у вас есть» (“you have it”). Otherwise it sounds strained and fancy."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:133
+msgctxt "Turgenev report"
+msgid "If the “offer” is that something is for sale or some services are provided, it may be better to express the idea in other words, less formulaic and/or more direct."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:134
+msgctxt "Turgenev report"
+msgid "If the brand is named and it really is well known, why announce that it is well known? And using the words “well-known brand” instead of the brand’s name is downright bad form."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:135
+msgctxt "Turgenev report"
+msgid "If you are choosing between «в сфере» and «в области» (“in the sphere”, “in the field”), «в секторе» or «в сегменте» (“in the sector”, “in the segment”), our advice is to throw them all out. If there are fewer of these words _in the field of copywriting_ and _in the SEO sphere_, we have worked _in this segment_ for a reason."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:136
+msgctxt "Turgenev report"
+msgid "If you expect to please the reader with a «список» or «перечень» (“list”) of something, you risk adding to the _list of your failures_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:137
+msgctxt "Turgenev report"
+msgid "If you decide to write «высококвалифицированный» (“highly qualified”), write it as one word. But it is better to do without this very long word altogether."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:138
+msgctxt "Turgenev report"
+msgid "If you want the customer to _use your services_, remember that the word «услуга» (“service”) always reflects the provider’s point of view, not the customer’s. That may be why “services” so often sound unnatural."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:139
+msgctxt "Turgenev report"
+msgid "Unless it is about playgrounds or construction sites, but, say, about clubs or exhibitions, the word «площадка» (“platform”, “venue”) sounds overfamiliar and like jargon."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:140
+msgctxt "Turgenev report"
+msgid "If this is about some other website, not the one we are on right now, everything is fine. But for some reason these words usually adorn the most official of all possible websites."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:141
+msgctxt "Turgenev report"
+msgid "When it is about a spouse and the like (rather than, say, an apple), it sounds very vulgar."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:142
+msgctxt "Turgenev report"
+msgid "If you are B2B, fine, you can write it like that. If not, write in a more human language."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:143
+msgctxt "Turgenev report"
+msgid "If something is, for example, green or clean, don’t write that it _is distinguished by its green color_ or that cleanliness is its _distinctive feature_. Also, «отличаться» (“stand out”) and «различаться» (“differ”) are often confused."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:144
+msgctxt "Turgenev report"
+msgid "If this is written on a store’s website, it is better to just describe the products; that “you can buy” them goes without saying."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:145
+msgctxt "Turgenev report"
+msgid "As a statement, this claims too much on your part. As a question or a condition (_if you need X_), it still looks like manipulation."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:146
+msgctxt "Turgenev report"
+msgid "If this is part of a particular shopping center’s official name, there is nothing to be done. Otherwise avoid this wording, which is too far from spoken language. Oddly enough, «торгово-развлекательный комплекс» (“shopping and entertainment complex”), «торгово-ярмарочный комплекс» (“trade fair complex”) and the like sound better, since there is nothing to replace them with."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:147
+msgctxt "Turgenev report"
+msgid "These few words clearly betray a marketing-and-advertising style in which “reliable” materials (goods, services) are “offered for your attention” and all the work is done by “a team of experienced professionals”. If you write like this on purpose, well, it is your choice, but dropping this style makes a text more convincing."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:148
+msgctxt "Turgenev report"
+msgid "Think about which things you could say _adorn your everyday life_, or which feelings _adorn your life_. It doesn’t work, does it? It sounds false. Only _“as a decoration”_ gets written like this, and it comes out so-so."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:149
+msgctxt "Turgenev report"
+msgid "When _promoting a brand_, the word _brand_ often gets declined every which way and stuffed into every crack. The _brand releases_ nothing less than _products from the brand_; the _world-famous brand_ is reported to _stand out among other brands_, naturally, through _brand features_; _renowned brands_ make _branded items at a discount_ for _brand fans_. We exaggerate a little, but be careful with this word!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:150
+msgctxt "Turgenev report"
+msgid "Why so many superfluous words when the same thing can be said much more simply, or not said at all?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:151
+msgctxt "Turgenev report"
+msgid "This is either an inappropriate imperative or a typo (it should be «ищете», “you are looking for”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:152
+msgctxt "Turgenev report"
+msgid "There is some internal contradiction here."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:153
+msgctxt "Turgenev report"
+msgid "It looks like the naturalness of the text was sacrificed here to squeeze in a “keyword”. Careful: search engines easily recognize such tricks."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:154
+msgctxt "Turgenev report"
+msgid "You can buy at a «цена» (“price”), but not «по стоимости» (“at a cost”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:155
+msgctxt "Turgenev report"
+msgid "Even a single «компетенция» (“competence”) can make a text stylistically less than flawless, since the word is very bookish and “murky”. And if there are many of them..."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:156
+msgctxt "Turgenev report"
+msgid "The idea of “now” can be expressed in a thousand different ways, each worse than the last. «В настоящее время» (“at the present time”) is a rather bureaucratic “now”, with very vague boundaries at that."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:157
+msgctxt "Turgenev report"
+msgid "The idea of “now” can be expressed in a thousand different ways, each worse than the last. «В наше время» (“in our time”) sounds like a whole era, although nothing definite is actually meant."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:158
+msgctxt "Turgenev report"
+msgid "The idea of “now” can be expressed in a thousand different ways, each worse than the last. «В последнее время» (“lately”): is that months, years or decades?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:159
+msgctxt "Turgenev report"
+msgid "The idea of “now” can be expressed in a thousand different ways, each worse than the last. «В последние годы» (“in recent years”) is a very long “now”. Do you need that much length and vagueness?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:160
+msgctxt "Turgenev report"
+msgid "Avoid _sort of_ hedging and a _peculiar_ apologetic tone. Wherever you can _to a large extent_ do without endless “practically”, “as far as possible”, “in a sense”, _do everything possible_ to, _so to speak_, strike them out."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:161
+msgctxt "Turgenev report"
+msgid "Avoid military metaphors; the buyer may get scared."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:162
+msgctxt "Turgenev report"
+msgid "Avoid cheap manipulation! Customers learned to recognize it long ago. You won’t manage to push your product on them if they don’t need it anyway, and the website will leave a bad impression."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:163
+msgctxt "Turgenev report"
+msgid "Avoid using the word «прибор» (“device”) as a pronoun (to avoid repeating a more specific name). If that is not the case here, everything is fine; just ignore the highlight."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:164
+msgctxt "Turgenev report"
+msgid "Avoid unnecessary exclamations!!!!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:165
+msgctxt "Turgenev report"
+msgid "Avoid unnecessary euphemisms. Don’t write, for example, «финансовый вопрос» (“a financial question”) or «высокий ценник» (“a high price tag”) instead of «слишком дорого» (“too expensive”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:166
+msgctxt "Turgenev report"
+msgid "Avoid vague statements in the spirit of “somebody somewhere sometimes”. Saying “ordinary products often can’t cope”, “goods from well-known manufacturers” or “achieve the solution of a certain task” says absolutely nothing. Be more specific!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:167
+msgctxt "Turgenev report"
+msgid "Avoid vague names like “many other factors”, “important features”, “key points”. On its own such a name is completely uninformative. And if it introduces a list of specific factors, features or points, it is even less needed."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:168
+msgctxt "Turgenev report"
+msgid "Avoid verbal nouns: the _overuse_ of their _use_ in the _writing_ of a text leads to a _reduction_ of the _satisfaction_ from _reading_. See how this sentence proves itself!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:169
+msgctxt "Turgenev report"
+msgid "Avoid personifying inanimate and collective entities. “The company understands”, “the brand tries”, “the team made a decision”, “the manual claims”: none of this is good style."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:170
+msgctxt "Turgenev report"
+msgid "Avoid overly general names! Try to call what you write about «техника» (“equipment”), «изделие» (“item”) or «продукция» (“products”), and your company «организация» (“organization”), as rarely as possible: it makes the text inhuman."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:171
+msgctxt "Turgenev report"
+msgid "Avoid the words «затраты» (“expenditure”), «затрачивать» (“expend”), «затратный» (“costly”). They are very bad words, almost always stock phrases. They will grate in any text, except perhaps a hopelessly bureaucratic one about the _material expenditures of the authorized agent_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:172
+msgctxt "Turgenev report"
+msgid "Avoid phrases like “considered one of the best”, “scientists call it”, “recognized as a classic”, “the average Russian” that appeal to an anonymous authority. Readers don’t like being manipulated. (By the way, our argument about readers belongs to the same category, did you notice?)"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:173
+msgctxt "Turgenev report"
+msgid "Excessive emotion in a neutral text can sound false. Then again, in most cases it is false."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:174
+msgctxt "Turgenev report"
+msgid "Bear in mind that «по достоинству» (“duly”, “at its true worth”) is used more often in negative contexts than in positive ones."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:175
+msgctxt "Turgenev report"
+msgid "Sometimes it is hard to explain exactly what is wrong, but it sounds hopelessly vulgar."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:176
+msgctxt "Turgenev report"
+msgid "Online stores vie with each other to tell visitors which products _can be chosen_, _help with the choice_ and offer _advice regarding the choice_ or to _settle on a choice_. It often sounds pushy, as if you walked into an ordinary store and the salesperson immediately asked _what you have chosen_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:177
+msgctxt "Turgenev report"
+msgid "Use «благодаря» (“thanks to”) as a conjunction with care: very often, _thanks to this_, the text comes out unnatural and bureaucratic."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:178
+msgctxt "Turgenev report"
+msgid "Calling a website a «ресурс» (“resource”) is very bad form."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:179
+msgctxt "Turgenev report"
+msgid "It looks like you are padding the text here. At least, it resembles one of those tricks that come in handy when there is nothing much to say but the text has to be written."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:180
+msgctxt "Turgenev report"
+msgid "Just like your text, by the look of it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:181
+msgctxt "Turgenev report"
+msgid "As “Glavred” teaches us, even instead of «костюм от Армани» (“a suit from Armani”) it is better to write simply «костюм Армани» (“an Armani suit”). And «от проверенных производителей» (“from trusted manufacturers”) or «от лучших фабрик» (“from the best factories”) is just ridiculous."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:182
+msgctxt "Turgenev report"
+msgid "How do you say something so as to say nothing? You may have managed it here."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:183
+msgctxt "Turgenev report"
+msgid "Somehow awkwardly put. Most likely needs editing."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:184
+msgctxt "Turgenev report"
+msgid "Which stores count as ordinary?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:185
+msgctxt "Turgenev report"
+msgid "All sorts of epithets have been invented for prices, each more unnatural than the last."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:186
+msgctxt "Turgenev report"
+msgid "Bureaucratese: combinations of dull bureaucratic words that are hard to understand and clutter the text, especially when they pile up on top of each other. _Contrary to the declared intention of creating works “for people”, the work contains textual characteristics leading to the emergence of signs of fatigue in the potential audience._"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:187
+msgctxt "Turgenev report"
+msgid "Quite a picture! You found an image that, if the reader actually pictures it, will be too much for them. Sometimes it is worth keeping the literal meanings of words in mind too."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:188
+msgctxt "Turgenev report"
+msgid "Squaring the circle, as we know, is impossible. Calling floor area «квадратура» (“quadrature”) is not a good idea either."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:189
+msgctxt "Turgenev report"
+msgid "When you invite the reader to _read more details_ or find _all the detailed information_, do you seriously think they came to you to _learn all the details_? That is either naive or cynical."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:190
+msgctxt "Turgenev report"
+msgid "When it is not about collecting a parcel at the post office but, say, about _obtaining the desired result_ or _obtaining a harvest_, the word «получить» (“obtain”, “get”) turns into a parasite. Try pesticide."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:191
+msgctxt "Turgenev report"
+msgid "When the word «множество» (“multitude”) is used to say there is a lot of something, it is emotionally colored. Consider whether it is better to pick a more neutral one _out of the multitude of ways_ to express the thought."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:192
+msgctxt "Turgenev report"
+msgid "Of course you can add vivid epithets and strong images to a text, but the key is moderation."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:193
+msgctxt "Turgenev report"
+msgid "Tongue-tied text, possibly produced with machine translation or a synonymizer."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:194
+msgctxt "Turgenev report"
+msgid "Seek and ye shall find, of course. But saying something “can be found” usually just means that something exists somewhere, nothing more."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:195
+msgctxt "Turgenev report"
+msgid "Better to avoid big words and superlatives."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:196
+msgctxt "Turgenev report"
+msgid "Better to use the more neutral verb «изготавливать» (“manufacture”), although it also sounds a little dull."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:197
+msgctxt "Turgenev report"
+msgid "Better not to use the word «устройство» either for a device or as the verbal noun of «устраивать» (“arrange”). In the first case a more specific name usually works better; in the second, a verb."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:198
+msgctxt "Turgenev report"
+msgid "Better not to use the word «подобный» (“similar”) as a synonym for «такой» (“such”), especially in the singular. _Similar use of it_ is a good example of bad style. Avoid _similar solutions_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:199
+msgctxt "Turgenev report"
+msgid "Hardly anyone says of themselves that they «задается вопросом» (“ask themselves the question”); this is usually said about others, and it sounds both pompous and clichéd."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:200
+msgctxt "Turgenev report"
+msgid "A route cannot be «совершать» (“accomplished”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:201
+msgctxt "Turgenev report"
+msgid "Buttery butter: if we have called someone an expert, it is rather silly to add that they are qualified. Well, of course, experts vary, just like copywriters..."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:202
+msgctxt "Turgenev report"
+msgid "A lot of pomp, and probably over nothing. Say the same thing in a calmer tone, unless you are sure your taste does not fail you here."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:203
+msgctxt "Turgenev report"
+msgid "A promising but somewhat too standard opening. If you think it is fine, just ignore this."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:204
+msgctxt "Turgenev report"
+msgid "Multiculturalism?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:205
+msgctxt "Turgenev report"
+msgid "On real estate websites the word «жилье» (“housing”) can be neutral, but in many other contexts it is strongly marked, “bureaucratic”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:206
+msgctxt "Turgenev report"
+msgid "«На сайте» (“on the website”): where is that? Where do you have to leave your website for to get “to the website”?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:207
+msgctxt "Turgenev report"
+msgid "There is probably no escaping this word any more: it pops up here and there, on its own and in combinations like _content plan_ or _content marketing_. But bear in mind that it still irritates many people, who would rather see «тексты» (“texts”) or «содержание» (“contents”) instead."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:208
+msgctxt "Turgenev report"
+msgid "By calling something _one of the most reliable_, greenest or fastest, we take no responsibility, which is why our words may seem _some of the most noncommittal_ and demagogic."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:209
+msgctxt "Turgenev report"
+msgid "Calling something «популярный» (“popular”) is one of the most _popular_ ways to praise without pointing to any specific merits. Popular means many people like it, and the people can’t be wrong, right?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:210
+msgctxt "Turgenev report"
+msgid "Calling something «современный» (“modern”) says nothing, because everything around us today is modern. That is why the word very often turns out to be superfluous."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:211
+msgctxt "Turgenev report"
+msgid "Pushy enumerations look like verbal junk; try not to overuse this trick. Some copywriters _and_ text authors think _or_ are even sure that a list _and_ an enumeration of merits _or_ positive features sounds especially convincing _and_ vivid. They are not always right _and_ are sometimes wrong."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:212
+msgctxt "Turgenev report"
+msgid "Calling a room or an office a «помещение» (“premises”) is about as ugly as calling a kettle an «изделие» (“item”) or «продукция» (“products”): too general, impersonal, inhuman."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:213
+msgctxt "Turgenev report"
+msgid "When you call shoes «обувная продукция» (“footwear products”) or plastic windows «оконная продукция» (“window products”), you talk to the customer in a bureaucratic language that is deeply alien to them. Avoid such _verbal products_, or people will steer a mile clear of _your quality products_!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:214
+msgctxt "Turgenev report"
+msgid "When you call products, prices, employees and so on the best, the most modern, truly unique, be ready to answer for your words. If it is not quite true or just a figure of speech, the reader will sense the falseness."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:215
+msgctxt "Turgenev report"
+msgid "By calling something «качественный» (“quality”) or declaring “high quality”, you pay a rather dubious compliment. Doubts creep in at once: if it doesn’t go without saying, if it could have been otherwise, maybe things aren’t as good as declared."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:216
+msgctxt "Turgenev report"
+msgid "There are clear signs of a tedious, measured exposition that leans toward the bookish and bureaucratic, with a high concentration of so-called filler."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:217
+msgctxt "Turgenev report"
+msgid "Alongside the tedious bureaucratic style, SEO texts widely feature a peppy marketing one: “winter is a great time for active games”, “food full of vitamins” and so on. Both are awful. Worst of all is when they are combined."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:218
+msgctxt "Turgenev report"
+msgid "Don’t overgeneralize. All these “always finds wide application”, “the goal of any company”, “everybody’s favorite models”, “every self-respecting”: do you yourself believe it is true always, of any, of everybody and every?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:219
+msgctxt "Turgenev report"
+msgid "Don’t use this obsolete word in your texts."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:220
+msgctxt "Turgenev report"
+msgid "Don’t pressure the user; they may get scared and run away. All these “you need”, “you can’t do without”, “you will undoubtedly like”, “you can be absolutely sure”: you _must take care_ to remove all of them."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:221
+msgctxt "Turgenev report"
+msgid "It is not very good form to start a sentence like this."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:222
+msgctxt "Turgenev report"
+msgid "Don’t tell the reader trivial things: that “Moscow is the capital of our Motherland”, that “the catalog lists the price”, that “equipment for the relevant purpose” is used, that “the features must be taken into account” and so on. They will figure it out without you."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:223
+msgctxt "Turgenev report"
+msgid "Don’t pit words and expressions of different styles against each other, such as informal and bookish, colloquial and bureaucratic, unless you are deliberately going for a comic effect."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:224
+msgctxt "Turgenev report"
+msgid "Don’t use the word «габаритный» (“bulky”, “dimensional”) as a synonym for “large”; that is not how people talk."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:225
+msgctxt "Turgenev report"
+msgid "Don’t use the word «последний» (“the latter”) and combinations with it as a pronoun; it is usually very bad style."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:226
+msgctxt "Turgenev report"
+msgid "Don’t talk down to a website visitor. This phrase implies that you speak from a position of absolute knowledge and they are some clueless child."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:227
+msgctxt "Turgenev report"
+msgid "Not that customers aren’t greedy, but overly obvious hints at it are unpleasant to them. Avoid words like «выгода» (“benefit”), «сэкономить» (“save”), «сохранить деньги» (“keep your money”), «каждая копейка на счету» (“every kopeck counts”), «дешевое решение» (“a cheap solution”)! Talking about low prices requires tact."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:228
+msgctxt "Turgenev report"
+msgid "Not used in the plural, or the plural sounds unnatural."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:229
+msgctxt "Turgenev report"
+msgid "Don’t complicate the text! Participles and gerunds, the passive voice, complex sentences, chains of genitives and infinitives, all those «будет наличие» (“there will be availability”), «окажется необходимым» (“will prove necessary”) and «в ситуации, когда» (“in a situation when”): all of this can keep you from getting your point across to the reader."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:230
+msgctxt "Turgenev report"
+msgid "Unnatural word order. Perhaps the natural sound of the text was sacrificed to some external considerations, SEO ones for example."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:231
+msgctxt "Turgenev report"
+msgid "In Russian a price can’t _стоить дороже_ or _дешевле_ (“cost more expensive” or “cheaper”); it can _стоить больше_ or _меньше_ (“cost more” or “less”) or _быть дороже_ or _дешевле_ (“be more expensive” or “cheaper”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:232
+msgctxt "Turgenev report"
+msgid "An unexpectedly colloquial style, a would-be human touch, in a neutral, business or sales text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:233
+msgctxt "Turgenev report"
+msgid "Nobody knows where the fashion came from to use the word «статус» (“status”) almost as a synonym for high social standing. And yet the word is “bureaucratic” and somehow awkward."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:234
+msgctxt "Turgenev report"
+msgid "Wrong collocation: this is not quite idiomatic Russian."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:235
+msgctxt "Turgenev report"
+msgid "Vernacular that is out of place in a neutral or business text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:236
+msgctxt "Turgenev report"
+msgid "Normal people don’t look for “solutions to their problems” or “design solutions”; only PR-invented robot buyers do that. A _great solution for you_ is to drop, whenever you can, such an _unfortunate solution_ as the word «решение» (“solution”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:237
+msgctxt "Turgenev report"
+msgid "It takes some courage to start a sentence with the word «производитель» (“manufacturer”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:238
+msgctxt "Turgenev report"
+msgid "Both meanings of the word «модификация» (“modification”), “a version” (of which there are often _a multitude_) and “a process of change”, neither adorn nor simplify a text. On its own it is no disaster, but together _with various modifications_ of bureaucratese a critical mass can build up."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:239
+msgctxt "Turgenev report"
+msgid "One of those words not worth overusing."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:240
+msgctxt "Turgenev report"
+msgid "Oh, what kind of period is that? We can’t guess; do tell us."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:241
+msgctxt "Turgenev report"
+msgid "A risky word that fits only rare contexts. For example, ticket prices can’t depend on «сезонность» (“seasonality”), but they can depend on «сезон» (“the season”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:242
+msgctxt "Turgenev report"
+msgid "A risky word. First, it is unclear who recognizes something as authoritative. Second, it combines well with far from every noun."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:243
+msgctxt "Turgenev report"
+msgid "Careful, this is colored (emotionally or stylistically)! No harm in small, well-judged doses; very bad in large, uncontrolled ones."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:244
+msgctxt "Turgenev report"
+msgid "The word «гардероб» (“wardrobe”) positively smells of mothballs, don’t you think?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:245
+msgctxt "Turgenev report"
+msgid "There is no getting away from mentioning low prices. But there is also no getting away from the fact that «недорогой», «недорого» (“inexpensive”, “inexpensively”) sound as if you were making excuses and may be associated with low quality. Be careful with them!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:246
+msgctxt "Turgenev report"
+msgid "Dropping the word «успех» (“success”) will undoubtedly let you _achieve success_ in writing and become a _successful_ author. This is exactly where _the key to your success_ lies!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:247
+msgctxt "Turgenev report"
+msgid "Harking back so far in time usually happens when you don’t know how to begin or what else to say."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:248
+msgctxt "Turgenev report"
+msgid "A very bad way to say “a demanding buyer”"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:249
+msgctxt "Turgenev report"
+msgid "Passive constructions are always harder _to be perceived by the reader_ than active ones. They should _be avoided_ where possible, unless, _having been rid_ of them, the text becomes even more tedious."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:250
+msgctxt "Turgenev report"
+msgid "A copywriter’s first duty, as they see it, is to tell how many varieties something is divided into, how it is classified, which categories (price categories included) are distinguished and by what criteria. Deadly dull!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:251
+msgctxt "Turgenev report"
+msgid "Enumerations of the “not only A but also B” type are a typical SEO-optimizer cliché. (Of course, without seeing the context we can’t be sure this is such a case.)"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:252
+msgctxt "Turgenev report"
+msgid "Writing in clichés is bad. But writing in a way that grates on the ear and leaves a vague feeling that this is not how people speak Russian is even worse. In scholarly terms this is called “unidiomatic”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:253
+msgctxt "Turgenev report"
+msgid "Connectives like these in SEO texts (and elsewhere) often mask a lack of logic and consistency. Check whether poorly related thoughts are being glued together mechanically. If not, everything is fine."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:254
+msgctxt "Turgenev report"
+msgid "Please _spare_ your readers the word «избавить» (“spare”, “rid”)! Why so much pathos? What are these stock displays of feeling for? _Rid yourself_ of all this and it will be easier to breathe."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:255
+msgctxt "Turgenev report"
+msgid "Try to _do without_ telling the customer what something «обойдется» or «станет» (“will come to”, “will cost”). And without «обойтись чем-то» (“make do with little”) and «не обойтись без чего-то» (“can’t do without something”) too. These turns of phrase are marked, and the result is _a bit tacky_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:256
+msgctxt "Turgenev report"
+msgid "Try not to write «способен украсить» (“is capable of decorating”) instead of «украшает» (“decorates”), «сможете избавиться» (“will be able to get rid of”) instead of «избавитесь» (“will get rid of”), «здесь вы можете найти» (“here you can find”) instead of «здесь есть» (“here is”). It _can make_ the text thoroughly watered down."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:257
+msgctxt "Turgenev report"
+msgid "It looks like there are “empty” words here, or words that duplicate each other; apparently at least one of them is superfluous. Or the same thought can be expressed more simply."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:258
+msgctxt "Turgenev report"
+msgid "Why are you _ready to sacrifice_ the naturalness of the text and write that your specialists (doctors) are _ready to carry out_ some miracle project or, worse, to _meet the client halfway_? Maybe you are a secret Young Pioneer whose motto is “always be prepared”?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:259
+msgctxt "Turgenev report"
+msgid "For some reason the words «сам» (“oneself”) and «себе» (“for oneself”), as well as mentions of “independent” actions or “one’s own” efforts, often create some tension. Not to mention that they _themselves_ are often simply superfluous."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:260
+msgctxt "Turgenev report"
+msgid "For some reason, mentioning “domestic” or “Russian” manufacturers or contractors, let alone users or customers, often looks about as strained as an untucked shirt would look as an office dress code."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:261
+msgctxt "Turgenev report"
+msgid "The correct forms are «независимо» or «вне зависимости от» (“regardless of”), but the latter is stylistically marked, “bureaucratic”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:262
+msgctxt "Turgenev report"
+msgid "The correct form is «подпадает» (“falls under”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:263
+msgctxt "Turgenev report"
+msgid "Offering products is formulaic but clear. But what does «предлагать ассортимент» (“offer a product range”) mean?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:264
+msgctxt "Turgenev report"
+msgid "By attributing to users actions or wishes that would benefit you, you attempt to manipulate them crudely. People don’t like it, and the text comes out wooden."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:265
+msgctxt "Turgenev report"
+msgid "Participles and compound adjectives often weigh a text down for no good reason."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:266
+msgctxt "Turgenev report"
+msgid "Whatever you say about a price, it won’t be ideal. «Доступная цена» (“an affordable price”) is far from the worst option, but some hint of compromise and stinginess undoubtedly hangs over it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:267
+msgctxt "Turgenev report"
+msgid "Check whether a conclusion is being drawn here: «итак» (“so”, “thus”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:268
+msgctxt "Turgenev report"
+msgid "Professional jargon often creeps into SEO texts (partly because it can appear in search queries). But it looks strange in a neutral text. Use neutral vocabulary unless it is part of the author’s intent."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:269
+msgctxt "Turgenev report"
+msgid "Talking about the «производитель» (“manufacturer”) is appropriate with wholesale buyers. But it is better not to burden a customer with “the manufacturer’s products”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:270
+msgctxt "Turgenev report"
+msgid "Talk about needs, desires, wishes, requests or a need for something is often, though not always, a) a hard sell, b) indirect: what could be said simply is said in a complicated way, c) stylistically not very successful."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:271
+msgctxt "Turgenev report"
+msgid "A colloquial style in a neutral, business or sales text sometimes looks out of place. If it doesn’t clash with the style of your text here, everything is fine."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:272
+msgctxt "Turgenev report"
+msgid "Saying that “X serves Y as something” can usually (and should!) be rewritten more briefly: «послужит защитой» (“will serve as protection”) becomes «защитит» (“will protect”), «несет безупречную службу в качестве помощника» (“renders flawless service as a helper”) becomes «всегда помогает» (“always helps”), and so on."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:273
+msgctxt "Turgenev report"
+msgid "Saying that something _will harmonize_ with something else is usually _old hat_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:274
+msgctxt "Turgenev report"
+msgid "Talk about the «преимущества» (“advantages”) of your website or products so that the user feels for themselves how great it is; the word «преимущества» only gets in the way. And if you are explaining how X is better than Y, better not mention “advantages” either: write more simply, avoiding long vague words."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:275
+msgctxt "Turgenev report"
+msgid "Russian avoids the words «иметь» (“have”) and «обладать» (“possess”). Instead of “the plot has an area/possesses an area” we say “the area of the plot” or “its area is such-and-such”. If your text _has_ these words, you probably _don’t have experience_ writing good texts, or _don’t possess the time_ for it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:276
+msgctxt "Turgenev report"
+msgid "Russian does not like gerunds. Not only is it easy to make a mistake _when using gerunds_ (_approaching the city, my hat flew off_), but even _without making a mistake_ you will overload the text and make it ponderous."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:277
+msgctxt "Turgenev report"
+msgid "If you don’t praise yourself, nobody will. However, unfounded compliments to yourself often look suspicious."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:278
+msgctxt "Turgenev report"
+msgid "Calling a price «демократичная» (“democratic”) is far from the most terrible of the thousand ways to avoid the word «дешево» (“cheap”). Still, don’t overuse it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:279
+msgctxt "Turgenev report"
+msgid "Most likely it should be written as one word. But bear in mind that the word «ввиду» (“in view of”) is stylistically marked and should be used with care."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:280
+msgctxt "Turgenev report"
+msgid "The words «необходимый», «необходимо», «необходимость» (“necessary”, “it is necessary”, “necessity”) are very serious. They imply objectivity: it is not that someone decided it is needed; the _necessity_ arose by itself. So even in noncommittal contexts (“if necessary”, “without necessity”, “all the necessary means”) they put pressure on the reader."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:281
+msgctxt "Turgenev report"
+msgid "The words «определенный» and «конкретный» (“certain”, “specific”) are self-contradictory: «определенные стороны» (“certain aspects”) means “some aspects” or “whatever aspects”, that is, “uncertain aspects”. Use them carefully!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:282
+msgctxt "Turgenev report"
+msgid "The words «помочь» (“help”) and «помощь» (“help”) are often superfluous; the text gets better without them. Besides, they sound patronizing, condescending. Instead of “with our help you will be able to” or “we will promptly help change the situation”, write what exactly you offer."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:283
+msgctxt "Turgenev report"
+msgid "The words «предназначенный», «предназначение», «предназначаться» (“intended”, “purpose”, “be intended”) are either very high-flown or very bureaucratic. You hardly need either here."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:284
+msgctxt "Turgenev report"
+msgid "In many contexts the words «предпочтения» (“preferences”) and «предпочитать» (“prefer”) carry a whiff of ceremony and provinciality: “would you prefer your coffee black or with cream?” The _most preferable option_, _relying on your preferences_, is to avoid these words whenever you can."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:285
+msgctxt "Turgenev report"
+msgid "The words «специализированный», «специализировать(ся)», «специализация» (“specialized”, “specialize”, “specialization”) are long, difficult and, to put it mildly, not very meaningful. Are you sure that a) this was worth writing and b) it isn’t worth writing more specifically?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:286
+msgctxt "Turgenev report"
+msgid "The words «стремиться» (“strive”) and «(у)стремление» (“aspiration”) are rather pompous and, pardon the pun, «стрёмные» (“dodgy”). Better restrain yourself _in your striving_ to use them."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:287
+msgctxt "Turgenev report"
+msgid "The words «функциональный» (“functional”) and «функциональность» (“functionality”) seem to mean something, but what exactly is hard to tell. Apparently the idea is “it isn’t just for looks, it also works somehow”. But is that worth telling the reader, and what if they don’t get it?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:288
+msgctxt "Turgenev report"
+msgid "The words «характер», «характерный», «характеристика», «характеризуется» (“character”, “characteristic”, “characterization”, “is characterized by”) are a _characteristic sign_ of the author’s helplessness or of a text without thought. Yes, they can glue anything to anything, but should they?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:289
+msgctxt "Turgenev report"
+msgid "The words «вариант» (“option”) and «альтернатива» (“alternative”) are overused far too often in SEO texts. If there is _an option_ to do without them, _choose exactly this alternative_; it will be _the best option_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:290
+msgctxt "Turgenev report"
+msgid "The words «модель» (“model”), as well as «модификация» (“modification”), «образец» (“sample”), «новинка» (“novelty”), «вид продукции» (“type of product”) and the like, are often overused to replace a product’s specific name. That way you avoid repetition, but at a high price: the naturalness of the text suffers badly."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:291
+msgctxt "Turgenev report"
+msgid "The word «аксессуар» (“accessory”) is very general and very marketing-speak. Calling a handbag or a piece of jewelry a _fashionable accessory from a famous brand_ is a very cheap manipulative trick; better not to stoop to that."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:292
+msgctxt "Turgenev report"
+msgid "The word «атрибут» (“attribute”) is a _frequent attribute_ of SEO copywriting, where it is widely used to increase the amount of filler in a text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:293
+msgctxt "Turgenev report"
+msgid "The word «брендовый» (“branded”) is strongly marked; in some contexts it sounds almost vernacular."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:294
+msgctxt "Turgenev report"
+msgid "The word «бюджетный» (“budget”) usually sounds like an obvious euphemism implying not only a low price but also matching quality."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:295
+msgctxt "Turgenev report"
+msgid "The word «вопрос» (“question”, “matter”) is most likely superfluous here."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:296
+msgctxt "Turgenev report"
+msgid "The word «воспользоваться» (“make use of”) is completely empty and at the same time stylistically marked, “heavy”. If you had to _make use of_ it, you may not have made the best choice."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:297
+msgctxt "Turgenev report"
+msgid "The word «востребованный» (“in demand”) is not found in the wild, yet it _has turned out to be in demand_ in SEO texts."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:298
+msgctxt "Turgenev report"
+msgid "The word «выбор» (“choice”) is a cliché: people don’t talk like that, and you will hardly persuade them to buy something by saying it is “the ideal choice”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:299
+msgctxt "Turgenev report"
+msgid "The word «выбор» (“choice”) is a cliché: people don’t talk like that, and you will hardly persuade them to buy something by saying it is “the optimal choice”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:300
+msgctxt "Turgenev report"
+msgid "The word «выбор» (“choice”) is a cliché: people don’t talk like that, and you will hardly persuade them to buy something by saying it is “the optimal” or “the right choice”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:301
+msgctxt "Turgenev report"
+msgid "The word «данный» (“the given”) is very bookish. _The given word_ is used everywhere to give a style a bureaucratic character."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:302
+msgctxt "Turgenev report"
+msgid "The word «дорогостоящий» (“costly”) is stylistically marked. It is usually better replaced with «дорогой» (“expensive”) or another synonym."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:303
+msgctxt "Turgenev report"
+msgid "The word «излишний» (“excessive”) is very bookish, but it has a neutral synonym, «лишний» (“superfluous”). Every time you write «излишний», consider whether it is justified."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:304
+msgctxt "Turgenev report"
+msgid "For some reason the word «индивидуальный» (“individual”) always sounds unnatural. Except perhaps «в индивидуальной упаковке» (“individually packed”), which is passable. And even that, if you listen closely..."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:305
+msgctxt "Turgenev report"
+msgid "The word «лишь» and the expression «всего лишь» (“merely”, “just”), unlike «только» (“only”), are marked. They should be used _merely_ by those who can tell when they fit and when they don’t."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:306
+msgctxt "Turgenev report"
+msgid "The word «напрямую» (“directly”) is stylistically marked; better avoid it. And this _directly concerns_ you, even if you really _work directly with the manufacturer_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:307
+msgctxt "Turgenev report"
+msgid "The word «наряд» (“outfit”) has come into wide use as a substitute for «одежда» (“clothes”), but it has not lost its meaning of beautiful, special clothes, which sounds comical next to the word «повседневный» (“everyday”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:308
+msgctxt "Turgenev report"
+msgid "The word «нефтепродукты» (“petroleum products”) is used almost exclusively in the plural; the singular is strongly marked."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:309
+msgctxt "Turgenev report"
+msgid "The word «определиться» (“make up one’s mind”) entered Russian thanks to M. S. Gorbachev and has stayed in the top 30 words that can spoil any text for 30 years now."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:310
+msgctxt "Turgenev report"
+msgid "The word «оптимальный» (“optimal”) implies that you know what is right, so it sounds a little arrogant. Besides, “optimal” is not the best but the best possible under the given circumstances, so by using it you seem to apologize for being unable to provide anything better. Not the happiest combination!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:311
+msgctxt "Turgenev report"
+msgid "The word «осмысленно» (“meaningfully”) is entirely unfit to serve as a positive characteristic or a compliment. For example, “every person thinks to meaningfully plan their personal time” is a very clumsy sentence."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:312
+msgctxt "Turgenev report"
+msgid "The word «особенный» (“special”) is almost always _not especially_ appropriate in SEO texts. And «особый» (“particular”) is _not especially_ better: it gives the text _particular_ tedium but no _particular_ specificity."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:313
+msgctxt "Turgenev report"
+msgid "The word «подарить» (“give as a gift”) combined with intangible _gifts_ such as “confidence” or even “discounts” is always ready to _gift_ the text with unnaturalness."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:314
+msgctxt "Turgenev report"
+msgid "The word «позволяет» (“allows”) _allows_ you to turn any text into a formulaic one. It has one advantage: it can almost always be thrown out painlessly."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:315
+msgctxt "Turgenev report"
+msgid "The word «правильно» (“correctly”) is superfluous here: “how to choose correctly” = “how to choose”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:316
+msgctxt "Turgenev report"
+msgid "The word «правильно» (“correctly”) may well be superfluous here: for example, “how to choose correctly” = “how to choose”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:317
+msgctxt "Turgenev report"
+msgid "The word «практичный» (“practical”) comes from the marketing vocabulary. Sellers praise their products like that, but buyers almost never talk that way. Naturally, it sounds a little false."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:318
+msgctxt "Turgenev report"
+msgid "The word «предоставить» or «предоставлять» (“provide”) instantly makes your text ponderous."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:319
+msgctxt "Turgenev report"
+msgid "The word «представлен» (“is presented”) is like a fly in the ointment that can make any text banal. Don’t write “a wide range is presented on our website” or “medicines presented in pharmacies”: nobody presented anything to anybody; write more simply."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:320
+msgctxt "Turgenev report"
+msgid "The word «процесс» (“process”) seems to slow down the _process of narration_. First, that is simply what it means; second, it usually introduces verbal nouns, which in itself makes a text more tedious; third, it is often just superfluous, and _in the process of editing_ it is best simply thrown out."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:321
+msgctxt "Turgenev report"
+msgid "The word «результат» (“result”) is treacherous: in Russian it clearly lacks positive connotations, and «результаты деятельности» (“results of activity”), «результативный» (“productive”), «результативность» (“productivity”) are only possible in lifeless bureaucratic speech."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:322
+msgctxt "Turgenev report"
+msgid "The word «ряд» (“a number of”) is marked as it is, and _in a whole number of cases_ it is also used out of place."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:323
+msgctxt "Turgenev report"
+msgid "The word «самостоятельно» (“independently”) is often superfluous: instead of “do it independently” it is usually better to say “do it yourself” or just “do it”."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:324
+msgctxt "Turgenev report"
+msgid "In many contexts the word «своеобразный» (“peculiar”, “of a kind”) sounds like an admission that what is said is imprecise and possibly wrong. If so, better remove this hedge or say something you are ready to answer for."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:325
+msgctxt "Turgenev report"
+msgid "The word «связаться» (“get in touch”) is not the most positive one and has unfortunate associations: the reader may decide it is _better not to get mixed up_ with you."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:326
+msgctxt "Turgenev report"
+msgid "The word «ситуация» (“situation”) is often used imprecisely: either as a euphemism for any trouble or difficulty, or simply as an entirely empty word (“the market situation”, for example)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:327
+msgctxt "Turgenev report"
+msgid "The word «спектр» (“spectrum”) in its figurative sense (“many different”) provokes a _whole spectrum_ of objections, from excessive prettiness to many uses being out of place."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:328
+msgctxt "Turgenev report"
+msgid "The word «специалист» (“specialist”) is very general. Where possible, replace it with something more specific. Besides, the word is manipulative: call your employees specialists and their authority seems to rise at once, although in fact it often looks like mere puffing out of cheeks."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:329
+msgctxt "Turgenev report"
+msgid "The word «строение» (“structure”) is a marked and in most cases undesirable synonym for «здание» (“building”). It seems neutral only in addresses (_house 7, structure 2_)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:330
+msgctxt "Turgenev report"
+msgid "The word «трафик» (“traffic”; spelled with a single «ф»!) is still professional jargon rather than literary language; use it with care."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:331
+msgctxt "Turgenev report"
+msgid "The word «ценить» (“value”, “appreciate”) is openly manipulative: only something _valuable_ can be valued, and when you tell a buyer they are _able to fully appreciate_ something, you flatter them crudely."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:332
+msgctxt "Turgenev report"
+msgid "The word «шоурум» (“showroom”) is better written as one word."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:333
+msgctxt "Turgenev report"
+msgid "The word «является» (“is”, “constitutes”), _constituting_ a proven means of weighing down any text and making it bureaucratic, has the convenience of almost always being dispensable."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:334
+msgctxt "Turgenev report"
+msgid "A word or expression with a clear bureaucratic slant. Often simply superfluous, or it can be said more simply. If you are sure it belongs here, keep it. Otherwise remove or replace it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:335
+msgctxt "Turgenev report"
+msgid "The word can be perfectly appropriate, for example on real estate websites. But in many cases it only serves to puff out cheeks."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:336
+msgctxt "Turgenev report"
+msgid "The word is fine when it is about, for example, SEO texts trying to manipulate the reader, and strongly marked when it is about performing some action on something."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:337
+msgctxt "Turgenev report"
+msgid "The word often sounds a little false because it is used instead of stronger synonyms: beautiful, good, profitable and the like."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:338
+msgctxt "Turgenev report"
+msgid "A word that is too often a parasite. The less you use it, the better."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:339
+msgctxt "Turgenev report"
+msgid "The word «проверенный» (“trusted”, “proven”) is overused far too often. Who checked it, and when? That is usually left unsaid."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:340
+msgctxt "Turgenev report"
+msgid "The word «следует» (“one should”) _should not_ be overused! It is a) modal, and therefore often superfluous, and b) rather bookish, and it “dries out” the text. Besides, the reader may be annoyed that you are ordering them around."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:341
+msgctxt "Turgenev report"
+msgid "We advise you to _take advantage of the possibilities_ of text editing and, _where possible_, _not to miss the opportunity_ to get rid of empty and vague words."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:342
+msgctxt "Turgenev report"
+msgid "Saying there is a great deal of something carries very little information. Especially when it is about varieties, styles, options and the like."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:343
+msgctxt "Turgenev report"
+msgid "Among the many unpleasant names for products in SEO texts, «изделия» (“items”, “articles”) is one of the most repulsive."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:344
+msgctxt "Turgenev report"
+msgid "Among empty verbs, «выполнить» (“carry out”, “execute”; usually used in the passive: «выполнен», «выполняется») is one of the emptiest. It dries the text out and makes it dull. This applies even more to the verbal noun «выполнение» (“execution”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:345
+msgctxt "Turgenev report"
+msgid "Try to write from the customer’s point of view. And a customer never «подбирает» (“selects”) anything, let alone engages in «подбор» (“selection”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:346
+msgctxt "Turgenev report"
+msgid "A stylistically marked word (or expression) that may not be quite appropriate in many contexts. Reread it and, if nothing grates on the ear, leave it as is; otherwise replace it with something more neutral or more in keeping with the style of the surrounding text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:347
+msgctxt "Turgenev report"
+msgid "Stylistically marked synonyms can spoil a text. If you are not sure of your skill, don’t use euphemisms instead of a neutral word («вариант для выщипывания», “a plucking option”, instead of «пинцет», “tweezers”), foreign borrowings («драйвер» instead of «водитель», “driver”), flourishes («представитель сильного пола», “a representative of the stronger sex”; «спелые плоды», “ripe fruits”), jargon («медпроцедура», “med procedure”) or diminutives («пальчики», “little fingers”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:348
+msgctxt "Turgenev report"
+msgid "The urge to describe “features” is second only to the love of classification. If there are at least two products, you absolutely must write which categories they _are divided into_ and what _distinguishes_ each. And don’t forget to mention the _features of the store’s operation_ too!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:349
+msgctxt "Turgenev report"
+msgid "«Суда» (“vessels”) are ships, after all, not airplanes"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:350
+msgctxt "Turgenev report"
+msgid "All SEO optimizers write like this. Phrases like this easily give away a typical SEO text. Do you want to be like everyone else?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:351
+msgctxt "Turgenev report"
+msgid "Connectives like these often make reading harder or give the text an overly bookish, bureaucratic style."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:352
+msgctxt "Turgenev report"
+msgid "A text with this expression _does not necessarily_ sound formulaic, but it happens quite often. Especially if it stands at the beginning of a sentence."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:353
+msgctxt "Turgenev report"
+msgid "Website copy is not a genre that welcomes references up and down the text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:354
+msgctxt "Turgenev report"
+msgid "Website copy is not a genre that welcomes references up and down the text. Let alone the ultra-bookish «вышеуказанный» (“the above-mentioned”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:355
+msgctxt "Turgenev report"
+msgid "A case where adding an intensifier actually weakens. «Максимально надежный» (“maximally reliable”) is not reliable but only almost: they did the _maximum_ they could, and it didn’t get any better."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:356
+msgctxt "Turgenev report"
+msgid "Someone invited to «приобрести» (“acquire”) or «совершить покупку» (“make a purchase”) is unlikely to buy. Speak the buyer’s language! Then their _acquisitions_ will _delight_ not only them but you as well."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:357
+msgctxt "Turgenev report"
+msgid "Whoever calls a dress a «наряд» (“attire”), or worse, a «женский наряд» (“ladies’ attire”), probably _partakes of viands_ at dinner and _reposes_ in a _chamber_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:358
+msgctxt "Turgenev report"
+msgid "A copywriter’s work is hard. Formulaic phrases are bad; we try to break the pattern by replacing some words with similar ones, and it often turns out even worse."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:359
+msgctxt "Turgenev report"
+msgid "A “demanding buyer” has no _demands_, let alone _required parameters_, and even if they did, they wouldn’t respond to these words anyway. And a consumer doesn’t actually have _needs_ either. You are not _required_ to impose your agenda on readers; speak their language."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:360
+msgctxt "Turgenev report"
+msgid "The word «командирские» (“commander’s”) has connotations, and in a description of delivery and the like it looks either clichéd or a little out of place."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:361
+msgctxt "Turgenev report"
+msgid "Amazingly, even on interior design websites the word «интерьер» (“interior”) is a reliable marker of unnatural marketing copy: it keeps getting dragged into some banality. Not to mention kitchen corner benches or books that will _fit harmoniously into your interior_, _adorn_ it or become an _interior miracle_."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:362
+msgctxt "Turgenev report"
+msgid "You would think you could at least talk about yourself like a human being. But no, bureaucratese here too."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:363
+msgctxt "Turgenev report"
+msgid "How many times has the world been told that the word «уникальный» (“unique”) is _worn out to the point of nausea_, but all to no avail. «Неповторимый» (“inimitable”) and «эксклюзивный» (“exclusive”), by the way, are no better."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:364
+msgctxt "Turgenev report"
+msgid "An indication of how strongly a feature shows can often simply be thrown out, and it only gets better. What difference does it make to us, really, whether something reflects, is characteristic of or testifies to something “to a significant” or “to the full extent”?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:365
+msgctxt "Turgenev report"
+msgid "Diminutive, affectionate and other little words sometimes look _teeny-weeny out of place_ in a neutral text."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:366
+msgctxt "Turgenev report"
+msgid "Mentioning that, for example, _consultations_ or _getting_ something are _free of charge_ often sounds somewhat cheapskate. It gives the impression that the only thing you can _find out for free_ here is that very _free cheese_ you can get you know where."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:367
+msgctxt "Turgenev report"
+msgid "Mentioning “important details”, “functional elements”, “the following factors” or “a few subtleties” is typical of a classifying discourse that, like the human body, is 70% water."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:368
+msgctxt "Turgenev report"
+msgid "A mention of the «рынок» (“market”) is usually redundant (unless it is about a specific farmers’, clothing or building market) and only serves to puff out cheeks."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:369
+msgctxt "Turgenev report"
+msgid "A set expression or idiom. You can of course use them in texts, but don’t overuse them. And bear in mind that many idioms sound unnatural in SEO texts."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:370
+msgctxt "Turgenev report"
+msgid "Phrases like “has long since proven itself excellently” are fraudulent. By pushing something far into the past you seem to shed responsibility, shifting it onto some mythical ancestors. And yet it has _long been known_ that this is not a nice thing to do!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:371
+msgctxt "Turgenev report"
+msgid "It often seems that once you call something «эффективный» (“effective”) or «эффектный» (“striking”), that’s it: nothing more needs explaining or proving, it is already clear that the thing is cool. But no, that is an illusion."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:372
+msgctxt "Turgenev report"
+msgid "Often it is better to just write «много» (“a lot”)."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:373
+msgctxt "Turgenev report"
+msgid "How is this different from just winter?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:374
+msgctxt "Turgenev report"
+msgid "Actually, readers are not very interested in what _tasks_ you are _facing_, nor in what _tasks_ this or that device _solves_. And they certainly don’t set any _tasks_ for themselves. Maybe write it some other way?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:375
+msgctxt "Turgenev report"
+msgid "What could this mean? Can you explain in other words what you wanted to say? If so, change the wording, “translate it into Russian”. If not, rewrite it or remove it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:376
+msgctxt "Turgenev report"
+msgid "What do «обустроить» (“fit out”) and «обустройство» (“fitting out”) mean? Do your customers use these words? Maybe you express yourself so vaguely because you haven’t figured out how to say it more specifically?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:377
+msgctxt "Turgenev report"
+msgid "What are «индивидуальные размеры» (“individual sizes”)? It is a very bad way to say that something is made to the sizes the customer needs."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:378
+msgctxt "Turgenev report"
+msgid "Formulaic and a little too colloquial when it is about machinery, and cynical when it is about, say, health or relationships."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:379
+msgctxt "Turgenev report"
+msgid "A formulaic expression. Nothing terrible in this particular spot, but try not to overuse it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:380
+msgctxt "Turgenev report"
+msgid "A brush cannot be «оснащена» (“equipped”) with extra bristles!"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:381
+msgctxt "Turgenev report"
+msgid "This formula recalls the market traders’ popular answer to the question of how much something costs: “If you’re going to buy”, so much. And to non-customers it doesn’t offer?"
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:382
+msgctxt "Turgenev report"
+msgid "This is the seller’s point of view, not the buyer’s. If the text is about B2B, fine; otherwise better change the perspective. Think about the words the person you are writing for would use to describe it."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:383
+msgctxt "Turgenev report"
+msgid "This word has not yet entered the Russian language or at least has not become neutral. Use it with care."
+msgstr ""
+
+#: src/I18n/StyleHintGlossary.php:384
+msgctxt "Turgenev report"
+msgid "A typical parasite: a little word that supposedly embellishes one’s style but in fact hopelessly spoils it."
+msgstr ""
+
+#. translators: 1: minimum WordPress version, 2: minimum PHP version.
+#: src/Support/Requirements.php:53
+#, php-format
+msgid "Turgenev requires WordPress %1$s or newer and PHP %2$s or newer."
 msgstr ""
