@@ -14,8 +14,8 @@ const password = process.env.WP_ADMIN_PASSWORD;
 
 async function login( page, user, pass ) {
 	await page.goto( '/wp-login.php' );
-	await page.getByLabel( /Username|Email Address/i ).fill( user );
-	await page.getByLabel( /Password/i ).fill( pass );
+	await page.locator( '#user_login' ).fill( user );
+	await page.locator( '#user_pass' ).fill( pass );
 	await page.getByRole( 'button', { name: /Log In/i } ).click();
 	await page.waitForURL( /wp-admin/ );
 }

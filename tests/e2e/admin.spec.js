@@ -8,8 +8,8 @@ const SETTINGS_URL = '/wp-admin/options-general.php?page=turgenev-settings';
 async function login( page ) {
 	test.skip( ! username || ! password, 'WP_ADMIN_USER and WP_ADMIN_PASSWORD are required.' );
 	await page.goto( '/wp-login.php' );
-	await page.getByLabel( /Username|Email Address/i ).fill( username );
-	await page.getByLabel( /Password/i ).fill( password );
+	await page.locator( '#user_login' ).fill( username );
+	await page.locator( '#user_pass' ).fill( password );
 	await page.getByRole( 'button', { name: /Log In/i } ).click();
 	await page.waitForURL( /wp-admin/ );
 }
