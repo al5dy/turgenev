@@ -58,17 +58,17 @@ final class EditorIntegration {
 		$this->enqueueClient();
 		wp_enqueue_script(
 			'turgenev-editor-content',
-			TURGENEV_URL . 'assets/build/editor-content.js',
+			TURGENEV_URL . 'assets/editor-content.js',
 			array( 'turgenev-analysis', 'turgenev-highlights', 'turgenev-content-reset', 'wp-blocks', 'wp-data', 'wp-editor' ),
-			$this->assetVersion( 'assets/build/editor-content.js' ),
+			$this->assetVersion( 'assets/editor-content.js' ),
 			true
 		);
 		wp_set_script_translations( 'turgenev-editor-content', 'turgenev', TURGENEV_DIR . 'languages' );
 		wp_enqueue_script(
 			'turgenev-editor',
-			TURGENEV_URL . 'assets/build/editor.js',
+			TURGENEV_URL . 'assets/editor.js',
 			array( 'turgenev-editor-content', 'wp-plugins', 'wp-data', 'wp-element', 'wp-i18n', 'wp-notices' ),
-			$this->assetVersion( 'assets/build/editor.js' ),
+			$this->assetVersion( 'assets/editor.js' ),
 			true
 		);
 		wp_set_script_translations( 'turgenev-editor', 'turgenev', TURGENEV_DIR . 'languages' );
@@ -82,9 +82,9 @@ final class EditorIntegration {
 		if ( is_admin() ) {
 			wp_enqueue_style(
 				'turgenev-canvas',
-				TURGENEV_URL . 'assets/build/admin.css',
+				TURGENEV_URL . 'assets/admin.css',
 				array(),
-				$this->assetVersion( 'assets/build/admin.css' )
+				$this->assetVersion( 'assets/admin.css' )
 			);
 		}
 	}
@@ -193,16 +193,16 @@ final class EditorIntegration {
 
 		wp_register_style(
 			'turgenev-admin',
-			TURGENEV_URL . 'assets/build/admin.css',
+			TURGENEV_URL . 'assets/admin.css',
 			array( 'dashicons' ),
-			$this->assetVersion( 'assets/build/admin.css' )
+			$this->assetVersion( 'assets/admin.css' )
 		);
 
 		wp_register_script(
 			'turgenev-client',
-			TURGENEV_URL . 'assets/build/client.js',
+			TURGENEV_URL . 'assets/client.js',
 			array( 'wp-i18n' ),
-			$this->assetVersion( 'assets/build/client.js' ),
+			$this->assetVersion( 'assets/client.js' ),
 			true
 		);
 
@@ -225,7 +225,7 @@ final class EditorIntegration {
 		wp_enqueue_script( 'turgenev-client' );
 		wp_set_script_translations( 'turgenev-client', 'turgenev', TURGENEV_DIR . 'languages' );
 		foreach ( array( 'highlights', 'analysis', 'content-reset' ) as $module ) {
-			wp_enqueue_script( 'turgenev-' . $module, TURGENEV_URL . 'assets/build/' . $module . '.js', array( 'turgenev-client' ), $this->assetVersion( 'assets/build/' . $module . '.js' ), true );
+			wp_enqueue_script( 'turgenev-' . $module, TURGENEV_URL . 'assets/' . $module . '.js', array( 'turgenev-client' ), $this->assetVersion( 'assets/' . $module . '.js' ), true );
 			wp_set_script_translations( 'turgenev-' . $module, 'turgenev', TURGENEV_DIR . 'languages' );
 		}
 	}
@@ -234,9 +234,9 @@ final class EditorIntegration {
 	private function enqueueClassicScript(): void {
 		wp_enqueue_script(
 			'turgenev-classic',
-			TURGENEV_URL . 'assets/build/classic.js',
+			TURGENEV_URL . 'assets/classic.js',
 			array( 'turgenev-analysis', 'turgenev-highlights', 'turgenev-content-reset', 'wp-i18n' ),
-			$this->assetVersion( 'assets/build/classic.js' ),
+			$this->assetVersion( 'assets/classic.js' ),
 			true
 		);
 		wp_set_script_translations( 'turgenev-classic', 'turgenev', TURGENEV_DIR . 'languages' );

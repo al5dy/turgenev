@@ -3,13 +3,13 @@ import { resolve } from 'node:path';
 
 const root = resolve( import.meta.dirname, '..' );
 const files = [
-	'assets/build/client.js',
-	'assets/build/content-reset.js',
-	'assets/build/classic.js',
-	'assets/build/editor.js',
-	'assets/build/editor-content.js',
-	'assets/build/analysis.js',
-	'assets/build/highlights.js',
+	'assets/client.js',
+	'assets/content-reset.js',
+	'assets/classic.js',
+	'assets/editor.js',
+	'assets/editor-content.js',
+	'assets/analysis.js',
+	'assets/highlights.js',
 ];
 
 for ( const file of files ) {

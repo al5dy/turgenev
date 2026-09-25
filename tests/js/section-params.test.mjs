@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const script = await readFile( new URL( '../../assets/build/client.js', import.meta.url ), 'utf8' );
+const script = await readFile( new URL( '../../assets/client.js', import.meta.url ), 'utf8' );
 
 // Every element gets a distinct, deterministic rect so the "strictly to the
 // left" positioning math is actually exercised rather than trivially 0×0:

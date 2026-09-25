@@ -9,250 +9,250 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-25T08:26:38+02:00\n"
+"POT-Creation-Date: 2026-09-25T08:38:06+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: turgenev\n"
 
-#: assets/build/analysis.js:102
+#: assets/analysis.js:102
 msgid "Could not remove the old Turgenev markup. Your text has not been restored from an older version. Try Reset view again."
 msgstr ""
 
-#: assets/build/analysis.js:115
+#: assets/analysis.js:115
 msgid "Content changed. Analyze the document again."
 msgstr ""
 
-#: assets/build/analysis.js:164
+#: assets/analysis.js:164
 msgid "Configure a Turgenev API key before running an analysis."
 msgstr ""
 
-#: assets/build/analysis.js:170
-#: assets/build/analysis.js:548
+#: assets/analysis.js:170
+#: assets/analysis.js:548
 msgid "Your Turgenev balance is empty. Top it up before running an analysis."
 msgstr ""
 
-#: assets/build/analysis.js:176
+#: assets/analysis.js:176
 msgid "Add content to the editor before running Turgenev."
 msgstr ""
 
-#: assets/build/analysis.js:183
+#: assets/analysis.js:183
 msgid "The content is longer than the maximum size accepted by Turgenev."
 msgstr ""
 
-#: assets/build/analysis.js:204
+#: assets/analysis.js:204
 #: src/Api/ResponseValidator.php:54
 msgid "Turgenev returned an incomplete analysis."
 msgstr ""
 
-#: assets/build/analysis.js:278
+#: assets/analysis.js:278
 msgid "This report has no highlighted fragments."
 msgstr ""
 
-#: assets/build/analysis.js:521
+#: assets/analysis.js:521
 #: src/Admin/EditorIntegration.php:158
 msgid "Turgenev is ready, but an API key has not been configured yet."
 msgstr ""
 
-#: assets/build/analysis.js:521
+#: assets/analysis.js:521
 #: src/Admin/EditorIntegration.php:161
 msgid "Configure API key"
 msgstr ""
 
-#: assets/build/analysis.js:524
+#: assets/analysis.js:524
 #: src/Admin/EditorIntegration.php:167
 #: src/Admin/SettingsPage.php:229
 msgid "Current balance:"
 msgstr ""
 
-#: assets/build/analysis.js:530
+#: assets/analysis.js:530
 #: src/Admin/SettingsPage.php:231
 msgid "Refresh balance"
 msgstr ""
 
-#: assets/build/analysis.js:540
+#: assets/analysis.js:540
 #: src/Admin/EditorIntegration.php:182
 msgid "Top up Turgenev balance"
 msgstr ""
 
-#: assets/build/analysis.js:561
+#: assets/analysis.js:561
 msgid "HTML analysis (send markup)"
 msgstr ""
 
-#: assets/build/analysis.js:562
+#: assets/analysis.js:562
 msgid "By default, only the current document text is sent. Saving first is not required."
 msgstr ""
 
-#: assets/build/analysis.js:564
+#: assets/analysis.js:564
 msgid "Highlighting the analyzed text in reports is unavailable on this server (a required PHP component is missing). Analysis and balance are unaffected."
 msgstr ""
 
-#: assets/build/analysis.js:567
-#: assets/build/analysis.js:583
+#: assets/analysis.js:567
+#: assets/analysis.js:583
 msgid "Analyzing document…"
 msgstr ""
 
-#: assets/build/analysis.js:568
+#: assets/analysis.js:568
 msgid "Analyze document"
 msgstr ""
 
-#: assets/build/analysis.js:612
-#: assets/build/analysis.js:613
+#: assets/analysis.js:612
+#: assets/analysis.js:613
 msgid "Analyzed text (read-only)"
 msgstr ""
 
-#: assets/build/analysis.js:622
+#: assets/analysis.js:622
 msgid "Reset view"
 msgstr ""
 
-#: assets/build/client.js:96
+#: assets/client.js:96
 msgid "Could not connect to WordPress. Check your network connection and try again."
 msgstr ""
 
-#: assets/build/client.js:103
-#: assets/build/client.js:113
+#: assets/client.js:103
+#: assets/client.js:113
 msgid "WordPress returned an invalid response."
 msgstr ""
 
-#: assets/build/client.js:109
+#: assets/client.js:109
 msgid "Turgenev request failed."
 msgstr ""
 
-#: assets/build/client.js:119
+#: assets/client.js:119
 msgid "Frequency"
 msgstr ""
 
-#: assets/build/client.js:120
+#: assets/client.js:120
 msgid "Style"
 msgstr ""
 
-#: assets/build/client.js:121
+#: assets/client.js:121
 msgid "Keywords"
 msgstr ""
 
-#: assets/build/client.js:122
+#: assets/client.js:122
 msgid "Formality"
 msgstr ""
 
-#: assets/build/client.js:123
+#: assets/client.js:123
 msgid "Readability"
 msgstr ""
 
-#: assets/build/client.js:150
+#: assets/client.js:150
 msgid "Open report"
 msgstr ""
 
-#: assets/build/client.js:286
+#: assets/client.js:286
 msgid "Risk is high. What to do?"
 msgstr ""
 
-#: assets/build/client.js:289
+#: assets/client.js:289
 msgid "Risk is critical! What to do?"
 msgstr ""
 
-#: assets/build/client.js:312
+#: assets/client.js:312
 msgid "Overall risk"
 msgstr ""
 
-#: assets/build/client.js:335
+#: assets/client.js:335
 msgid "The text is too short. Risk is not assessed."
 msgstr ""
 
 #. translators: 1: risk verdict, e.g. "high", 2: risk score.
-#: assets/build/client.js:349
+#: assets/client.js:349
 #, js-format
 msgid "Risk: %1$s (%2$s)"
 msgstr ""
 
-#: assets/build/client.js:470
-#: assets/build/client.js:804
-#: assets/build/client.js:1262
-#: assets/build/editor.js:52
+#: assets/client.js:470
+#: assets/client.js:804
+#: assets/client.js:1262
+#: assets/editor.js:52
 msgid "More information"
 msgstr ""
 
-#: assets/build/client.js:547
+#: assets/client.js:547
 msgid "Show all characteristics"
 msgstr ""
 
-#: assets/build/client.js:548
+#: assets/client.js:548
 msgid "Hide unimportant characteristics"
 msgstr ""
 
-#: assets/build/client.js:628
+#: assets/client.js:628
 msgid "Stop word"
 msgstr ""
 
-#: assets/build/client.js:666
+#: assets/client.js:666
 msgid "Words"
 msgstr ""
 
-#: assets/build/client.js:670
+#: assets/client.js:670
 msgid "Phrases"
 msgstr ""
 
-#: assets/build/client.js:700
+#: assets/client.js:700
 msgid "Problems in this sentence"
 msgstr ""
 
-#: assets/build/client.js:741
+#: assets/client.js:741
 msgid "Hints"
 msgstr ""
 
-#: assets/build/client.js:760
+#: assets/client.js:760
 msgid "Previous hint"
 msgstr ""
 
-#: assets/build/client.js:760
+#: assets/client.js:760
 msgid "Next hint"
 msgstr ""
 
-#: assets/build/client.js:812
+#: assets/client.js:812
 msgid "See also:"
 msgstr ""
 
-#: assets/build/client.js:850
+#: assets/client.js:850
 msgid "Words:"
 msgstr ""
 
-#: assets/build/client.js:946
+#: assets/client.js:946
 msgid "Loading…"
 msgstr ""
 
-#: assets/build/client.js:1006
+#: assets/client.js:1006
 msgid "Turgenev returned invalid highlight data."
 msgstr ""
 
-#: assets/build/client.js:1142
+#: assets/client.js:1142
 msgid "Turgenev returned invalid section details."
 msgstr ""
 
-#: assets/build/client.js:1270
+#: assets/client.js:1270
 msgid "Dismiss this notice."
 msgstr ""
 
-#: assets/build/editor-content.js:29
+#: assets/editor-content.js:29
 msgid "The document contains an invalid or circular synced pattern."
 msgstr ""
 
-#: assets/build/editor-content.js:43
+#: assets/editor-content.js:43
 msgid "A synced pattern is not loaded or is unavailable. Load the pattern before analyzing the document."
 msgstr ""
 
-#: assets/build/editor-content.js:54
+#: assets/editor-content.js:54
 msgid "The expanded synced patterns exceed the supported document size."
 msgstr ""
 
 #. Plugin Name of the plugin
-#: assets/build/editor.js:363
-#: assets/build/editor.js:374
-#: assets/build/editor.js:375
+#: assets/editor.js:363
+#: assets/editor.js:374
+#: assets/editor.js:375
 #: turgenev.php
 #: src/Admin/EditorIntegration.php:143
 #: src/Admin/SettingsPage.php:54
 msgid "Turgenev"
 msgstr ""
 
-#: assets/build/editor.js:378
+#: assets/editor.js:378
 msgid "Close"
 msgstr ""
 

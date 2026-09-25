@@ -42,14 +42,14 @@ for file in "${REQUIRED_FILES[@]}"; do
 done
 
 REQUIRED_ASSETS=(
-    "$BASE_DIR/assets/build/client.js"
-    "$BASE_DIR/assets/build/content-reset.js"
-    "$BASE_DIR/assets/build/analysis.js"
-    "$BASE_DIR/assets/build/highlights.js"
-    "$BASE_DIR/assets/build/classic.js"
-    "$BASE_DIR/assets/build/editor.js"
-    "$BASE_DIR/assets/build/editor-content.js"
-    "$BASE_DIR/assets/build/admin.css"
+    "$BASE_DIR/assets/client.js"
+    "$BASE_DIR/assets/content-reset.js"
+    "$BASE_DIR/assets/analysis.js"
+    "$BASE_DIR/assets/highlights.js"
+    "$BASE_DIR/assets/classic.js"
+    "$BASE_DIR/assets/editor.js"
+    "$BASE_DIR/assets/editor-content.js"
+    "$BASE_DIR/assets/admin.css"
 )
 
 for asset in "${REQUIRED_ASSETS[@]}"; do
@@ -94,7 +94,7 @@ fi
 
 # Compiled browser runtime only.
 mkdir -p "$PLUGIN_DIR/assets"
-cp -a "$BASE_DIR/assets/build" "$PLUGIN_DIR/assets/"
+cp -a "$BASE_DIR"/assets/*.js "$BASE_DIR"/assets/*.css "$PLUGIN_DIR/assets/"
 
 # WordPress translations.
 if [[ -d "$BASE_DIR/languages" ]]; then

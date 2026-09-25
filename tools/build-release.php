@@ -13,7 +13,7 @@ if ( ! preg_match( '/^\d+\.\d+\.\d+$/D', $version ) ) {
 	throw new RuntimeException( 'Invalid release version.' );
 }
 $files = array( 'turgenev.php', 'uninstall.php', 'readme.txt', 'LICENSE' );
-foreach ( array( 'src' => array( 'php' ), 'assets/build' => array( 'js', 'css' ), 'languages' => array( 'po', 'mo', 'pot', 'json' ) ) as $directory => $extensions ) {
+foreach ( array( 'src' => array( 'php' ), 'assets' => array( 'js', 'css' ), 'languages' => array( 'po', 'mo', 'pot', 'json' ) ) as $directory => $extensions ) {
 	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/' . $directory, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
 		if ( $file->isLink() ) { throw new RuntimeException( 'Symlinks are forbidden in release inputs.' ); }
 		if ( $file->isFile() && in_array( $file->getExtension(), $extensions, true ) ) {

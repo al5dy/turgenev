@@ -84,7 +84,7 @@ jobs:
         run: npm run build
 
       - name: Verify committed runtime assets are current
-        run: git diff --exit-code -- assets/build languages
+        run: git diff --exit-code -- assets languages
 
   wordpress-e2e:
     name: WordPress E2E
@@ -257,7 +257,7 @@ jobs:
         run: bash tools/build-zip.sh
 
       - name: Verify generated assets remain synchronized
-        run: git diff --exit-code -- assets/build languages
+        run: git diff --exit-code -- assets languages
 
       - name: Resolve release ZIP
         id: package

@@ -440,7 +440,7 @@ test.describe( 'Missing DOM extension degrades gracefully', () => {
 
 test.describe( 'Stale or missing runtime assets are observable, not silent', () => {
 	test( 'a missing analysis.js produces a real, detectable network failure, not a silent no-op', async ( { page } ) => {
-		const deployedAsset = resolve( wpTestRoot, 'wp-content/plugins/turgenev/assets/build/analysis.js' );
+		const deployedAsset = resolve( wpTestRoot, 'wp-content/plugins/turgenev/assets/analysis.js' );
 		const movedAsset = deployedAsset + '.e2e-moved';
 
 		const deployedAssetExists = await access( deployedAsset ).then( () => true, () => false );

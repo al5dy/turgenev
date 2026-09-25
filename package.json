@@ -28,54 +28,54 @@
   "targets": {
     "adminStyles": {
       "source": "resources/scss/admin.scss",
-      "distDir": "assets/build",
+      "distDir": "assets",
       "sourceMap": false
     },
     "client": {
       "source": "resources/ts/client.ts",
-      "distDir": "assets/build",
+      "distDir": "assets",
       "outputFormat": "global",
       "isLibrary": false,
       "sourceMap": false
     },
     "contentReset": {
       "source": "resources/ts/content-reset.ts",
-      "distDir": "assets/build",
+      "distDir": "assets",
       "outputFormat": "global",
       "isLibrary": false,
       "sourceMap": false
     },
     "highlights": {
       "source": "resources/ts/highlights.ts",
-      "distDir": "assets/build",
+      "distDir": "assets",
       "outputFormat": "global",
       "isLibrary": false,
       "sourceMap": false
     },
     "analysis": {
       "source": "resources/ts/analysis.ts",
-      "distDir": "assets/build",
+      "distDir": "assets",
       "outputFormat": "global",
       "isLibrary": false,
       "sourceMap": false
     },
     "classic": {
       "source": "resources/ts/classic.ts",
-      "distDir": "assets/build",
+      "distDir": "assets",
       "outputFormat": "global",
       "isLibrary": false,
       "sourceMap": false
     },
     "editorContent": {
       "source": "resources/ts/editor-content.ts",
-      "distDir": "assets/build",
+      "distDir": "assets",
       "outputFormat": "global",
       "isLibrary": false,
       "sourceMap": false
     },
     "editor": {
       "source": "resources/ts/editor.ts",
-      "distDir": "assets/build",
+      "distDir": "assets",
       "outputFormat": "global",
       "isLibrary": false,
       "sourceMap": false
@@ -93,7 +93,7 @@
     "typescript": "^7.0.2"
   },
   "scripts": {
-    "clean": "rm -rf assets/build/*.js assets/build/admin.css assets/images .parcel-cache",
+    "clean": "rm -rf assets/*.js assets/*.css assets/images .parcel-cache",
     "build:assets": "parcel build --target adminStyles --no-content-hash --no-cache && parcel build --target client --target contentReset --target highlights --target analysis --target classic --target editorContent --target editor --no-content-hash --no-cache",
     "build:images": "node tools/copy-images.mjs",
     "build": "npm run clean && npm run build:assets && npm run build:images",

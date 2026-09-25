@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const script = await readFile( new URL( '../../assets/build/editor-content.js', import.meta.url ), 'utf8' );
+const script = await readFile( new URL( '../../assets/editor-content.js', import.meta.url ), 'utf8' );
 function fixture( initialHTML, records = new Map() ) {
 	let html = initialHTML;
 	const reads = [], queries = [];

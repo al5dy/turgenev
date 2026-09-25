@@ -9,7 +9,7 @@ if ( ! zipPath ) {
 	process.exit( 1 );
 }
 
-// Every runtime asset EditorIntegration.php enqueues from assets/build/. Kept in sync by
+// Every runtime asset EditorIntegration.php enqueues from assets/. Kept in sync by
 // hand with package.json's Parcel "targets" and tools/check-js-syntax.mjs file lists;
 // there is no single shared source for this project's asset tooling.
 const runtimeAssets = [
@@ -31,9 +31,9 @@ try {
 	const missing = [];
 	for ( const asset of runtimeAssets ) {
 		try {
-			await access( join( pluginDir, 'assets/build', asset ) );
+			await access( join( pluginDir, 'assets', asset ) );
 		} catch {
-			missing.push( 'assets/build/' + asset );
+			missing.push( 'assets/' + asset );
 		}
 	}
 

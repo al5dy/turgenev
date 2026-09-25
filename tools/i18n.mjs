@@ -1,9 +1,9 @@
 // Regenerate languages/: turgenev.pot, turgenev-ru_RU.po/.mo and the ru_RU JSON files the
 // browser scripts load. Needs WP-CLI (`wp`, or the WP_CLI environment variable).
 //
-// WP-CLI cannot read the minified bundles in assets/build (their `__` is renamed), so the
+// WP-CLI cannot read the minified bundles in assets/ (their `__` is renamed), so the
 // browser strings are extracted from an unminified TypeScript emit written to the same
-// assets/build/<name>.js paths: every reference, and therefore every JSON file name
+// assets/<name>.js paths: every reference, and therefore every JSON file name
 // (md5 of that path), is exactly what wp_set_script_translations() looks up.
 //
 // New Russian interface translations are written into the PO by hand; the Russian of every
@@ -28,7 +28,7 @@ function run( command, args ) {
 
 const scratch = mkdtempSync( join( tmpdir(), 'turgenev-i18n-' ) );
 try {
-	run( resolve( root, 'node_modules/.bin/tsc' ), [ '-p', 'tsconfig.json', '--noEmit', 'false', '--rootDir', 'resources/ts', '--outDir', join( scratch, 'assets/build' ), '--removeComments', 'false' ] );
+	run( resolve( root, 'node_modules/.bin/tsc' ), [ '-p', 'tsconfig.json', '--noEmit', 'false', '--rootDir', 'resources/ts', '--outDir', join( scratch, 'assets' ), '--removeComments', 'false' ] );
 	run( wp, [ 'i18n', 'make-pot', scratch, join( scratch, 'js.pot' ), '--domain=turgenev', '--skip-php', '--skip-block-json', '--skip-theme-json' ] );
 	run( wp, [ 'i18n', 'make-pot', '.', 'languages/turgenev.pot', '--domain=turgenev', '--skip-js', '--include=turgenev.php,uninstall.php,src', '--merge=' + join( scratch, 'js.pot' ) ] );
 } finally {

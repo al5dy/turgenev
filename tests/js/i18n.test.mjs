@@ -72,7 +72,7 @@ test( 'every PHP string is in the POT and translated into Russian', async () => 
 test( 'every browser string is in the POT, translated, and shipped in the JSON file its script loads', async () => {
 	for ( const file of tsFiles ) {
 		const found = calls( await source( 'resources/ts/' + file ) );
-		const script = 'assets/build/' + file.replace( /\.ts$/, '.js' );
+		const script = 'assets/' + file.replace( /\.ts$/, '.js' );
 		if ( ! found.length ) {
 			continue;
 		}

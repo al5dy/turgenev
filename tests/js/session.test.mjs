@@ -4,7 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { JSDOM } from 'jsdom';
 
-const scripts = await Promise.all( [ 'client', 'analysis' ].map( name => readFile( new URL( '../../assets/build/' + name + '.js', import.meta.url ), 'utf8' ) ) );
+const scripts = await Promise.all( [ 'client', 'analysis' ].map( name => readFile( new URL( '../../assets/' + name + '.js', import.meta.url ), 'utf8' ) ) );
 const result = { risk: '3', level: 'low', link: 'risk12345', details: [] };
 // The analysis payload is built with the browser's own HTML parser.
 const { DOMParser } = new JSDOM( '' ).window;

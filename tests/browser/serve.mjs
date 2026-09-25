@@ -24,7 +24,7 @@ function include( handle ) {
 }
 [ 'wp-block-library', 'wp-format-library', 'wp-editor', 'wp-plugins' ].forEach( include );
 const routes = new Map( files.map( ( file, index ) => [ `/core/${ index }.js`, `${ wordpress }/wp-includes/js/dist/${ file }` ] ) );
-for ( const file of [ 'client.js', 'content-reset.js', 'analysis.js', 'highlights.js', 'classic.js', 'editor-content.js', 'editor.js', 'admin.css' ] ) routes.set( `/plugin/${ file }`, `${ root }/assets/build/${ file }` );
+for ( const file of [ 'client.js', 'content-reset.js', 'analysis.js', 'highlights.js', 'classic.js', 'editor-content.js', 'editor.js', 'admin.css' ] ) routes.set( `/plugin/${ file }`, `${ root }/assets/${ file }` );
 for ( const file of [ 'components', 'block-editor', 'block-library' ] ) routes.set( `/core/${ file }.css`, `${ wordpress }/wp-includes/css/dist/${ file }/style.css` );
 for ( const file of [ 'tinymce.min.js', 'themes/modern/theme.min.js', 'skins/lightgray/skin.min.css', 'skins/lightgray/content.min.css', 'skins/lightgray/fonts/tinymce.woff' ] ) routes.set( '/tinymce/' + file, wordpress + '/wp-includes/js/tinymce/' + file );
 routes.set( '/classic-harness.js', root + '/tests/browser/classic-harness.js' );
