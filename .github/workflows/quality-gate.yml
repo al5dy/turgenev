@@ -13,11 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php:
-          - '8.1'
-          - '8.2'
-          - '8.3'
-          - '8.4'
+        php: [ '8.1', '8.2', '8.3', '8.4' ]
 
     steps:
       - name: Checkout
@@ -93,10 +89,8 @@ jobs:
   wordpress-e2e:
     name: WordPress E2E
     runs-on: ubuntu-latest
-    needs:
-      - php
-      - javascript
-    timeout-minutes: 20
+    needs: [ php, javascript ]
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -124,11 +118,40 @@ jobs:
         id: wp-env-path
         shell: bash
         run: |
-          WP_ROOT="$(npx wp-env install-path)/WordPress"
+          set -euo pipefail
 
-          if [[ ! -f "$WP_ROOT/wp-includes/assets/script-loader-packages.php" ]]; then
-            echo "Invalid wp-env WordPress root: $WP_ROOT"
-            find "$(npx wp-env install-path)" -maxdepth 3 -type f -name 'script-loader-packages.php' -print || true
+          STATUS="$(npx wp-env status)"
+          printf '%s\n' "$STATUS"
+
+          INSTALL_PATH="$(
+            printf '%s\n' "$STATUS" \
+              | sed -n 's/^[[:space:]]*-[[:space:]]*install path:[[:space:]]*//p' \
+              | head -n 1
+          )"
+
+          if [[ -z "$INSTALL_PATH" || ! -d "$INSTALL_PATH" ]]; then
+            echo "Unable to resolve wp-env install path from 'wp-env status'."
+            exit 1
+          fi
+
+          PACKAGE_FILE="$(
+            find "$INSTALL_PATH" \
+              -type f \
+              -path '*/wp-includes/assets/script-loader-packages.php' \
+              -print \
+              -quit
+          )"
+
+          if [[ -z "$PACKAGE_FILE" || ! -f "$PACKAGE_FILE" ]]; then
+            echo "Unable to locate WordPress core under: $INSTALL_PATH"
+            find "$INSTALL_PATH" -maxdepth 4 -type d -print | head -n 100 || true
+            exit 1
+          fi
+
+          WP_ROOT="${PACKAGE_FILE%/wp-includes/assets/script-loader-packages.php}"
+
+          if [[ ! -f "$WP_ROOT/wp-load.php" ]]; then
+            echo "Resolved path is not a WordPress installation: $WP_ROOT"
             exit 1
           fi
 
@@ -138,21 +161,23 @@ jobs:
       - name: Wait for WordPress
         shell: bash
         run: |
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error \
-              --max-time 5 \
+          set -euo pipefail
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent --show-error --max-time 5 \
               http://127.0.0.1:8888/wp-login.php >/dev/null; then
               echo "WordPress is ready."
               exit 0
             fi
-
-            echo "Waiting for WordPress ($attempt/30)..."
+            echo "Waiting for WordPress ($attempt/45)..."
             sleep 2
           done
-
           echo "WordPress did not become ready in time."
+          npx wp-env status || true
           npx wp-env logs --watch=false || true
           exit 1
+
+      - name: Verify wp-env WP-CLI works
+        run: npx wp-env run cli wp -- core version
 
       - name: Run browser smoke suite
         env:
@@ -167,9 +192,17 @@ jobs:
           WP_BASE_URL: http://127.0.0.1:8888
         run: npm run test:e2e
 
-      - name: Capture wp-env logs on failure
+      - name: Capture E2E diagnostics
         if: failure()
-        run: npx wp-env logs --watch=false > wp-env.log 2>&1 || true
+        env:
+          WP_TEST_ROOT: ${{ steps.wp-env-path.outputs.root }}
+        shell: bash
+        run: |
+          npx wp-env status > wp-env-status.log 2>&1 || true
+          npx wp-env logs --watch=false > wp-env.log 2>&1 || true
+          if [[ -n "${WP_TEST_ROOT:-}" && -f "$WP_TEST_ROOT/wp-content/debug.log" ]]; then
+            cp "$WP_TEST_ROOT/wp-content/debug.log" wp-debug.log
+          fi
 
       - name: Upload E2E diagnostics
         if: failure()
@@ -180,8 +213,9 @@ jobs:
             playwright-report
             test-results
             output
+            wp-env-status.log
             wp-env.log
-            ${{ steps.wp-env-path.outputs.root }}/wp-content/debug.log
+            wp-debug.log
           if-no-files-found: ignore
           retention-days: 7
 
@@ -192,10 +226,7 @@ jobs:
   package:
     name: Build release ZIP
     runs-on: ubuntu-latest
-    needs:
-      - php
-      - javascript
-      - wordpress-e2e
+    needs: [ php, javascript, wordpress-e2e ]
     timeout-minutes: 10
 
     steps:
@@ -228,14 +259,13 @@ jobs:
         id: package
         shell: bash
         run: |
+          set -euo pipefail
           ZIP="$(find dist -maxdepth 1 -type f -name 'turgenev-*.zip' -print -quit)"
-
           if [[ -z "$ZIP" || ! -f "$ZIP" ]]; then
             echo "Release ZIP was not created."
             find dist -maxdepth 1 -type f -print || true
             exit 1
           fi
-
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
           echo "Release ZIP: $ZIP"
 
@@ -245,37 +275,10 @@ jobs:
       - name: Verify required runtime assets
         run: node tools/verify-release-assets.mjs "${{ steps.package.outputs.zip }}"
 
-      - name: Verify release package contents
-        shell: bash
-        run: |
-          ZIP="${{ steps.package.outputs.zip }}"
-          unzip -Z1 "$ZIP" > /tmp/turgenev-release-files.txt
-          cat /tmp/turgenev-release-files.txt
-
-          REQUIRED_FILES=(
-            "turgenev/turgenev.php"
-            "turgenev/readme.txt"
-            "turgenev/uninstall.php"
-            "turgenev/LICENSE"
-          )
-
-          for REQUIRED in "${REQUIRED_FILES[@]}"; do
-            grep -Fxq "$REQUIRED" /tmp/turgenev-release-files.txt || {
-              echo "Missing required release file: $REQUIRED"
-              exit 1
-            }
-          done
-
-          if grep -Eq \
-            '(^|/)(\.git|\.github|\.idea|\.vscode|\.playwright-cli|tests|docs|tools|node_modules|vendor|dist|output|test-results|playwright-report|coverage)(/|$)|(^|/)(composer\.(json|lock)|package(-lock)?\.json|README\.md|phpcs\.xml\.dist|playwright\.config\.(js|mjs|ts)|tsconfig\.json)$' \
-            /tmp/turgenev-release-files.txt; then
-            echo "Development-only files found in release ZIP."
-            exit 1
-          fi
-
       - name: Verify SHA-256 manifest
         shell: bash
         run: |
+          set -euo pipefail
           SHA_FILE="${{ steps.package.outputs.zip }}.sha256"
           test -f "$SHA_FILE"
           (

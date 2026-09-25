@@ -1,29 +1,98 @@
-// Thin wp-cli wrapper shared by tests/e2e/*.spec.js. Playwright specs run in Node, so
-// they can shell out to set up/tear down real WordPress state (posts, users, options)
-// around the browser assertions, the same way tools/browser-smoke.mjs already shells out
-// to read WordPress core files for its own fixture harness.
+// WP-CLI wrapper for Turgenev E2E tests.
+//
+// wp-env runs WordPress and MySQL inside Docker. Do not execute a host-side
+// `wp --path=...` command against the wp-env filesystem. Run WP-CLI through
+// the wp-env `cli` container so it uses the same WordPress installation,
+// mapped plugin files and database as the browser E2E environment.
+
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
-// `npm run test:e2e` always invokes `playwright test` from the plugin root (per
-// package.json), so process.cwd() is the plugin root here.
 const pluginRoot = process.cwd();
-export const wpTestRoot = process.env.WP_TEST_ROOT || resolve( pluginRoot, '../../..' );
+
+const wpEnvBin = resolve(
+	pluginRoot,
+	process.platform === 'win32'
+		? 'node_modules/.bin/wp-env.cmd'
+		: 'node_modules/.bin/wp-env'
+);
+
+// Some E2E tests intentionally inspect or temporarily rename a runtime file
+// in the host-mounted WordPress tree. Keep this exported path for those tests.
+// Ordinary WP-CLI operations below do NOT use this path.
+export const wpTestRoot =
+	process.env.WP_TEST_ROOT || resolve( pluginRoot, '../../..' );
 
 /**
- * Run a wp-cli command against WP_TEST_ROOT and return trimmed stdout, or null if wp-cli
- * is unavailable or the command fails. Callers must `test.skip()` on a null result rather
- * than treating it as a real WordPress state.
+ * Remove ANSI terminal escape sequences emitted by wp-env.
  *
- * @param {string[]} args wp-cli arguments, e.g. ['post', 'create', ...].
- * @returns {string|null}
+ * @param {string} value Raw command output.
+ * @returns {string} Clean output.
+ */
+function stripAnsi( value ) {
+	return value.replace(
+		// eslint-disable-next-line no-control-regex
+		/[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*)?\u0007)|(?:(?:\d{1,4}(?:[;:]\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g,
+		''
+	);
+}
+
+/**
+ * Remove wp-env's own wrapper/status lines while preserving WP-CLI stdout.
+ *
+ * @param {string} value Raw wp-env stdout.
+ * @returns {string} WP-CLI output.
+ */
+function cleanWpEnvOutput( value ) {
+	return stripAnsi( value )
+		.split( /\r?\n/ )
+		.filter( line => {
+			const trimmed = line.trim();
+
+			return (
+				trimmed !== '' &&
+				! trimmed.startsWith( 'Running `' ) &&
+				! trimmed.startsWith( 'Ran `' ) &&
+				! trimmed.startsWith( '✔ Running `' ) &&
+				! trimmed.startsWith( '✔ Ran `' )
+			);
+		} )
+		.join( '\n' )
+		.trim();
+}
+
+/**
+ * Execute WP-CLI inside wp-env's `cli` container.
+ *
+ * The `--` separator is intentional: WP-CLI commands used by the E2E suite
+ * contain flags such as `--post_type`, `--field`, `--format`, etc. Everything
+ * after `--` must be passed to the child `wp` process instead of being parsed
+ * as an option belonging to `wp-env run`.
+ *
+ * @param {string[]} args WP-CLI arguments, e.g. ['post', 'create', ...].
+ * @returns {string|null} Trimmed WP-CLI stdout, or null when the command fails.
  */
 export function wpCli( args ) {
+	if ( ! Array.isArray( args ) || args.length === 0 ) {
+		throw new TypeError(
+			'wpCli() expects a non-empty array of WP-CLI arguments.'
+		);
+	}
+
 	try {
-		return execFileSync( 'wp', [ '--path=' + wpTestRoot, ...args ], {
-			encoding: 'utf8',
-			stdio: [ 'ignore', 'pipe', 'pipe' ],
-		} ).trim();
+		const output = execFileSync(
+			wpEnvBin,
+			[ 'run', 'cli', 'wp', '--', ...args ],
+			{
+				cwd: pluginRoot,
+				encoding: 'utf8',
+				stdio: [ 'ignore', 'pipe', 'pipe' ],
+				env: process.env,
+				maxBuffer: 10 * 1024 * 1024,
+			}
+		);
+
+		return cleanWpEnvOutput( output );
 	} catch {
 		return null;
 	}
