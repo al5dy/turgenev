@@ -15,7 +15,8 @@
 		useRef,
 		useState,
 	} = wp.element as WPElementModule;
-	const { __ } = wp.i18n as WPI18nModule;
+	// Called as `i18n.__()` so WordPress.org can extract the strings (see client.ts).
+	const i18n = wp.i18n as WPI18nModule;
 	const contentApi = window.TurgenevEditorContent as TurgenevEditorContentApi;
 	const clientApi = window.TurgenevClient as TurgenevClientApi;
 	const dataModule = wp.data as WPDataRegistry;
@@ -66,7 +67,7 @@
 						actions: warning.url
 							? [
 									{
-										label: __( 'More information', 'turgenev' ),
+										label: i18n.__( 'More information', 'turgenev' ),
 										onClick: () =>
 											window.open(
 												warning.url,
@@ -461,7 +462,7 @@
 				'aria-expanded': open,
 				onClick,
 			},
-			__( 'Turgenev', 'turgenev' )
+			i18n.__( 'Turgenev', 'turgenev' )
 		);
 	}
 
@@ -486,7 +487,7 @@
 				className: 'turgenev-sidebar' + ( shown ? ' is-open' : '' ),
 				style: { width, top },
 				role: 'region',
-				'aria-label': __( 'Turgenev', 'turgenev' ),
+				'aria-label': i18n.__( 'Turgenev', 'turgenev' ),
 			},
 			el(
 				'div',
@@ -494,7 +495,7 @@
 				el(
 					'h2',
 					{ className: 'turgenev-sidebar__title' },
-					__( 'Turgenev', 'turgenev' )
+					i18n.__( 'Turgenev', 'turgenev' )
 				),
 				el(
 					'button',
@@ -502,7 +503,7 @@
 						type: 'button',
 						className:
 							'turgenev-sidebar__close components-button',
-						'aria-label': __( 'Close', 'turgenev' ),
+						'aria-label': i18n.__( 'Close', 'turgenev' ),
 						onClick: onClose,
 					},
 					'✕'

@@ -91,6 +91,26 @@ test( 'every browser string is in the POT, translated, and shipped in the JSON f
 	}
 } );
 
+test( 'every browser string ships as an i18n.__() call that WordPress.org can extract', async () => {
+	// translate.wordpress.org reads translatable strings out of the shipped, minified
+	// scripts. The minifier renames a destructured `__`, which hides its strings from there;
+	// a property call such as `i18n.__()` keeps its name.
+	for ( const file of tsFiles ) {
+		const found = calls( await source( 'resources/ts/' + file ) );
+		if ( ! found.length ) {
+			continue;
+		}
+		const script = 'assets/' + file.replace( /\.ts$/, '.js' );
+		const bundle = await source( script );
+		const shipped = new Set(
+			[ ...bundle.matchAll( /\.__\(\s*("(?:[^"\\]|\\.)*")\s*,\s*"turgenev"\s*\)/g ) ].map( ( match ) => JSON.parse( match[ 1 ] ) )
+		);
+		for ( const call of found ) {
+			assert.ok( shipped.has( call.msgid ), `${ script }: "${ call.msgid }" is not an i18n.__() call in the shipped bundle` );
+		}
+	}
+} );
+
 test( 'the POT and the Russian PO list exactly the same strings, all translated', () => {
 	assert.deepEqual( [ ...po.keys() ].sort(), [ ...pot.keys() ].sort() );
 	for ( const [ key, translation ] of po ) {

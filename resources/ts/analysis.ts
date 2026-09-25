@@ -2,7 +2,8 @@
 	'use strict';
 	// turgenev-analysis is always enqueued with turgenev-client and wp-i18n as
 	// dependencies, so both are guaranteed to be present by the time this runs.
-	const { __ } = wp.i18n as WPI18nModule;
+	// Called as `i18n.__()` so WordPress.org can extract the strings (see client.ts).
+	const i18n = wp.i18n as WPI18nModule;
 	const client = window.TurgenevClient as TurgenevClientApi;
 	const ui = window.TurgenevUI as TurgenevUIApi;
 
@@ -103,7 +104,7 @@
 				}
 			} catch {
 				update( {
-					error: __(
+					error: i18n.__(
 						'Could not remove the old Turgenev markup. Your text has not been restored from an older version. Try Reset view again.',
 						'turgenev'
 					),
@@ -118,7 +119,7 @@
 				source = null;
 				update( {
 					result: null,
-					notice: __(
+					notice: i18n.__(
 						'Content changed. Analyze the document again.',
 						'turgenev'
 					),
@@ -172,7 +173,7 @@
 				: client.toAnalysisHTML( source.html );
 			if ( ! client.isConfigured ) {
 				update( {
-					error: __(
+					error: i18n.__(
 						'Configure a Turgenev API key before running an analysis.',
 						'turgenev'
 					),
@@ -181,7 +182,7 @@
 			}
 			if ( client.isEmptyBalance( state.balance ) ) {
 				update( {
-					error: __(
+					error: i18n.__(
 						'Your Turgenev balance is empty. Top it up before running an analysis.',
 						'turgenev'
 					),
@@ -190,7 +191,7 @@
 			}
 			if ( ! source.text ) {
 				update( {
-					error: __(
+					error: i18n.__(
 						'Add content to the editor before running Turgenev.',
 						'turgenev'
 					),
@@ -200,7 +201,7 @@
 			// The provider's limit counts the text a reader sees, never the markup around it.
 			if ( Array.from( source.text ).length > client.maxTextLength ) {
 				update( {
-					error: __(
+					error: i18n.__(
 						'The content is longer than the maximum size accepted by Turgenev.',
 						'turgenev'
 					),
@@ -237,7 +238,7 @@
 					typeof result.level !== 'string'
 				) {
 					throw new Error(
-						__(
+						i18n.__(
 							'Turgenev returned an incomplete analysis.',
 							'turgenev'
 						)
@@ -324,7 +325,7 @@
 				);
 				let notice = '';
 				if ( ! counts.total ) {
-					notice = __(
+					notice = i18n.__(
 						'This report has no highlighted fragments.',
 						'turgenev'
 					);
@@ -611,13 +612,13 @@
 				container.append(
 					node(
 						'p',
-						__(
+						i18n.__(
 							'Turgenev is ready, but an API key has not been configured yet.',
 							'turgenev'
 						)
 					),
 					link(
-						__( 'Configure API key', 'turgenev' ),
+						i18n.__( 'Configure API key', 'turgenev' ),
 						client.settingsUrl
 					)
 				);
@@ -625,7 +626,7 @@
 			const balanceEl = node( 'p', '', 'turgenev-balance-row' );
 			balanceEl.append(
 				document.createTextNode(
-					__( 'Current balance:', 'turgenev' ) + ' '
+					i18n.__( 'Current balance:', 'turgenev' ) + ' '
 				),
 				node(
 					'strong',
@@ -644,7 +645,7 @@
 				! client.isConfigured || state.loadingBalance;
 			refreshBalance.setAttribute(
 				'aria-label',
-				__( 'Refresh balance', 'turgenev' )
+				i18n.__( 'Refresh balance', 'turgenev' )
 			);
 			refreshBalance.addEventListener( 'click', session.balance );
 			const refreshIcon = node(
@@ -661,7 +662,7 @@
 				topUp.className = 'turgenev-icon-button';
 				topUp.setAttribute(
 					'aria-label',
-					__( 'Top up Turgenev balance', 'turgenev' )
+					i18n.__( 'Top up Turgenev balance', 'turgenev' )
 				);
 				const topUpIcon = node(
 					'span',
@@ -677,7 +678,7 @@
 				container.append(
 					node(
 						'p',
-						__(
+						i18n.__(
 							'Your Turgenev balance is empty. Top it up before running an analysis.',
 							'turgenev'
 						),
@@ -705,14 +706,14 @@
 				label.append(
 					toggle,
 					document.createTextNode(
-						__( 'HTML analysis (send markup)', 'turgenev' )
+						i18n.__( 'HTML analysis (send markup)', 'turgenev' )
 					)
 				);
 				container.append(
 					label,
 					node(
 						'p',
-						__(
+						i18n.__(
 							'By default, only the current document text is sent. Saving first is not required.',
 							'turgenev'
 						),
@@ -723,7 +724,7 @@
 					container.append(
 						node(
 							'p',
-							__(
+							i18n.__(
 								'Highlighting the analyzed text in reports is unavailable on this server (a required PHP component is missing). Analysis and balance are unaffected.',
 								'turgenev'
 							),
@@ -733,8 +734,8 @@
 				}
 				const analyze = button(
 					state.analyzing
-						? __( 'Analyzing document…', 'turgenev' )
-						: __( 'Analyze document', 'turgenev' ),
+						? i18n.__( 'Analyzing document…', 'turgenev' )
+						: i18n.__( 'Analyze document', 'turgenev' ),
 					session.analyze,
 					state.analyzing ||
 						! client.isConfigured ||
@@ -760,7 +761,7 @@
 						spinner,
 						node(
 							'p',
-							__( 'Analyzing document…', 'turgenev' ),
+							i18n.__( 'Analyzing document…', 'turgenev' ),
 							'turgenev-loading-text'
 						)
 					);
@@ -801,12 +802,12 @@
 						);
 						fallback.setAttribute(
 							'aria-label',
-							__( 'Analyzed text (read-only)', 'turgenev' )
+							i18n.__( 'Analyzed text (read-only)', 'turgenev' )
 						);
 						fallback.append(
 							node(
 								'h3',
-								__( 'Analyzed text (read-only)', 'turgenev' )
+								i18n.__( 'Analyzed text (read-only)', 'turgenev' )
 							)
 						);
 						const text = node(
@@ -822,7 +823,7 @@
 				}
 				if ( highlights ) {
 					const reset = button(
-						__( 'Reset view', 'turgenev' ),
+						i18n.__( 'Reset view', 'turgenev' ),
 						session.reset,
 						state.analyzing
 					);

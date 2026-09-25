@@ -2,15 +2,18 @@
 	'use strict';
 
 	const maybeConfig = window.TurgenevConfig;
-	const i18n = wp?.i18n;
-	if ( ! maybeConfig || ! wp || ! i18n ) {
+	const maybeI18n = wp?.i18n;
+	if ( ! maybeConfig || ! wp || ! maybeI18n ) {
 		return;
 	}
-	// Rebind with a definite type: nested function declarations below don't
+	// Rebind with definite types: nested function declarations below don't
 	// retain the narrowing from the guard above.
 	const config: TurgenevConfigShape = maybeConfig;
-
-	const { __, sprintf } = i18n;
+	// Always called as `i18n.__()`, never destructured into a bare `__`: the
+	// minifier renames a local function but not a property, and WordPress.org
+	// extracts translatable strings from these shipped, minified scripts by that
+	// name. A renamed `__` leaves its strings out of translate.wordpress.org.
+	const i18n: WPI18nModule = maybeI18n;
 	const textareaModels = new WeakMap<
 		HTMLTextAreaElement,
 		{ html: string; model: SourceModel | null }
@@ -106,7 +109,7 @@
 				throw error;
 			}
 			throw new Error(
-				__(
+				i18n.__(
 					'Could not connect to WordPress. Check your network connection and try again.',
 					'turgenev'
 				)
@@ -118,7 +121,7 @@
 			payload = parseAjaxResponse( await response.text() );
 		} catch {
 			throw new Error(
-				__( 'WordPress returned an invalid response.', 'turgenev' )
+				i18n.__( 'WordPress returned an invalid response.', 'turgenev' )
 			);
 		}
 
@@ -131,7 +134,7 @@
 			throw new Error(
 				apiErrorMessage(
 					payload,
-					__( 'Turgenev request failed.', 'turgenev' )
+					i18n.__( 'Turgenev request failed.', 'turgenev' )
 				)
 			);
 		}
@@ -139,7 +142,7 @@
 		const data = ( payload as { data?: unknown } ).data;
 		if ( ! data || typeof data !== 'object' || Array.isArray( data ) ) {
 			throw new Error(
-				__( 'WordPress returned an invalid response.', 'turgenev' )
+				i18n.__( 'WordPress returned an invalid response.', 'turgenev' )
 			);
 		}
 		return data as T;
@@ -147,11 +150,11 @@
 
 	function blockLabel( key: unknown ): string {
 		const labels: Record< string, string > = {
-			frequency: __( 'Frequency', 'turgenev' ),
-			style: __( 'Style', 'turgenev' ),
-			keywords: __( 'Keywords', 'turgenev' ),
-			formality: __( 'Formality', 'turgenev' ),
-			readability: __( 'Readability', 'turgenev' ),
+			frequency: i18n.__( 'Frequency', 'turgenev' ),
+			style: i18n.__( 'Style', 'turgenev' ),
+			keywords: i18n.__( 'Keywords', 'turgenev' ),
+			formality: i18n.__( 'Formality', 'turgenev' ),
+			readability: i18n.__( 'Readability', 'turgenev' ),
 		};
 		return ( typeof key === 'string' && labels[ key ] ) || String( key || '' );
 	}
@@ -185,7 +188,7 @@
 		link.href = `${ config.reportBaseUrl }${ encodeURIComponent( token ) }`;
 		link.target = '_blank';
 		link.rel = 'noopener noreferrer';
-		link.textContent = __( 'Open report', 'turgenev' );
+		link.textContent = i18n.__( 'Open report', 'turgenev' );
 		actions.appendChild( link );
 		cell.appendChild( actions );
 	}
@@ -340,9 +343,9 @@
 		const verdict = typeof level === 'string' ? level.trim().toLowerCase() : '';
 		let message = '';
 		if ( verdict === 'высокий' ) {
-			message = __( 'Risk is high. What to do?', 'turgenev' );
+			message = i18n.__( 'Risk is high. What to do?', 'turgenev' );
 		} else if ( verdict === 'критический' ) {
-			message = __( 'Risk is critical! What to do?', 'turgenev' );
+			message = i18n.__( 'Risk is critical! What to do?', 'turgenev' );
 		}
 		return message ? { message, url: RISK_HELP_URL } : null;
 	}
@@ -378,7 +381,7 @@
 		}[] = [
 			{
 				key: 'overall',
-				label: __( 'Overall risk', 'turgenev' ),
+				label: i18n.__( 'Overall risk', 'turgenev' ),
 				score: data.risk,
 				link: data.link,
 			},
@@ -404,7 +407,7 @@
 
 	/** The provider's own words for a text below its length threshold (SectionDetails.tooShort). */
 	function tooShortMessage(): string {
-		return __( 'The text is too short. Risk is not assessed.', 'turgenev' );
+		return i18n.__( 'The text is too short. Risk is not assessed.', 'turgenev' );
 	}
 
 	function renderVerdict( data: RiskResult, tooShort = false ): HTMLElement {
@@ -418,9 +421,9 @@
 				: data.level;
 		verdict.textContent = tooShort
 			? tooShortMessage()
-			: sprintf(
+			: i18n.sprintf(
 					/* translators: 1: risk verdict, e.g. "high", 2: risk score. */
-					__( 'Risk: %1$s (%2$s)', 'turgenev' ),
+					i18n.__( 'Risk: %1$s (%2$s)', 'turgenev' ),
 					String( level || '—' ),
 					String( data.risk ?? '—' )
 			  );
@@ -559,7 +562,7 @@
 			link.href = help.url;
 			link.target = '_blank';
 			link.rel = 'noopener noreferrer';
-			link.textContent = __( 'More information', 'turgenev' );
+			link.textContent = i18n.__( 'More information', 'turgenev' );
 			linkWrap.appendChild( link );
 			tooltip.appendChild( linkWrap );
 		}
@@ -645,8 +648,8 @@
 			wrap.appendChild( row );
 		} );
 		if ( isOverall && hiddenCount > 0 ) {
-			const showLabel = __( 'Show all characteristics', 'turgenev' );
-			const hideLabel = __( 'Hide unimportant characteristics', 'turgenev' );
+			const showLabel = i18n.__( 'Show all characteristics', 'turgenev' );
+			const hideLabel = i18n.__( 'Hide unimportant characteristics', 'turgenev' );
 			const toggle = document.createElement( 'button' );
 			toggle.type = 'button';
 			toggle.className = 'button-link turgenev-section-toggle';
@@ -738,7 +741,7 @@
 			// other hover explainer its report markup carries besides the characteristic
 			// hints above.
 			if ( item.stopword ) {
-				text.title = __( 'Stop word', 'turgenev' );
+				text.title = i18n.__( 'Stop word', 'turgenev' );
 			}
 			// A repeated word/phrase also highlighted in the document text (e.g. an
 			// "xhl doubles4" row) gets the same exact color here, matching the provider.
@@ -781,11 +784,11 @@
 		const wordsButton = document.createElement( 'button' );
 		wordsButton.type = 'button';
 		wordsButton.className = 'turgenev-section-tab is-active';
-		wordsButton.textContent = __( 'Words', 'turgenev' );
+		wordsButton.textContent = i18n.__( 'Words', 'turgenev' );
 		const phrasesButton = document.createElement( 'button' );
 		phrasesButton.type = 'button';
 		phrasesButton.className = 'turgenev-section-tab';
-		phrasesButton.textContent = __( 'Phrases', 'turgenev' );
+		phrasesButton.textContent = i18n.__( 'Phrases', 'turgenev' );
 		tabs.append( wordsButton, phrasesButton );
 
 		const wordsTable = renderWordStats(
@@ -827,7 +830,7 @@
 		wrap.className = 'turgenev-section-sentence-problems';
 		const heading = document.createElement( 'h4' );
 		heading.className = 'turgenev-section-heading';
-		heading.textContent = __( 'Problems in this sentence', 'turgenev' );
+		heading.textContent = i18n.__( 'Problems in this sentence', 'turgenev' );
 		const list = document.createElement( 'div' );
 		list.className = 'turgenev-section-breakdown';
 		problems.forEach( ( problem ) => {
@@ -872,7 +875,7 @@
 		header.className = 'turgenev-section-hints-header';
 		const heading = document.createElement( 'h4' );
 		heading.className = 'turgenev-section-heading';
-		heading.textContent = __( 'Hints', 'turgenev' );
+		heading.textContent = i18n.__( 'Hints', 'turgenev' );
 		header.appendChild( heading );
 		const current = Math.min( Math.max( 0, index ), hints.length - 1 );
 		if ( hints.length > 1 ) {
@@ -896,9 +899,9 @@
 			info.className = 'turgenev-section-hints-info';
 			info.textContent = `${ current + 1 }/${ hints.length }`;
 			pager.append(
-				button( __( 'Previous hint', 'turgenev' ), '‹', current - 1 ),
+				button( i18n.__( 'Previous hint', 'turgenev' ), '‹', current - 1 ),
 				info,
-				button( __( 'Next hint', 'turgenev' ), '›', current + 1 )
+				button( i18n.__( 'Next hint', 'turgenev' ), '›', current + 1 )
 			);
 			header.appendChild( pager );
 		}
@@ -942,7 +945,7 @@
 				return link;
 			};
 			if ( hint.more ) {
-				const more = helpLink( __( 'More information', 'turgenev' ), hint.more );
+				const more = helpLink( i18n.__( 'More information', 'turgenev' ), hint.more );
 				more.className = 'turgenev-section-hint-more';
 				body.appendChild( more );
 			}
@@ -950,7 +953,7 @@
 				const seeAlso = document.createElement( 'div' );
 				seeAlso.className = 'turgenev-section-hint-see-also';
 				const label = document.createElement( 'span' );
-				label.textContent = __( 'See also:', 'turgenev' );
+				label.textContent = i18n.__( 'See also:', 'turgenev' );
 				seeAlso.append( label, document.createTextNode( ' ' ) );
 				hint.seeAlso.forEach( ( link, position ) => {
 					if ( position ) {
@@ -1004,7 +1007,7 @@
 				const count = document.createElement( 'p' );
 				count.className = 'turgenev-section-word-count';
 				// The provider's own wording ("слов: 103"), which needs no plural forms.
-				count.textContent = `${ __( 'Words:', 'turgenev' ) } ${ String(
+				count.textContent = `${ i18n.__( 'Words:', 'turgenev' ) } ${ String(
 					details.wordCount
 				) }`;
 				wrap.appendChild( count );
@@ -1158,7 +1161,7 @@
 					spinner.setAttribute( 'aria-hidden', 'true' );
 					panel.append(
 						spinner,
-						document.createTextNode( __( 'Loading…', 'turgenev' ) )
+						document.createTextNode( i18n.__( 'Loading…', 'turgenev' ) )
 					);
 				} else if ( options.sectionError ) {
 					const error = document.createElement( 'p' );
@@ -1249,7 +1252,7 @@
 			} )
 		) {
 			throw new Error(
-				__( 'Turgenev returned invalid highlight data.', 'turgenev' )
+				i18n.__( 'Turgenev returned invalid highlight data.', 'turgenev' )
 			);
 		}
 		return [ ...( marks as HighlightMark[] ) ].sort(
@@ -1438,7 +1441,7 @@
 	function validSectionDetails( data: unknown ): SectionDetails {
 		const invalid = (): never => {
 			throw new Error(
-				__( 'Turgenev returned invalid section details.', 'turgenev' )
+				i18n.__( 'Turgenev returned invalid section details.', 'turgenev' )
 			);
 		};
 		if ( ! data || typeof data !== 'object' ) {
@@ -1578,7 +1581,7 @@
 			link.href = warning.url;
 			link.target = '_blank';
 			link.rel = 'noopener noreferrer';
-			link.textContent = __( 'More information', 'turgenev' );
+			link.textContent = i18n.__( 'More information', 'turgenev' );
 			text.append( ' ', link );
 		}
 		const dismiss = document.createElement( 'button' );
@@ -1586,7 +1589,7 @@
 		dismiss.className = 'notice-dismiss';
 		const label = document.createElement( 'span' );
 		label.className = 'screen-reader-text';
-		label.textContent = __( 'Dismiss this notice.', 'turgenev' );
+		label.textContent = i18n.__( 'Dismiss this notice.', 'turgenev' );
 		dismiss.appendChild( label );
 		dismiss.addEventListener( 'click', () => {
 			notice.remove();
