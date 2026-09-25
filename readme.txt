@@ -1,6 +1,6 @@
 === Turgenev ===
 Contributors: al5dy
-Tags: seo, content analysis, readability, yandex, gutenberg
+Tags: seo, content analysis, readability, copywriting, yandex
 Requires at least: 6.6
 Tested up to: 7.1
 Requires PHP: 8.1
@@ -8,141 +8,386 @@ Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Analyze WordPress content for SEO over-optimization, keyword stuffing, readability, style and Yandex Baden-Baden risk with the Turgenev API.
+SEO content analysis for WordPress: detect over-optimization, keyword stuffing, readability issues, style problems and Yandex Baden-Baden risk.
 
 == Description ==
 
-**Bring professional Turgenev content analysis directly into the WordPress editor.**
+**Professional SEO content analysis directly inside WordPress — without copying drafts into a separate tool.**
 
-Turgenev connects WordPress to the Turgenev text-quality and SEO analysis service so editors, copywriters, content teams and SEO specialists can evaluate content without constantly copying drafts between WordPress and a separate browser tab.
+Turgenev connects the WordPress Block Editor and Classic Editor to the Turgenev content-analysis service. It is built for SEO specialists, copywriters, editors, content teams, agencies and site owners who want to review text quality, search over-optimization and readability before publishing.
 
-The plugin adds a permanent **Turgenev** panel to the Block Editor's document settings sidebar (not the block inspector, and not tied to any block selection), plus a Classic Editor metabox for post types that use the Classic Editor. Clicking **Analyze document** sends the entire current draft — including any unsaved changes — to Turgenev and returns the overall risk score, analysis sections and links to detailed Turgenev reports.
+Analyze the **current WordPress document, including unsaved changes**, and review Turgenev's overall risk score plus detailed sections for repetition, style, keywords, formality and readability.
 
-= SEO and content checks inside WordPress =
+No browser extension. No copy/paste workflow. No provider API key exposed to JavaScript.
 
-Turgenev can help editorial teams review signals related to:
+= What Turgenev helps you review =
 
-* SEO over-optimization and Baden-Baden risk;
-* excessive word and phrase repetition;
-* keyword stuffing and query coverage;
-* stylistic problems and awkward constructions;
-* formality / "wateriness" indicators;
+The Turgenev service analyzes text using multiple independent signals. According to the provider, these can help identify content patterns associated with unnatural or over-optimized SEO copy, including:
+
+* **SEO over-optimization** and signals associated with Yandex Baden-Baden risk;
+* **keyword stuffing** and unnatural keyword repetition;
+* unusually frequent words and phrases;
+* query / keyword coverage;
+* stylistic problems, SEO clichés and bureaucratic wording;
+* "wateriness" / low-information wording;
+* long or difficult sentences;
 * readability;
-* the overall Turgenev risk score.
+* the combined Turgenev risk score.
 
-The plugin is useful for SEO content review, copywriting QA, editorial workflows, landing pages, articles and other WordPress content where text quality matters.
+The provider explicitly describes its score as a **risk indicator, not a guarantee of a search-engine penalty**. The goal is not to chase a zero score mechanically, but to find text that may deserve editorial attention.
 
-= Built for modern WordPress =
+= Built for SEO and editorial workflows =
 
-Version 2.0.0 is a major technical rewrite:
+Turgenev is useful for:
 
-* **WordPress 6.6+ and PHP 8.1+** baseline;
-* a permanent **Turgenev document settings panel** in the Block Editor sidebar that analyzes the whole current document, not a selected block;
-* **Classic Editor metabox** integration;
-* **server-side Turgenev API requests** through the WordPress HTTP API;
-* **API key never exposed to browser JavaScript**;
-* **WordPress nonce and object-level capability checks** (`current_user_can( 'edit_post', $post_id )`) for every document-analysis request;
-* **server-side rate limiting**, independent of the editor's UI, bounding both how often one post can be analyzed and how many requests one user can make in total across every post;
-* **safe API-key rotation** that keeps the previous key when validation fails;
-* **balance validation** instead of spending an analysis request just to test a key;
-* **defensive JSON and HTTP error handling**;
-* **safe DOM rendering** for external API data — highlight previews are presentation-only and never change the saved post content;
-* development tests, Playwright E2E scaffolding and CI/release automation in the source repository.
+* SEO landing pages;
+* commercial category and service pages;
+* blog articles;
+* product and category copy;
+* agency content QA;
+* copywriter review;
+* editor approval workflows;
+* Russian-language SEO content audits;
+* pre-publication readability checks;
+* detecting repetitive or template-like text.
 
-= Simple workflow =
+Instead of switching between WordPress and a separate analysis page, editors can review the current document from the same editing screen.
 
-1. Install and activate Turgenev.
-2. Open **Settings → Turgenev**.
-3. Add your Turgenev API key.
-4. Open a post or page in the Block Editor (or the Classic Editor, if the post type uses it).
-5. In the Block Editor, open **Document (Turgenev)** in the settings sidebar; in the Classic Editor, use the Turgenev metabox.
-6. Click **Analyze document**. This sends the entire current document text — including unsaved edits — to the Turgenev service.
-7. Review the score and analysis sections, and optionally use **Highlight** to preview flagged passages in the editor (this never changes the saved content) or open a detailed report on the Turgenev website.
+= Gutenberg / Block Editor integration =
 
-= Privacy and API-key security =
+The plugin adds a **Turgenev** button to the WordPress editor toolbar.
 
-The saved API key remains on the WordPress server. It is never inserted into page HTML, localized JavaScript, or any other browser-visible output.
+Open it to access a dedicated Turgenev panel with:
 
-See "External service" below for exactly what data leaves WordPress, when, and why.
+* current Turgenev account balance;
+* balance refresh;
+* a direct balance top-up link;
+* **Analyze document**;
+* optional **HTML analysis (send markup)** mode;
+* overall risk;
+* detailed analysis sections;
+* links to provider reports;
+* in-editor highlighting when the server supports the required DOM component.
 
-= External service =
+Analysis is not tied to the currently selected Gutenberg block. Turgenev analyzes the **whole current document**.
 
-This plugin depends on the third-party **Turgenev** service, operated by **ООО «Интернет-Лингвистика»** ("Internet-Linguistics" LLC; OGRN 1087746363682, INN 7727645011) at `https://turgenev.ashmanov.com/`.
+You do **not** need to save the post first: the plugin reads the current in-memory editor state, including unsaved edits.
 
-Exactly what is sent, and when:
+= Classic Editor support =
 
-* **Analyze document**: when an authenticated editor clicks **Analyze document**, the full current text of the document being edited (including unsaved changes) is sent to Turgenev, together with the API key stored in WordPress, so the request can be attributed to your account.
-* **API key**: the API key is added to every Turgenev request exclusively by the WordPress server. It is configured once in **Settings → Turgenev** (or validated inline when you save a new key) and is never present in any browser-side JavaScript, page source, or REST/AJAX response sent to the browser.
-* **Balance check**: viewing or validating your account balance (in Settings, or from the editor's low-balance notice) sends the API key to Turgenev's balance endpoint; it does not send document content.
-* **Highlight**: after an analysis, using **Highlight** may make a further request to Turgenev to retrieve the detailed report used to render highlight ranges in the editor. This request uses a report reference returned by the prior analysis, not a fresh copy of the API key.
-* Turgenev may log or retain submitted content and account activity according to its own terms; this plugin does not control Turgenev's own data retention.
+Post types using the Classic Editor receive a Turgenev metabox.
 
-Turgenev is a separate, commercial service and may charge for API usage according to its current pricing. By configuring and using this integration, the site administrator is responsible for ensuring that sending content to Turgenev is appropriate for the site's own privacy policy and applicable data-protection obligations (for example, when analyzing content containing personal data).
+The integration supports both TinyMCE visual mode and the underlying textarea/text mode while using the same secure server-side API bridge as Gutenberg.
 
-Turgenev service and account links:
+= Plain-text and HTML analysis =
 
-* Service website: https://turgenev.ashmanov.com/
-* API key / account page: https://turgenev.ashmanov.com/?a=apikey
-* Terms of Service (public offer for the Turgenev service): https://turgenev.ashmanov.com/?a=org
-* Personal data processing policy: published on the same page as the Terms of Service above ("Соглашение на обработку персональных данных" / "Personal Data Processing Agreement"), under the same operator, ООО «Интернет-Лингвистика».
+By default, the plugin sends a normalized representation of the visible document text while preserving meaningful block boundaries.
 
-No separate, standalone URL for the personal-data policy is published outside of the Terms of Service page linked above; both documents are served from `https://turgenev.ashmanov.com/?a=org`.
+If you explicitly enable **HTML analysis (send markup)**, the provider receives an HTML-aware payload instead.
+
+The runtime accepts up to **50,000 visible Unicode characters per check**. Invalid UTF-8 and embedded NUL characters are rejected before an outbound analysis request is made.
+
+= API key stays on your WordPress server =
+
+The Turgenev API key is stored in WordPress and is never intentionally exposed through:
+
+* localized editor JavaScript;
+* HTML source;
+* browser-visible AJAX responses;
+* Gutenberg configuration objects.
+
+The browser talks to WordPress. WordPress talks to Turgenev.
+
+Every document-analysis request is protected by:
+
+* a WordPress nonce;
+* validation of the target post;
+* `current_user_can( 'edit_post', $post_id )` for that exact post;
+* server-side per-post and per-user rate limiting.
+
+= Safe API-key replacement =
+
+Go to **Settings → Turgenev** to configure the provider API key.
+
+When you enter a new key, the plugin verifies it through the Turgenev balance operation **before replacing the working key**.
+
+That means:
+
+* an empty field keeps the current key;
+* an invalid replacement does not erase the current key;
+* a provider outage during verification does not erase the current key;
+* only **Delete API Key** explicitly removes the saved key.
+
+The saved secret is never printed back into the password field. WordPress displays only a masked suffix.
+
+= Report highlighting does not alter your content =
+
+Highlighting is visual only.
+
+The plugin does not persist Turgenev highlight markup into `post_content`, block attributes, revisions or autosaves. Your article remains your article.
+
+= Server-side rate limiting =
+
+Turgenev is an external service with account usage/billing, so the plugin does not rely only on a disabled button in JavaScript.
+
+The WordPress backend applies independent request limits per user/post and per user across all posts. If either limit is exceeded, the request is rejected before contacting the provider.
+
+= Graceful server compatibility =
+
+The PHP DOM extension is optional.
+
+Without `ext-dom`:
+
+* account balance still works;
+* normal content analysis still works;
+* functionality that requires parsing the provider's HTML report is disabled gracefully rather than crashing the editor.
+
+= How Turgenev scores content =
+
+The Turgenev service describes its total risk as the sum of penalties from independent analysis criteria.
+
+Its published documentation discusses, among other signals:
+
+* word-frequency / repetition metrics;
+* unusually frequent words;
+* style-problem density;
+* low-information wording;
+* query coverage;
+* readability based in part on sentence and word length.
+
+The provider currently describes risk levels beginning around 5 points as medium, 8 as high and 13 as critical. These are the provider's interpretation thresholds and should be used as editorial guidance, not as a promise or prediction of search-engine action.
+
+= Get an account, API key and balance =
+
+This plugin requires an account with the external Turgenev service.
+
+Useful provider pages:
+
+* Turgenev website: https://turgenev.ashmanov.com/
+* API key / account: https://turgenev.ashmanov.com/?a=apikey
+* Top up balance: https://turgenev.ashmanov.com/?a=pay
+
+The Turgenev website currently publishes separate pricing for its web interface, subscriptions and API usage. Pricing can change, so always treat the provider's current website as authoritative.
+
+The plugin itself is GPL-licensed and does not include Turgenev service credit.
 
 == Installation ==
 
-1. In WordPress, go to **Plugins → Add New** and install Turgenev, or upload the plugin ZIP manually.
-2. Activate **Turgenev**.
-3. Go to **Settings → Turgenev**.
-4. Enter your Turgenev API key and save it.
-5. Open a post or page in the Block Editor or Classic Editor.
-6. Run the content analysis from the Turgenev panel (Block Editor: document settings sidebar; Classic Editor: the Turgenev metabox).
+= Automatic installation from WordPress =
+
+1. Sign in to your WordPress administration area.
+2. Open **Plugins → Add New**.
+3. Search for **Turgenev**.
+4. Install the plugin.
+5. Click **Activate**.
+6. Continue with the API/account setup below.
+
+= Manual ZIP installation =
+
+1. Download the production Turgenev plugin ZIP.
+2. In WordPress open **Plugins → Add New → Upload Plugin**.
+3. Select the ZIP.
+4. Click **Install Now**.
+5. Activate **Turgenev**.
+6. Continue with the API/account setup below.
+
+Do not upload a GitHub source archive containing development files. Use the production plugin ZIP.
+
+= Create or prepare your Turgenev account =
+
+1. Open https://turgenev.ashmanov.com/
+2. Sign in or create a Turgenev account.
+3. Confirm the account if the provider asks you to verify your email.
+4. Open the API-key/account page: https://turgenev.ashmanov.com/?a=apikey
+5. Generate or copy your API key.
+6. If necessary, add funds through https://turgenev.ashmanov.com/?a=pay
+
+The provider controls account registration, billing, subscriptions and API pricing.
+
+= Connect WordPress to Turgenev =
+
+1. In WordPress open **Settings → Turgenev**.
+2. Paste your Turgenev API key into **API key**.
+3. Click **Save API key**.
+4. The plugin verifies the key using the provider balance operation.
+5. If verification succeeds, WordPress shows the current balance.
+6. If verification fails, the key is not saved. If an older working key already exists, it is preserved.
+
+= Run your first analysis in Gutenberg =
+
+1. Open a post, page or another post type that uses the Block Editor.
+2. Click **Turgenev** in the editor toolbar.
+3. Confirm that your current balance is available.
+4. Leave **HTML analysis (send markup)** disabled for normal visible-text analysis, or enable it when you intentionally want markup-aware analysis.
+5. Click **Analyze document**.
+6. Review **Overall risk**.
+7. Open the detailed sections to inspect frequency, style, keywords, formality and readability.
+8. Use report highlighting where available to inspect problem areas directly in the editor.
+9. Edit the content and analyze again when appropriate.
+
+Saving the post before analysis is not required.
+
+= Run an analysis in the Classic Editor =
+
+1. Open a post type using the Classic Editor.
+2. Find the **Turgenev** metabox.
+3. Check your balance.
+4. Choose the analysis mode if needed.
+5. Click the analysis button.
+6. Review the returned risk and details.
+
+= Top up your Turgenev balance =
+
+You can top up directly from the provider:
+
+https://turgenev.ashmanov.com/?a=pay
+
+The editor also exposes a **Top up Turgenev balance** control when appropriate.
+
+After adding funds, use the balance refresh control in WordPress.
 
 == Frequently Asked Questions ==
 
-= Does the plugin expose my Turgenev API key in JavaScript? =
+= What does this WordPress SEO plugin actually analyze? =
 
-No. All provider requests are made server-side by WordPress. Browser requests to the plugin's own AJAX endpoint contain a WordPress nonce, the document text (or, for Highlight, a report reference) and the target post ID — never the provider API key.
+Turgenev evaluates content through the external Turgenev text-analysis service. The integration surfaces the provider's overall risk and sections related to repetition/frequency, style, keywords, formality and readability.
+
+It is intended as an editorial and SEO content-quality tool, not as a search-ranking guarantee.
+
+= Is this a Yandex plugin? =
+
+No. This plugin integrates the independent Turgenev service with WordPress. Turgenev's published methodology discusses content signals and risk associated with Yandex's Baden-Baden text-quality / over-optimization algorithm.
+
+= Can Turgenev guarantee that a page will rank higher? =
+
+No. Search rankings depend on many factors. The provider itself describes its score as a risk estimate and recommends applying editorial judgment instead of mechanically removing every highlighted word.
+
+= Does it detect keyword stuffing and SEO over-optimization? =
+
+It exposes Turgenev analysis related to repetition, unusually frequent terms, keyword/query coverage and overall over-optimization risk. These signals can be useful when reviewing SEO copy, landing pages and commercial content.
+
+= Does it check readability? =
+
+Yes. Readability is one of the analysis sections returned by Turgenev.
+
+= Does it work with Gutenberg? =
+
+Yes. The Block Editor integration analyzes the whole current document and is independent of the selected block.
+
+= Does it work with the Classic Editor? =
+
+Yes. The plugin adds a Turgenev metabox on supported Classic Editor screens.
+
+= Do I need to save the post before analyzing it? =
+
+No. Gutenberg analysis reads the current editor state, including unsaved changes.
+
+= Can I analyze HTML instead of plain visible text? =
+
+Yes. Enable **HTML analysis (send markup)** in the Turgenev panel. By default, visible document text is used.
+
+= What is the maximum text length? =
+
+The current plugin runtime accepts up to **50,000 visible Unicode characters per analysis**.
+
+= Where do I get the Turgenev API key? =
+
+Use your Turgenev account:
+
+https://turgenev.ashmanov.com/?a=apikey
+
+= Where do I add money / top up the balance? =
+
+Use the provider's payment page:
+
+https://turgenev.ashmanov.com/?a=pay
+
+The plugin also provides a top-up shortcut from the editor.
+
+= Is the Turgenev service free? =
+
+The WordPress plugin is GPL-licensed software. The external Turgenev service has its own billing model and current pricing. Check the provider website for authoritative pricing.
+
+= Does saving my API key spend a content-analysis request? =
+
+The plugin verifies a new key using the provider's balance operation rather than sending a dummy document to the risk-analysis endpoint.
+
+= Is my API key exposed to JavaScript? =
+
+No. Provider authentication is performed server-side by WordPress.
 
 = What happens if I enter a bad replacement API key? =
 
-The new key is validated (via the balance endpoint) before storage. If validation fails, the previously saved key is retained instead of being overwritten. Submitting a blank field also preserves the current key; only an explicit "clear key" action removes it.
+The replacement is verified before storage. If it cannot be verified, the existing key remains unchanged.
 
-= Does saving settings spend a text-analysis request? =
+= What happens if Turgenev is temporarily unavailable while I change the key? =
 
-No. The API key is validated with the balance operation rather than sending a dummy text to the risk-analysis endpoint.
+The new key is not committed and the previous working key is preserved.
 
-= Does it work with Gutenberg / the Block Editor? =
+= Can another WordPress user analyze a post they cannot edit? =
 
-Yes. Turgenev adds a permanent **Turgenev** panel to the Block Editor's document settings sidebar. It analyzes the entire current document — including changes you have not saved yet — not a selected block or piece of text. The Classic Editor is supported through a metabox instead.
+The plugin checks `current_user_can( 'edit_post', $post_id )` on the server for document operations. A generic ability to edit some posts is not enough.
 
-= Does analysis require the document to be saved first? =
+= Does Highlight modify my saved WordPress content? =
 
-No. **Analyze document** reads the current in-memory editor content, so you can check unsaved drafts before publishing or saving.
+No. Highlighting is presentation-only. It does not intentionally write highlight markup into `post_content`, block attributes, revisions or autosaves.
 
-= Who can analyze a given post? =
+= Why is Highlight unavailable on my server? =
 
-Any user who can edit that specific post (WordPress's own `edit_post` capability for that post ID), enforced on the server for every request — a generic "can edit posts" capability is not enough on its own. Viewing your Turgenev balance without selecting a post requires the `manage_options` capability (i.e., the Settings screen).
+Report highlighting requires the PHP DOM extension. Normal balance checks and content analysis continue to work without it.
 
-= Is there a limit on how many times I can analyze the same document? =
+Ask your host to enable the standard PHP DOM/XML extension for your active PHP version if you want report highlighting.
 
-Yes. The server enforces its own rate limits, independent of the editor's UI, so scripted or repeated requests cannot be used to exceed normal editorial use or to run up unexpected provider costs.
+= Why does the plugin have rate limits? =
 
-= Does Turgenev require the PHP DOM extension? =
+The provider is an external service with account usage. Server-side limits help prevent accidental or scripted repeated requests from bypassing normal editor behavior.
 
-No. Content analysis and balance checks work without it. Only the optional in-editor "Highlight" preview needs the PHP DOM extension (`ext-dom`) to parse the provider's report markup. If it is not installed, the editor does not offer the Highlight action and shows a short notice instead; nothing else is affected.
+= Why does the score change after I edit the text? =
 
-= Does Highlight change my saved post content? =
+Changing the text changes the analyzed input. The Turgenev provider also continues to improve its algorithms and dictionaries, so results may evolve over time.
 
-No. Highlight is a presentation-only overlay rendered in the editor. It never modifies `post_content`, before or after saving, autosaving, or reloading the editor.
+= Should I remove every word Turgenev highlights? =
 
-= Is Turgenev itself free? =
+No. The provider explicitly warns against mechanical rewriting. A highlighted phrase is a signal to review context, not an instruction to delete it automatically.
 
-This WordPress plugin is GPL-licensed software. The external Turgenev service is separate and can have paid API usage. Check the provider's website (linked under "External service" above) for current terms and pricing.
+= Does the plugin send my entire database or website to Turgenev? =
+
+No. A document analysis sends the content being analyzed. A balance check sends the API key but not document content.
+
+See the External Service section for details.
 
 == Screenshots ==
 
-1. Turgenev API settings (Settings → Turgenev).
-2. The Turgenev panel in the Block Editor, showing analysis results and the current balance.
+1. **Settings → Turgenev** — secure API-key configuration, masked saved-key indicator, current account balance and balance refresh.
+2. **Gutenberg Turgenev panel** — toolbar integration, current balance, plain-text/HTML analysis mode and **Analyze document** workflow.
+3. **Analysis results** — overall risk with expandable frequency, style, keywords, formality and readability details plus report highlighting.
+4. **Classic Editor integration** — Turgenev metabox with the same server-side API workflow.
+
+== External Service ==
+
+This plugin connects WordPress to the external **Turgenev** service at:
+
+https://turgenev.ashmanov.com/
+
+The provider is operated by **ООО "Интернет-лингвистика" / Internet-Linguistics LLC**.
+
+Exactly what is sent:
+
+* **Document analysis:** after an authenticated editor explicitly starts an analysis, the current document content is sent to Turgenev for processing. This can include unsaved editor changes.
+* **API key:** the API key is added by the WordPress server to provider requests. It is not intentionally exposed to browser JavaScript.
+* **Balance:** balance checks send the API key but do not send document content.
+* **Report details/highlights:** after analysis, report-reference data returned by Turgenev can be used to request the provider report required for detailed sections/highlighting.
+
+The plugin does not control how the external service stores or processes data after it is transmitted.
+
+Provider links:
+
+* Service: https://turgenev.ashmanov.com/
+* API key / account: https://turgenev.ashmanov.com/?a=apikey
+* Balance top-up: https://turgenev.ashmanov.com/?a=pay
+* Service terms / company information: https://turgenev.ashmanov.com/?a=org
+
+By configuring this integration, the site administrator is responsible for determining whether sending content to the external service is appropriate for the site's privacy policy and applicable data-protection requirements.
 
 == Changelog ==
 
@@ -153,15 +398,13 @@ This WordPress plugin is GPL-licensed software. The external Turgenev service is
 * Add independent, server-side, filterable rate limiting for `risk`, `highlights` and `balance`, enforced both per post and per user across all posts combined, so switching between posts cannot be used to exceed the effective budget. Rejected requests never reach the Turgenev provider.
 * Validate new API keys through the balance endpoint and preserve an existing key when validation fails or the field is left blank.
 * Remove the legacy paid `risk` request that was used only to validate settings.
-* Add defensive HTTP/JSON/provider-response validation, including strict Unicode-character length limits (20,000 characters) and rejection of malformed UTF-8 or embedded NUL bytes before any outbound request.
+* Add defensive HTTP/JSON/provider-response validation, including strict Unicode-character length limits (50,000 visible characters) and rejection of malformed UTF-8 or embedded NUL bytes before any outbound request.
 * Replace provider-controlled `innerHTML` rendering with safe DOM/text rendering; highlight previews are presentation-only and never modify saved post content.
 * Degrade gracefully when the PHP DOM extension (`ext-dom`) is unavailable: analysis and balance are unaffected, and the Highlight action is hidden with a clear notice instead of failing.
 * Improve Classic Editor handling when TinyMCE is unavailable or in text mode.
 * Remove arbitrary low-balance workflow deletion from the editor UI.
-* Document the previously undocumented `api=balance` operation, and the exact data sent to the third-party Turgenev service, in `API.md` and this readme.
 * Fix `tbclass` API documentation typo/ambiguity.
 * Add GitHub Actions, dependency updates, release packaging, PHP smoke tests, JavaScript tests and Playwright E2E scaffolding (Gutenberg panel, Classic Editor metabox, authorization, nonce validation, no-API-key-exposure and missing-DOM-extension coverage).
-* Add `AGENTS.md`, architecture, testing, Codex and release engineering documentation.
 * Align project licensing to GPLv2 or later.
 
 = 1.4 - 2020-07-22 =

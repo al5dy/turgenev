@@ -14,8 +14,15 @@ const password = process.env.WP_ADMIN_PASSWORD;
 
 async function login( page, user, pass ) {
 	await page.goto( '/wp-login.php', { waitUntil: 'domcontentloaded' } );
-	await page.locator( '#user_login' ).fill( user );
-	await page.locator( '#user_pass' ).fill( pass );
+	// wp-login.php focuses and selects the username field 200 ms after it loads
+	// (`wp_attempt_focus()`). Landing between two fills, that sends the password into the
+	// username field. The timer runs once, so fill until both fields hold what was typed.
+	await expect( async () => {
+		await page.locator( '#user_login' ).fill( user );
+		await page.locator( '#user_pass' ).fill( pass );
+		await expect( page.locator( '#user_login' ) ).toHaveValue( user, { timeout: 500 } );
+		await expect( page.locator( '#user_pass' ) ).toHaveValue( pass, { timeout: 500 } );
+	} ).toPass( { timeout: 10000 } );
 
 	await Promise.all( [
 		page.waitForURL(
@@ -34,6 +41,58 @@ async function loginAsAdmin( page ) {
 }
 
 /**
+ * Waits for the block editor and switches off its first-run welcome guide.
+ *
+ * A fresh site (every CI run) shows that guide to each user the first time they open the
+ * editor, and while its modal is open WordPress hides the rest of the editor from
+ * assistive technology, so no role-based locator (the toolbar's "Turgenev" button, the
+ * header's "Settings" toggle) resolves. The guide follows the `core/edit-post` preference,
+ * the same switch WordPress's own E2E utilities turn off.
+ */
+async function editorReady( page ) {
+	await page.waitForFunction(
+		() => Boolean( window.wp?.data?.select( 'core/editor' )?.getCurrentPostId?.() ),
+		null,
+		{ timeout: 20000 }
+	);
+	await page.evaluate( () =>
+		window.wp.data.dispatch( 'core/preferences' ).set( 'core/edit-post', 'welcomeGuide', false )
+	);
+	await expect( page.locator( '.edit-post-welcome-guide' ) ).toHaveCount( 0 );
+}
+
+async function openPostEditor( page, postId ) {
+	await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
+	await editorReady( page );
+}
+
+/** Where the block editor renders blocks: its `editor-canvas` iframe, when it has one. */
+async function editorCanvas( page ) {
+	const frame = page.locator( 'iframe[name="editor-canvas"]' );
+	return ( await frame.count() ) ? frame.contentFrame() : page;
+}
+
+/**
+ * Every Turgenev highlight painted in the editor, as `name => [text of each range]`.
+ * Highlights are drawn through the CSS Custom Highlight API, which adds no element to the
+ * document, so they are read off `CSS.highlights` of the page and of the editor canvas.
+ */
+function paintedHighlights( page ) {
+	return page.evaluate( () => {
+		const documents = [ document, ...[ ...document.querySelectorAll( 'iframe[name="editor-canvas"]' ) ].map( ( frame ) => frame.contentDocument ).filter( Boolean ) ];
+		const painted = {};
+		for ( const doc of documents ) {
+			for ( const [ name, highlight ] of doc.defaultView.CSS.highlights ) {
+				if ( name.startsWith( 'turgenev-' ) && highlight.size ) {
+					painted[ name ] = [ ...( painted[ name ] || [] ), ...[ ...highlight ].map( ( range ) => range.toString() ) ];
+				}
+			}
+		}
+		return painted;
+	} );
+}
+
+/**
  * The Turgenev panel is an independent overlay, hidden until the "Turgenev" button in the
  * editor's top toolbar is clicked; it is not a Document settings tab any more.
  */
@@ -47,6 +106,24 @@ async function openTurgenevPanel( page ) {
 	return panel;
 }
 
+// The provider mock answers for any key, but the editor only offers an analysis once one is
+// configured. Set it here instead of inheriting whatever admin.spec.js left behind, and put
+// the site's own setting back afterwards.
+let savedSettings = null;
+
+test.beforeAll( () => {
+	savedSettings = wpCli( [ 'option', 'get', 'turgenev', '--format=json' ] );
+	wpCli( [ 'option', 'update', 'turgenev', JSON.stringify( { api_key: 'e2e-editor-mock-key' } ), '--format=json' ] );
+} );
+
+test.afterAll( () => {
+	if ( null === savedSettings ) {
+		wpCli( [ 'option', 'delete', 'turgenev' ] );
+	} else {
+		wpCli( [ 'option', 'update', 'turgenev', savedSettings, '--format=json' ] );
+	}
+} );
+
 test.describe( 'Gutenberg independent Turgenev overlay', () => {
 	let postId;
 
@@ -56,7 +133,8 @@ test.describe( 'Gutenberg independent Turgenev overlay', () => {
 			'--post_type=post',
 			'--post_title=Turgenev E2E baseline post',
 			'--post_status=draft',
-			'--post_content=Turgenev E2E baseline content for the panel and analyze scenarios.',
+			// Real block markup: plain text would open as a single Classic block.
+			'--post_content=<!-- wp:paragraph --><p>Turgenev E2E baseline content for the panel and analyze scenarios.</p><!-- /wp:paragraph -->',
 			'--porcelain',
 		] );
 	} );
@@ -70,7 +148,7 @@ test.describe( 'Gutenberg independent Turgenev overlay', () => {
 	test( 'is visible on a post edit screen', async ( { page } ) => {
 		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
-		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
+		await openPostEditor( page, postId );
 		const panel = await openTurgenevPanel( page );
 		await expect( panel.getByRole( 'heading', { name: /Turgenev/i } ) ).toBeVisible();
 	} );
@@ -78,7 +156,7 @@ test.describe( 'Gutenberg independent Turgenev overlay', () => {
 	test( 'opens and closes together with the editor\'s settings sidebar', async ( { page } ) => {
 		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
-		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
+		await openPostEditor( page, postId );
 		const settings = page
 			.locator( '.editor-header' )
 			.getByRole( 'button', { name: 'Settings', exact: true } );
@@ -110,12 +188,13 @@ test.describe( 'Gutenberg independent Turgenev overlay', () => {
 	test( 'analyzes unsaved document content without requiring a prior save', async ( { page } ) => {
 		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
-		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
+		await openPostEditor( page, postId );
 		const panel = await openTurgenevPanel( page );
 
 		// Type new, unsaved content; the draft in the DB never receives this edit.
-		const block = page.locator( '.wp-block-post-content [data-type="core/paragraph"], [data-type="core/paragraph"]' ).first();
+		const block = ( await editorCanvas( page ) ).locator( '[data-type="core/paragraph"]' ).first();
 		await block.click();
+		await page.keyboard.press( 'End' );
 		await page.keyboard.type( ' Unsaved addition proving analysis does not require a save first.' );
 
 		await panel.getByRole( 'button', { name: /Analyze document/i } ).click();
@@ -130,7 +209,7 @@ test.describe( 'Gutenberg independent Turgenev overlay', () => {
 	test( 'an invalid nonce is rejected with a clear, non-fatal message', async ( { page } ) => {
 		test.skip( ! postId, 'wp-cli is required to create a test post (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
-		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
+		await openPostEditor( page, postId );
 		const panel = await openTurgenevPanel( page );
 
 		await page.evaluate( () => {
@@ -210,9 +289,6 @@ test.describe( 'Post-level authorization', () => {
 			'--post_author=1',
 			'--porcelain',
 		] );
-		// Reset the provider-mock request counter so this test's "never reached the
-		// provider" assertion reflects only what happens inside the test itself.
-		wpCli( [ 'option', 'delete', 'turgenev_e2e_mock_request_count' ] );
 	} );
 
 	test.afterAll( () => {
@@ -236,8 +312,13 @@ test.describe( 'Post-level authorization', () => {
 
 		// The contributor's own post-edit screen: a screen this role can legitimately open,
 		// where turgenev-client (and therefore TurgenevConfig.nonce) is really enqueued.
-		await page.goto( `/wp-admin/post.php?post=${ contributorPostId }&action=edit` );
-		await openTurgenevPanel( page );
+		await openPostEditor( page, contributorPostId );
+		const panel = await openTurgenevPanel( page );
+		// The editor asks for the balance as it loads, a legitimate provider request for a
+		// post this contributor owns. Let it finish, then count only what the forged
+		// cross-post request below sends.
+		await expect( panel.locator( '.turgenev-balance-value' ) ).toHaveText( '42.50 ₽', { timeout: 20000 } );
+		wpCli( [ 'option', 'update', 'turgenev_e2e_mock_request_count', '0' ] );
 
 		const nonce = await page.evaluate( () => window.TurgenevConfig && window.TurgenevConfig.nonce );
 		expect( typeof nonce ).toBe( 'string' );
@@ -270,10 +351,7 @@ test.describe( 'Post-level authorization', () => {
 		// and was turned away by object-level authorization instead.
 		expect( result.data?.data?.message ?? '' ).toMatch( /not allowed to analyze this post/i );
 
-		const requestCount = wpCli( [ 'option', 'get', 'turgenev_e2e_mock_request_count' ] );
-		if ( null !== requestCount ) {
-			expect( requestCount ).toBe( '0' );
-		}
+		expect( wpCli( [ 'option', 'get', 'turgenev_e2e_mock_request_count' ] ) ).toBe( '0' );
 	} );
 } );
 
@@ -310,7 +388,7 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 	test( 'Highlight renders a real annotation but never mutates saved content, including after save, autosave and reload', async ( { page } ) => {
 		test.skip( ! postId, 'wp-cli is required (set WP_TEST_ROOT).' );
 		await loginAsAdmin( page );
-		await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
+		await openPostEditor( page, postId );
 		const panel = await openTurgenevPanel( page );
 
 		await panel.getByRole( 'button', { name: /Analyze document/i } ).click();
@@ -325,9 +403,10 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 		// The open section's own spinner covers its highlight and details requests alike.
 		await expect( panel.locator( '.turgenev-accordion-panel:not([hidden]) .turgenev-spinner' ) ).toBeHidden( { timeout: 20000 } );
 
-		// The provider mock returns one real `xhl` mark; confirm it actually rendered as a
-		// visible annotation in the editor, not just that the request succeeded silently.
-		await expect( page.locator( '.turgenev-source-mark' ).first() ).toBeVisible( { timeout: 20000 } );
+		// The provider mock marks the document's first word as a style problem (`xhl slop2
+		// xhint`); confirm it was actually painted in the editor, on exactly that word, not
+		// just that the request succeeded silently.
+		await expect.poll( () => paintedHighlights( page ), { timeout: 20000 } ).toEqual( { 'turgenev-slop2-u': [ 'Turgenev' ] } );
 
 		// In-memory: not yet saved, the highlight decoration exists but is not part of the
 		// serialized block content that would be sent to the database.
@@ -351,6 +430,7 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 		// After a full editor reload: the highlight decoration must not have been persisted
 		// and re-rendered from stored markup either.
 		await page.reload();
+		await editorReady( page );
 		await openTurgenevPanel( page );
 		assertNoHighlightMarkup( wpCli( [ 'post', 'get', String( postId ), '--field=post_content' ] ) );
 	} );
@@ -405,6 +485,7 @@ test.describe( 'Missing DOM extension degrades gracefully', () => {
 			'--post_type=post',
 			'--post_title=Turgenev E2E no-dom post',
 			'--post_status=draft',
+			'--post_content=Turgenev E2E content analyzed without the PHP DOM extension.',
 			'--porcelain',
 		] );
 	} );
@@ -424,7 +505,7 @@ test.describe( 'Missing DOM extension degrades gracefully', () => {
 		wpCli( [ 'option', 'update', 'turgenev_e2e_force_no_dom', '1' ] );
 		try {
 			await loginAsAdmin( page );
-			await page.goto( `/wp-admin/post.php?post=${ postId }&action=edit` );
+			await openPostEditor( page, postId );
 			const panel = await openTurgenevPanel( page );
 			await expect( panel.getByText( /unavailable on this server/i ) ).toBeVisible();
 
@@ -440,14 +521,26 @@ test.describe( 'Missing DOM extension degrades gracefully', () => {
 
 test.describe( 'Stale or missing runtime assets are observable, not silent', () => {
 	test( 'a missing analysis.js produces a real, detectable network failure, not a silent no-op', async ( { page } ) => {
-		const deployedAsset = resolve( wpTestRoot, 'wp-content/plugins/turgenev/assets/analysis.js' );
-		const movedAsset = deployedAsset + '.e2e-moved';
-
-		const deployedAssetExists = await access( deployedAsset ).then( () => true, () => false );
+		// A plain install serves the copy under WP_TEST_ROOT. wp-env instead mounts this
+		// checkout into its container and leaves only an empty mount point there, so the file
+		// it serves is the checkout's own: renamed only on CI, where the checkout is
+		// disposable, never in a developer's working copy.
+		const candidates = [ resolve( wpTestRoot, 'wp-content/plugins/turgenev/assets/analysis.js' ) ];
+		if ( process.env.CI ) {
+			candidates.push( resolve( process.cwd(), 'assets/analysis.js' ) );
+		}
+		let deployedAsset = null;
+		for ( const candidate of candidates ) {
+			if ( await access( candidate ).then( () => true, () => false ) ) {
+				deployedAsset = candidate;
+				break;
+			}
+		}
 		test.skip(
-			! deployedAssetExists,
-			`WP_TEST_ROOT must point at a real WordPress install with Turgenev deployed; ${ deployedAsset } does not exist.`
+			! deployedAsset,
+			`WP_TEST_ROOT must point at a real WordPress install with Turgenev deployed; ${ candidates[ 0 ] } does not exist.`
 		);
+		const movedAsset = deployedAsset + '.e2e-moved';
 
 		await rename( deployedAsset, movedAsset );
 		const failedUrls = [];

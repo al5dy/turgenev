@@ -9,8 +9,15 @@ async function login( page ) {
 	test.skip( ! username || ! password, 'WP_ADMIN_USER and WP_ADMIN_PASSWORD are required.' );
 
 	await page.goto( '/wp-login.php', { waitUntil: 'domcontentloaded' } );
-	await page.locator( '#user_login' ).fill( username );
-	await page.locator( '#user_pass' ).fill( password );
+	// wp-login.php focuses and selects the username field 200 ms after it loads
+	// (`wp_attempt_focus()`). Landing between two fills, that sends the password into the
+	// username field. The timer runs once, so fill until both fields hold what was typed.
+	await expect( async () => {
+		await page.locator( '#user_login' ).fill( username );
+		await page.locator( '#user_pass' ).fill( password );
+		await expect( page.locator( '#user_login' ) ).toHaveValue( username, { timeout: 500 } );
+		await expect( page.locator( '#user_pass' ) ).toHaveValue( password, { timeout: 500 } );
+	} ).toPass( { timeout: 10000 } );
 
 	await Promise.all( [
 		page.waitForURL(
@@ -63,12 +70,13 @@ test.describe( 'API key save/rotate/clear', () => {
 	// the UI's own state, and asserts the submitted plaintext key is never echoed back into
 	// page HTML (the field is always re-rendered empty; see SettingsPage::renderApiKeyField()).
 	test.beforeEach( () => {
-		wpCli( [ 'option', 'delete', 'turgenev_e2e_force_balance_error' ] );
-		wpCli( [ 'option', 'delete', 'turgenev_e2e_force_outage' ] );
+		wpCli( [ 'option', 'delete', 'turgenev_e2e_force_balance_error', 'turgenev_e2e_force_outage' ] );
 	} );
 
 	test( 'a fresh valid key is saved', async ( { page } ) => {
-		test.skip( null === getSavedApiKey(), 'wp-cli is required (set WP_TEST_ROOT).' );
+		// Probe WP-CLI itself: reading the key would also come back empty on a fresh site,
+		// which stores none yet, and wrongly skip the one scenario that starts from there.
+		test.skip( null === wpCli( [ 'core', 'version' ] ), 'wp-cli is required (set WP_TEST_ROOT).' );
 		wpCli( [ 'option', 'delete', 'turgenev' ] );
 		await login( page );
 
