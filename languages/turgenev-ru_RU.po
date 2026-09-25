@@ -22,16 +22,16 @@ msgstr "Синхронизированный паттерн не загруже�
 msgid "A valid post is required for this request."
 msgstr "Для этого запроса требуется корректная запись."
 
-#: src/Admin/SettingsPage.php:74
+#: src/Admin/SettingsPage.php:75
 msgid "API connection"
 msgstr "Подключение к API"
 
-#: src/Admin/SettingsPage.php:81
+#: src/Admin/SettingsPage.php:82
 msgid "API key"
 msgstr "Ключ API"
 
 #. translators: %s: current API balance.
-#: src/Admin/SettingsPage.php:150
+#: src/Admin/SettingsPage.php:151
 #, php-format
 msgid "API key verified and saved. Current balance: %s ₽."
 msgstr "Ключ API проверен и сохранён. Текущий баланс: %s ₽."
@@ -88,7 +88,7 @@ msgstr "Перед анализом настройте ключ API Турген
 msgid "Configure a Turgenev API key first."
 msgstr "Сначала настройте ключ API Тургенева."
 
-#: src/Admin/SettingsPage.php:190
+#: src/Admin/SettingsPage.php:191
 msgid "Connect WordPress to the official Turgenev content-analysis API. The API key is stored server-side and is never exposed to editor JavaScript."
 msgstr "Подключите WordPress к официальному API анализа контента Тургенева. Ключ API хранится на сервере и никогда не передаётся в JavaScript редактора."
 
@@ -114,7 +114,7 @@ msgstr "Не удалось получить отчёт Тургенева. По
 
 #: assets/build/analysis.js:524
 #: src/Admin/EditorIntegration.php:167
-#: src/Admin/SettingsPage.php:228
+#: src/Admin/SettingsPage.php:229
 msgid "Current balance:"
 msgstr "Текущий баланс:"
 
@@ -127,7 +127,7 @@ msgid "Frequency"
 msgstr "Повторы"
 
 #. translators: 1: opening link, 2: closing link.
-#: src/Admin/SettingsPage.php:217
+#: src/Admin/SettingsPage.php:218
 #, php-format
 msgid "Generate an API key in your %1$sTurgenev account%2$s. Turgenev is an external paid service; a content check is sent only when an editor explicitly starts an analysis."
 msgstr "Создайте ключ API в %1$sличном кабинете Тургенева%2$s. Тургенев — внешний платный сервис; проверка контента отправляется только тогда, когда редактор явно запускает анализ."
@@ -155,10 +155,6 @@ msgstr "Подсказки"
 #: assets/build/client.js:121
 msgid "Keywords"
 msgstr "Запросы"
-
-#: assets/build/analysis.js:588
-msgid "Loading highlights…"
-msgstr "Загрузка подсветки…"
 
 #: assets/build/client.js:946
 msgid "Loading…"
@@ -193,7 +189,7 @@ msgid "Readability"
 msgstr "Удобочитаемость"
 
 #: assets/build/analysis.js:530
-#: src/Admin/SettingsPage.php:230
+#: src/Admin/SettingsPage.php:231
 msgid "Refresh balance"
 msgstr "Обновить баланс"
 
@@ -205,7 +201,7 @@ msgstr "Сбросить вид"
 msgid "Section details are unavailable on this server (the PHP DOM extension is not installed)."
 msgstr "Подробности раздела недоступны на этом сервере (расширение PHP DOM не установлено)."
 
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:280
 msgid "Settings"
 msgstr "Настройки"
 
@@ -237,16 +233,16 @@ msgstr "Документ содержит некорректный или зац
 msgid "The expanded synced patterns exceed the supported document size."
 msgstr "После разворачивания синхронизированных паттернов документ превышает допустимый размер."
 
-#: src/Admin/SettingsPage.php:262
+#: src/Admin/SettingsPage.php:263
 msgid "The key is verified with the balance endpoint before it is stored."
 msgstr "Перед сохранением ключ проверяется запросом баланса."
 
-#: src/Admin/SettingsPage.php:175
+#: src/Admin/SettingsPage.php:176
 msgid "The new API key could not be verified and was not saved. The previous key was kept."
 msgstr "Новый ключ API не удалось проверить, поэтому он не был сохранён. Прежний ключ сохранён без изменений."
 
 #. translators: %s: API validation error.
-#: src/Admin/SettingsPage.php:163
+#: src/Admin/SettingsPage.php:164
 #, php-format
 msgid "The new API key was not saved: %s"
 msgstr "Новый ключ API не сохранён: %s"
@@ -279,11 +275,11 @@ msgstr "Пополнить баланс Тургенева"
 #: assets/build/editor.js:375
 #: turgenev.php
 #: src/Admin/EditorIntegration.php:143
-#: src/Admin/SettingsPage.php:53
+#: src/Admin/SettingsPage.php:54
 msgid "Turgenev"
 msgstr "Тургенев"
 
-#: src/Admin/SettingsPage.php:122
+#: src/Admin/SettingsPage.php:123
 msgid "Turgenev API key removed."
 msgstr "Ключ API Тургенева удалён."
 
@@ -309,7 +305,7 @@ msgstr "Тургенев вернул неожиданный ответ."
 msgid "Turgenev API returned malformed JSON."
 msgstr "Тургенев вернул некорректный JSON."
 
-#: src/Admin/SettingsPage.php:52
+#: src/Admin/SettingsPage.php:53
 msgid "Turgenev Settings"
 msgstr "Настройки Тургенева"
 
@@ -408,7 +404,7 @@ msgstr "Тургенев вернул некорректные данные по
 msgid "Turgenev returned invalid section details."
 msgstr "Тургенев вернул некорректные данные раздела отчёта."
 
-#: src/Admin/SettingsPage.php:298
+#: src/Admin/SettingsPage.php:299
 msgid "Turgenev service"
 msgstr "Сервис Тургенев"
 
@@ -495,19 +491,19 @@ msgstr "Слов:"
 msgid "The text is too short. Risk is not assessed."
 msgstr "Текст слишком короткий. Риск не оценивается"
 
-#: src/Admin/SettingsPage.php:253
+#: src/Admin/SettingsPage.php:254
 msgid "Saved API key:"
 msgstr "Сохранённый ключ API:"
 
-#: src/Admin/SettingsPage.php:260
+#: src/Admin/SettingsPage.php:261
 msgid "Leave this field empty to keep the currently saved API key."
 msgstr "Оставьте поле пустым, чтобы сохранить текущий ключ API."
 
-#: src/Admin/SettingsPage.php:199
+#: src/Admin/SettingsPage.php:200
 msgid "Save API key"
 msgstr "Сохранить ключ API"
 
-#: src/Admin/SettingsPage.php:202
+#: src/Admin/SettingsPage.php:203
 msgid "Delete API Key"
 msgstr "Удалить ключ API"
 

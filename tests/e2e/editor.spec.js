@@ -322,7 +322,8 @@ test.describe( 'Highlight rendering never mutates saved content', () => {
 		// a dedicated "Highlight" button used to) — no click needed, and clicking it now
 		// would only collapse the already-open section.
 		await expect( overallToggle ).toHaveAttribute( 'aria-expanded', 'true', { timeout: 20000 } );
-		await expect( panel.getByText( /Loading highlights…/i ) ).toBeHidden( { timeout: 20000 } );
+		// The open section's own spinner covers its highlight and details requests alike.
+		await expect( panel.locator( '.turgenev-accordion-panel:not([hidden]) .turgenev-spinner' ) ).toBeHidden( { timeout: 20000 } );
 
 		// The provider mock returns one real `xhl` mark; confirm it actually rendered as a
 		// visible annotation in the editor, not just that the request succeeded silently.

@@ -42,7 +42,8 @@ final class SettingsPage {
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'addPage' ) );
 		add_action( 'admin_init', array( $this, 'registerSettings' ) );
-		add_filter( 'plugin_action_links_' . plugin_basename( TURGENEV_FILE ), array( $this, 'actionLinks' ) );
+		// Last of all, so the links WordPress and other plugins add to this row come first.
+		add_filter( 'plugin_action_links_' . plugin_basename( TURGENEV_FILE ), array( $this, 'actionLinks' ), PHP_INT_MAX );
 		add_filter( 'plugin_row_meta', array( $this, 'rowMeta' ), 10, 2 );
 	}
 
@@ -267,7 +268,7 @@ final class SettingsPage {
 	}
 
 	/**
-	 * Add a settings shortcut to the plugin row.
+	 * Add a settings shortcut to the end of the plugin row's actions.
 	 *
 	 * @param array<string, string> $links Plugin action links.
 	 * @return array<string, string>
@@ -279,7 +280,7 @@ final class SettingsPage {
 			esc_html__( 'Settings', 'turgenev' )
 		);
 
-		array_unshift( $links, $settings );
+		$links[] = $settings;
 		return $links;
 	}
 

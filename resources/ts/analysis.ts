@@ -766,15 +766,9 @@
 					);
 					container.append( loading );
 				} else {
-					if ( state.highlighting ) {
-						container.append(
-							node(
-								'p',
-								__( 'Loading highlights…', 'turgenev' ),
-								'turgenev-highlight-status'
-							)
-						);
-					}
+					// A section opened by its accordion button loads its highlights and details
+					// together behind that section's own "Loading…" spinner; a second status line
+					// above the accordion would only repeat it.
 					const result = node( 'div', '', 'turgenev-result-host' );
 					if ( state.result ) {
 						ui.renderResult(

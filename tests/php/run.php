@@ -35,6 +35,7 @@ function wp_unslash( $value ) { return $value; }
 function esc_html( $value ): string { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_html_e( string $text, string $domain = '' ): void { echo esc_html( $text ); }
 function esc_attr__( string $text, string $domain = '' ): string { return esc_html( $text ); }
+function esc_html__( string $text, string $domain = '' ): string { return esc_html( $text ); }
 function esc_url( string $url ): string { return esc_html( $url ); }
 function submit_button( ?string $text = null, string $type = 'primary', string $name = 'submit', bool $wrap = true ): void { echo ( $wrap ? '<p class="submit">' : '' ) . '<input type="submit" name="' . esc_html( $name ) . '" class="button button-' . esc_html( $type ) . '" value="' . esc_html( $text ?? 'Save Changes' ) . '" />' . ( $wrap ? '</p>' : '' ); }
 function settings_fields( string $group ): void { echo '<input type="hidden" name="option_page" value="' . esc_html( $group ) . '" />'; }
@@ -750,6 +751,13 @@ try {
 	$GLOBALS['turgenev_test_options']['turgenev'] = array();
 	$GLOBALS['turgenev_settings_errors']          = array();
 	$GLOBALS['turgenev_remote_post_calls']        = 0;
+	$row_actions = $settings->actionLinks(
+		array(
+			'deactivate'   => '<a href="plugins.php?action=deactivate">Deactivate</a>',
+			'plugin-check' => '<a href="tools.php?page=plugin-check">Check this plugin</a>',
+		)
+	);
+	expect_true( array( 'deactivate', 'plugin-check' ) === array_slice( array_keys( $row_actions ), 0, 2 ) && str_contains( (string) end( $row_actions ), 'options-general.php?page=turgenev-settings' ) && 3 === count( $row_actions ), 'the Settings link comes after every other action in the plugin row' );
 	$fresh_settings = new SettingsPage( new OptionStore() );
 	$first_pass     = $fresh_settings->sanitizeSettings( array( 'api_key' => 'fresh-working-key' ) );
 	$second_pass    = $fresh_settings->sanitizeSettings( $first_pass );

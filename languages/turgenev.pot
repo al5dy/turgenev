@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-25T08:10:25+02:00\n"
+"POT-Creation-Date: 2026-09-25T08:26:38+02:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: turgenev\n"
@@ -60,12 +60,12 @@ msgstr ""
 
 #: assets/build/analysis.js:524
 #: src/Admin/EditorIntegration.php:167
-#: src/Admin/SettingsPage.php:228
+#: src/Admin/SettingsPage.php:229
 msgid "Current balance:"
 msgstr ""
 
 #: assets/build/analysis.js:530
-#: src/Admin/SettingsPage.php:230
+#: src/Admin/SettingsPage.php:231
 msgid "Refresh balance"
 msgstr ""
 
@@ -93,10 +93,6 @@ msgstr ""
 
 #: assets/build/analysis.js:568
 msgid "Analyze document"
-msgstr ""
-
-#: assets/build/analysis.js:588
-msgid "Loading highlights…"
 msgstr ""
 
 #: assets/build/analysis.js:612
@@ -252,7 +248,7 @@ msgstr ""
 #: assets/build/editor.js:375
 #: turgenev.php
 #: src/Admin/EditorIntegration.php:143
-#: src/Admin/SettingsPage.php:53
+#: src/Admin/SettingsPage.php:54
 msgid "Turgenev"
 msgstr ""
 
@@ -282,73 +278,73 @@ msgstr ""
 msgid "Analyze content"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:52
+#: src/Admin/SettingsPage.php:53
 msgid "Turgenev Settings"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:74
+#: src/Admin/SettingsPage.php:75
 msgid "API connection"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:81
+#: src/Admin/SettingsPage.php:82
 msgid "API key"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:122
+#: src/Admin/SettingsPage.php:123
 msgid "Turgenev API key removed."
 msgstr ""
 
 #. translators: %s: current API balance.
-#: src/Admin/SettingsPage.php:150
+#: src/Admin/SettingsPage.php:151
 #, php-format
 msgid "API key verified and saved. Current balance: %s ₽."
 msgstr ""
 
 #. translators: %s: API validation error.
-#: src/Admin/SettingsPage.php:163
+#: src/Admin/SettingsPage.php:164
 #, php-format
 msgid "The new API key was not saved: %s"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:175
+#: src/Admin/SettingsPage.php:176
 msgid "The new API key could not be verified and was not saved. The previous key was kept."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:190
+#: src/Admin/SettingsPage.php:191
 msgid "Connect WordPress to the official Turgenev content-analysis API. The API key is stored server-side and is never exposed to editor JavaScript."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:199
+#: src/Admin/SettingsPage.php:200
 msgid "Save API key"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:202
+#: src/Admin/SettingsPage.php:203
 msgid "Delete API Key"
 msgstr ""
 
 #. translators: 1: opening link, 2: closing link.
-#: src/Admin/SettingsPage.php:217
+#: src/Admin/SettingsPage.php:218
 #, php-format
 msgid "Generate an API key in your %1$sTurgenev account%2$s. Turgenev is an external paid service; a content check is sent only when an editor explicitly starts an analysis."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:253
+#: src/Admin/SettingsPage.php:254
 msgid "Saved API key:"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:260
+#: src/Admin/SettingsPage.php:261
 msgid "Leave this field empty to keep the currently saved API key."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:262
+#: src/Admin/SettingsPage.php:263
 msgid "The key is verified with the balance endpoint before it is stored."
 msgstr ""
 
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:280
 msgid "Settings"
 msgstr ""
 
-#: src/Admin/SettingsPage.php:298
+#: src/Admin/SettingsPage.php:299
 msgid "Turgenev service"
 msgstr ""
 

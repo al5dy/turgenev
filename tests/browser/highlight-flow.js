@@ -167,7 +167,8 @@ async page => {
 
 	mode = 'delay';
 	await open( 1, false );
-	await page.getByText( 'Loading highlights…', { exact: true } ).waitFor();
+	await page.locator( '.turgenev-accordion-panel:not([hidden]) .turgenev-spinner' ).waitFor();
+	assert( ! await page.getByText( 'Loading highlights…' ).count(), 'A loading section shows only its own spinner, no separate highlight status line.' );
 	await reset().click();
 	release();
 	mode = 'success';
